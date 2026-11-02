@@ -153,5 +153,22 @@ const Sound = (() => {
     }
   }
 
-  return { toggle, isOn, stopAll, sfx };
+  // 브라우저에 내장된 한국어 음성으로 읽는다 (기내 방송용). 음성이 없는 브라우저에서는 조용히 넘어간다.
+  function speak(text) {
+    if (!('speechSynthesis' in window)) return;
+    const clean = text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').trim();
+    const utter = new SpeechSynthesisUtterance(clean);
+    utter.lang = 'ko-KR';
+    utter.rate = 0.95;
+    const voice = speechSynthesis.getVoices().find((v) => v.lang && v.lang.startsWith('ko'));
+    if (voice) utter.voice = voice;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utter);
+  }
+
+  function stopSpeaking() {
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  }
+
+  return { toggle, isOn, stopAll, sfx, speak, stopSpeaking };
 })();

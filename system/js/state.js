@@ -68,6 +68,7 @@ function defaultState() {
     deviceId: Math.random().toString(36).slice(2, 10),
     likedPosts: [],
     nickname: '',
+    voiceOn: true,  // 기내 방송 음성
   };
 }
 
