@@ -491,17 +491,18 @@ h3 { font-size: 16px; margin: 22px 0 10px; }
 }
 .announce p { margin: 0; line-height: 1.5; }
 
-.sound-panel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.sound-panel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; }
 .sound-panel button {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 12px 4px;
+  padding: 12px 2px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: #fff;
-  font-size: 13px;
+  font-size: 12px;
+  word-break: keep-all;
 }
 .sound-panel button span { font-size: 22px; }
 .sound-panel button.on { background: var(--ink); border-color: var(--ink); color: #fff; }

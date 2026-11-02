@@ -3,17 +3,10 @@ const Travel = (() => {
   const MIN_SECONDS = 10;
   const MAX_SECONDS = 24 * 3600 - 1;
   const STEP = { h: 3600, m: 60, s: 1 };
-  const ANNOUNCEMENTS = [
-    { at: 0, text: '이륙합니다! 좌석벨트를 매 주세요 💺' },
-    { at: 0.1, text: '순항 고도에 도달했어요. 창밖 구름을 구경해 보세요 ☁️' },
-    { at: 0.35, text: '기내식이 나왔어요! 우왕이가 맛있게 먹었어요 🍱' },
-    { at: 0.6, text: '기내 조명이 어두워졌어요. 음악을 켜고 쉬어 볼까요? 🎵' },
-    { at: 0.9, text: '곧 착륙합니다. 좌석을 바로 세워 주세요 🛬' },
-  ];
-
   const plan = { destId: DESTINATIONS[0].id, seconds: DESTINATIONS[0].minutes * 60 };
   let ticket = null; // 발권했지만 아직 타지 않은 탑승권
   let announceIndex = -1;
+  let announceFor = null;
   let cloudsFor = null;
   let cancelArmed = false;
 
@@ -43,6 +36,13 @@ const Travel = (() => {
       Sound.toggle(b.dataset.sound);
       syncSoundButtons();
     }));
+    $('#btn-voice').addEventListener('click', () => {
+      state.voiceOn = !state.voiceOn;
+      if (!state.voiceOn) Sound.stopSpeaking();
+      saveState();
+      syncSoundButtons();
+      toast(state.voiceOn ? '📢 기내 방송을 켰어요' : '기내 방송을 껐어요');
+    });
     $('#btn-cancel-flight').addEventListener('click', cancelFlight);
 
     $('#btn-arrival-tips').addEventListener('click', () => {
@@ -221,6 +221,35 @@ const Travel = (() => {
 
   function syncSoundButtons() {
     document.querySelectorAll('[data-sound]').forEach((b) => b.classList.toggle('on', Sound.isOn(b.dataset.sound)));
+    $('#btn-voice').classList.toggle('on', state.voiceOn);
+  }
+
+  // 기내 방송 목록. time: 이륙 후 몇 ms에 나오는지, voice: 음성으로 읽을지
+  function announcements(f) {
+    const d = destById(f.destId);
+    const total = f.duration;
+    const landIn = total >= 5 * 60000 ? '약 1분 후' : '잠시 후';
+    const list = [
+      { time: 0, text: '이륙합니다! 좌석벨트를 매 주세요 💺' },
+      {
+        time: Math.min(10000, total * 0.3),
+        voice: true,
+        notice: `${d.name}행 환영 방송`,
+        text: `승객 여러분, 안녕하십니까. 우왕에어 ${f.flightNo}편 ${d.name}행에 탑승해 주셔서 감사합니다. `
+          + `목적지까지 비행 시간은 ${durationText(Math.round(total / 1000))}입니다. 편안한 여행 되십시오.`,
+      },
+      { time: total * 0.35, long: true, text: '기내식이 나왔어요! 우왕이가 맛있게 먹었어요 🍱' },
+      { time: total * 0.6, long: true, text: '기내 조명이 어두워졌어요. 음악을 켜고 쉬어 볼까요? 🎵' },
+      {
+        time: Math.max(total - 60000, total * 0.8),
+        voice: true,
+        notice: `${landIn} ${d.name}에 착륙해요`,
+        text: `승객 여러분, 우리 비행기는 ${landIn} ${d.name} 공항에 착륙하겠습니다. `
+          + '좌석 등받이와 테이블을 제자리로 해 주시고, 좌석벨트를 매 주시기 바랍니다.',
+      },
+    ];
+    // 2분보다 짧은 비행은 방송이 겹치지 않게 기내식·조명 안내를 뺀다
+    return list.filter((a) => !a.long || total >= 2 * 60000).sort((a, b) => a.time - b.time);
   }
 
   function renderFlight() {
@@ -228,7 +257,6 @@ const Travel = (() => {
     if (cloudsFor !== f.start) {
       buildClouds();
       cloudsFor = f.start;
-      announceIndex = -1;
     }
     $('#to-code').textContent = destById(f.destId).code;
     $('#eta').textContent = `${f.flightNo} · 좌석 ${f.seat} · ${clockText(f.start + f.duration)} 도착 예정`;
@@ -242,23 +270,37 @@ const Travel = (() => {
     tick();
   }
 
-  // 1초마다 app.js에서 부른다
+  // 1초마다 app.js에서 부른다. 방송은 다른 탭에 있어도 나온다.
   function tick() {
     const f = state.flight;
-    if (!f || $('#travel-flight').hidden) return;
+    if (!f) return;
     const elapsed = Date.now() - f.start;
+
+    if (announceFor !== f.start) {
+      announceFor = f.start;
+      announceIndex = -1;
+    }
+    const list = announcements(f);
+    let index = 0;
+    list.forEach((a, i) => { if (elapsed >= a.time) index = i; });
+    if (index !== announceIndex) {
+      // 앱을 다시 열었을 때 이미 지난 방송은 다시 틀지 않는다
+      const live = announceIndex !== -1 || elapsed < 3000;
+      announceIndex = index;
+      const a = list[index];
+      $('#announce-text').textContent = a.text;
+      if (live) {
+        Sound.sfx('ding');
+        if (a.voice && state.voiceOn) setTimeout(() => Sound.speak(a.text), 900);
+        if (a.notice && $('#travel-flight').hidden) toast(`📢 기내 방송: ${a.notice}`);
+      }
+    }
+
+    if ($('#travel-flight').hidden) return;
     const progress = Math.min(1, elapsed / f.duration);
     $('#countdown').textContent = formatClock(Math.max(0, Math.ceil((f.duration - elapsed) / 1000)));
     $('#track-fill').style.width = `${progress * 100}%`;
     $('#plane').style.left = `${progress * 100}%`;
-
-    let index = 0;
-    ANNOUNCEMENTS.forEach((a, i) => { if (progress >= a.at) index = i; });
-    if (index !== announceIndex) {
-      if (announceIndex !== -1) Sound.sfx('ding');
-      announceIndex = index;
-      $('#announce-text').textContent = ANNOUNCEMENTS[index].text;
-    }
   }
 
   function cancelFlight() {
@@ -275,6 +317,7 @@ const Travel = (() => {
     state.flight = null;
     saveState();
     Sound.stopAll();
+    Sound.stopSpeaking();
     toast('회항했어요. 다음에 다시 떠나요!');
     render();
   }

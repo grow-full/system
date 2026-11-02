@@ -1,1 +1,2 @@
-.github/CODEOWNERS
+# 모든 파일의 코드 오너. main에 합치려면 이 사람의 승인이 필요하다.
+* @grow-full

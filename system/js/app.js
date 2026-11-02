@@ -83,7 +83,7 @@ let saveCounter = 0;
 setInterval(() => {
   simulate();
   if (state.flight && Date.now() - state.flight.start >= state.flight.duration) Travel.completeFlight();
-  if (currentTab === 'travel') Travel.tick();
+  Travel.tick();
   if (++saveCounter % 10 === 0) saveState();
 }, 1000);
 
