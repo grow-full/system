@@ -66,6 +66,20 @@ h3 { font-size: 16px; margin: 22px 0 10px; }
 .exp-bar { width: 90px; height: 7px; background: #f3e6d6; border-radius: 99px; overflow: hidden; }
 .exp-bar i { display: block; height: 100%; width: 0; background: #9b7bff; transition: width .4s; }
 .coins { background: #fff; border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; }
+.top-right { display: flex; align-items: center; gap: 8px; }
+.notify-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: .55;
+}
+.notify-btn.on { opacity: 1; border-color: #f0b44c; background: #fff6e2; }
 
 /* ---------- 공통 버튼 ---------- */
 .primary {

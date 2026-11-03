@@ -69,6 +69,7 @@ function defaultState() {
     likedPosts: [],
     nickname: '',
     voiceOn: true,  // 기내 방송 음성
+    notifyOn: false, // 돌봄 알림 (notify.js)
   };
 }
 
@@ -100,8 +101,8 @@ function saveState() {
 }
 
 function resetState() {
-  const { deviceId, likedPosts, nickname, forms } = state;
-  state = Object.assign(defaultState(), { deviceId, likedPosts, nickname, forms });
+  const { deviceId, likedPosts, nickname, forms, notifyOn } = state;
+  state = Object.assign(defaultState(), { deviceId, likedPosts, nickname, forms, notifyOn });
   saveState();
 }
 
