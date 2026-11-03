@@ -84,6 +84,7 @@ setInterval(() => {
   simulate();
   if (state.flight && Date.now() - state.flight.start >= state.flight.duration) Travel.completeFlight();
   Travel.tick();
+  Notify.tick();
   if (++saveCounter % 10 === 0) saveState();
 }, 1000);
 
@@ -96,6 +97,7 @@ Pet.init();
 Travel.init();
 Games.init();
 Community.init();
+Notify.init();
 show('pet');
 
 // 앱을 꺼 둔 사이에 도착했으면 바로 처리한다
