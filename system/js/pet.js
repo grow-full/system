@@ -361,14 +361,18 @@ const Pet = (() => {
   }
 
   function renderCollections() {
-    $('#wardrobe-count').textContent = `${state.outfits.length} / ${DESTINATIONS.length}`;
-    $('#wardrobe').innerHTML = DESTINATIONS.map((d) => {
-      const o = d.outfit;
-      if (!state.outfits.includes(d.id)) {
-        return `<button class="wear" disabled title="${d.name}에 가면 받아요"><span>❔</span>${d.name}</button>`;
+    // 여행지 의상 + 집중 모드 코스튬
+    const items = [
+      ...DESTINATIONS.map((d) => ({ id: d.id, outfit: d.outfit, locked: d.name, hint: `${d.name}에 가면 받아요` })),
+      ...FOCUS_COSTUMES.map((c) => ({ id: c.id, outfit: c, locked: `📚 ${c.hours}시간`, hint: `집중 모드로 ${c.hours}시간 모으면 받아요` })),
+    ];
+    $('#wardrobe-count').textContent = `${items.filter((it) => state.outfits.includes(it.id)).length} / ${items.length}`;
+    $('#wardrobe').innerHTML = items.map(({ id, outfit: o, locked, hint }) => {
+      if (!state.outfits.includes(id)) {
+        return `<button class="wear" disabled title="${hint}"><span>❔</span>${locked}</button>`;
       }
-      const on = state.equipped[o.slot] === d.id;
-      return `<button class="wear${on ? ' on' : ''}" data-wear="${d.id}"><span>${o.emoji}</span>${o.name}<small>${SLOT_NAMES[o.slot]}${on ? ' · 입는 중' : ''}</small></button>`;
+      const on = state.equipped[o.slot] === id;
+      return `<button class="wear${on ? ' on' : ''}" data-wear="${id}"><span>${o.emoji}</span>${o.name}<small>${SLOT_NAMES[o.slot]}${on ? ' · 입는 중' : ''}</small></button>`;
     }).join('');
 
     const keys = Object.keys(ADULT_FORMS);
