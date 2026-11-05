@@ -55,7 +55,8 @@ function defaultState() {
     exp: 0,
     coins: 20,
     lastTick: Date.now(),
-    flight: null,   // { destId, start, duration, flightNo, seat }
+    ticket: null,   // 발권했지만 아직 타지 않은 표 (요금은 발권할 때 낸다)
+    flight: null,   // { mode, transport, from, destId, start, duration, elapsed, flightNo, seat, seatClass, fare }
     arrival: null,  // 도착 화면을 아직 확인하지 않은 여행
     trips: 0,
     gamesPlayed: 0,
@@ -70,6 +71,7 @@ function defaultState() {
     nickname: '',
     voiceOn: true,  // 기내 방송 음성
     notifyOn: false, // 돌봄 알림 (notify.js)
+    focusTotal: 0,  // 집중 모드 누적 시간(초)
   };
 }
 
@@ -82,6 +84,10 @@ function loadState() {
       merged.pet.timers = Object.assign(defaultPet().timers, saved.pet && saved.pet.timers);
       merged.equipped = Object.assign(defaultState().equipped, saved.equipped);
       if (merged.pet.stage === 'adult' && !merged.pet.form) merged.pet.form = 'sturdy'; // 진화 기능 이전에 어른이 된 경우
+      // 교통수단·집중 모드 기능 이전에 출발한 비행은 인천발 일반 비행기로 본다
+      if (merged.flight && !merged.flight.transport) {
+        Object.assign(merged.flight, { mode: 'normal', transport: 'plane', from: 'ICN', seatClass: 'economy', fare: 0 });
+      }
       return merged;
     }
   } catch (e) {

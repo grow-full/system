@@ -68,7 +68,7 @@
         <div class="card collection-card">
           <div class="collection-head"><b>👗 옷장</b><small id="wardrobe-count"></small></div>
           <div class="wardrobe" id="wardrobe"></div>
-          <p class="collection-note">여행지에 처음 도착하면 그곳의 의상을 받아요. 누르면 입히고, 한 번 더 누르면 벗겨요. 머리·얼굴·목·손에 하나씩 입을 수 있어요.</p>
+          <p class="collection-note">여행지에 처음 도착하면 그곳의 의상을, 집중 모드 누적 시간이 쌓이면 공부 코스튬을 받아요. 누르면 입히고, 한 번 더 누르면 벗겨요. 머리·얼굴·목·손에 하나씩 입을 수 있어요.</p>
         </div>
 
         <div class="card collection-card">
@@ -96,9 +96,22 @@
       <section id="screen-travel" class="screen" hidden>
         <div id="travel-plan">
           <h2>여행 계획 ✈️</h2>
+          <div class="segmented mode-pick" id="mode-pick">
+            <button data-mode="normal"><span>🧳</span>일반 여행</button>
+            <button data-mode="focus"><span>📚</span>집중 모드</button>
+          </div>
+          <p class="sub mode-note" id="mode-note"></p>
+
           <div class="card form">
-            <label>출발</label>
-            <div class="fixed-field">인천 (ICN)</div>
+            <label>교통수단</label>
+            <div class="segmented transport-pick" id="transport-pick">
+              <button data-transport="plane"><span>✈️</span>비행기</button>
+              <button data-transport="ktx"><span>🚄</span>KTX</button>
+              <button data-transport="bus"><span>🚌</span>고속버스</button>
+              <button data-transport="ship"><span>⛴️</span>배</button>
+            </div>
+            <label for="from-select">출발</label>
+            <select id="from-select"></select>
             <label for="dest-select">도착</label>
             <select id="dest-select"></select>
             <div class="dest-info" id="dest-info"></div>
@@ -129,7 +142,7 @@
               </div>
             </div>
             <div class="presets">
-              <button data-preset="real" class="real">✈️ 실제 비행시간</button>
+              <button data-preset="real" class="real" id="preset-real">✈️ 실제 소요시간</button>
               <button data-preset="3600">1시간</button>
               <button data-preset="1800">30분</button>
               <button data-preset="600">10분</button>
@@ -137,7 +150,16 @@
             </div>
             <p class="timer-note" id="timer-note"></p>
           </div>
+
+          <h3>좌석 고르기</h3>
+          <div class="card">
+            <div class="segmented class-pick" id="class-pick"></div>
+            <div class="seatmap" id="seatmap"></div>
+            <div class="fare-box" id="fare-box"></div>
+          </div>
           <button class="primary" id="btn-issue">🎫 탑승권 발권하기</button>
+          <p class="sub center issue-note" id="issue-note"></p>
+          <p class="sub center focus-summary" id="focus-summary"></p>
 
           <h3>내 여권</h3>
           <div class="stamps" id="stamps"></div>
@@ -146,32 +168,36 @@
         </div>
 
         <div id="travel-ticket" hidden>
-          <h2>탑승권이 발권되었어요 🎫</h2>
+          <h2 id="ticket-title">탑승권이 발권되었어요 🎫</h2>
           <div class="ticket" id="ticket"></div>
           <button class="primary" id="btn-board">탑승하기 ✈️</button>
           <button class="ghost" id="btn-ticket-back">계획 다시 세우기</button>
         </div>
 
         <div id="travel-flight" hidden>
-          <div class="window"><div class="sky" id="sky"></div></div>
+          <div class="window" id="window"><div class="sky" id="sky"></div></div>
+          <div class="focus-panel" id="focus-panel">
+            <span class="focus-badge" id="focus-badge">📚 집중 중</span>
+            <p>이번에 집중한 시간 <b id="focus-elapsed">0초</b></p>
+          </div>
           <div class="countdown" id="countdown">00:00:00</div>
           <p class="eta" id="eta"></p>
           <div class="route">
-            <b>ICN</b>
+            <b id="from-code">ICN</b>
             <div class="track"><i id="track-fill"></i><span class="plane" id="plane">✈️</span></div>
             <b id="to-code">---</b>
           </div>
-          <div class="announce">
+          <div class="announce" id="announce">
             <div id="mascot-flight" class="mascot-wrap tiny"></div>
             <p id="announce-text"></p>
           </div>
-          <div class="sound-panel">
-            <button data-sound="cabin"><span>🛩️</span>기내 소음</button>
+          <div class="sound-panel" id="sound-panel">
+            <button data-sound="cabin"><span>🛩️</span><em id="noise-label">기내 소음</em></button>
             <button data-sound="rain"><span>🌧️</span>빗소리</button>
             <button data-sound="music"><span>🎵</span>잔잔한 음악</button>
-            <button id="btn-voice"><span>📢</span>기내 방송</button>
+            <button id="btn-voice"><span>📢</span><em id="voice-label">기내 방송</em></button>
           </div>
-          <p class="sub center">다른 탭을 쓰거나 앱을 닫아도 비행 시간은 계속 흘러가요.</p>
+          <p class="sub center" id="flight-note">다른 탭을 쓰거나 앱을 닫아도 시간은 계속 흘러가요.</p>
           <button class="ghost danger" id="btn-cancel-flight">회항하기 (여행 취소)</button>
         </div>
 
@@ -292,6 +318,10 @@
 
   <script src="js/data.js"></script>
   <script src="js/state.js"></script>
+  <script src="js/routes.js"></script>
+  <script src="js/seatmap.js"></script>
+  <script src="js/sky.js"></script>
+  <script src="js/focus.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/mascot.js"></script>
   <script src="js/pet.js"></script>

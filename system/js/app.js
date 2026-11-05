@@ -82,7 +82,8 @@ document.querySelectorAll('.tabbar button').forEach((b) => {
 let saveCounter = 0;
 setInterval(() => {
   simulate();
-  if (state.flight && Date.now() - state.flight.start >= state.flight.duration) Travel.completeFlight();
+  Focus.tick();
+  if (Travel.isDone()) Travel.completeFlight();
   Travel.tick();
   Notify.tick();
   if (++saveCounter % 10 === 0) saveState();
@@ -98,7 +99,9 @@ Travel.init();
 Games.init();
 Community.init();
 Notify.init();
-show('pet');
+Focus.init();
+// 집중 모드 중에 앱을 다시 열면 바로 집중 화면으로 간다
+show(state.flight && state.flight.mode === 'focus' ? 'travel' : 'pet');
 
 // 앱을 꺼 둔 사이에 도착했으면 바로 처리한다
-if (state.flight && Date.now() - state.flight.start >= state.flight.duration) Travel.completeFlight();
+if (Travel.isDone()) Travel.completeFlight();
