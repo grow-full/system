@@ -154,16 +154,24 @@ const Sound = (() => {
   }
 
   // 브라우저에 내장된 한국어 음성으로 읽는다 (기내 방송용). 음성이 없는 브라우저에서는 조용히 넘어간다.
-  function speak(text) {
-    if (!('speechSynthesis' in window)) return;
+  // 읽기 시작하면 true. onEnd는 다 읽었거나 중간에 끊겼을 때 한 번 불린다.
+  function speak(text, onEnd) {
+    if (!('speechSynthesis' in window)) return false;
     const clean = text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').trim();
     const utter = new SpeechSynthesisUtterance(clean);
     utter.lang = 'ko-KR';
     utter.rate = 0.95;
     const voice = speechSynthesis.getVoices().find((v) => v.lang && v.lang.startsWith('ko'));
     if (voice) utter.voice = voice;
+    if (onEnd) {
+      let done = false;
+      const finish = () => { if (!done) { done = true; onEnd(); } };
+      utter.onend = finish;
+      utter.onerror = finish;
+    }
     speechSynthesis.cancel();
     speechSynthesis.speak(utter);
+    return true;
   }
 
   function stopSpeaking() {

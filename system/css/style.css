@@ -473,9 +473,37 @@ h3 { font-size: 16px; margin: 22px 0 10px; }
   border-radius: 110px;
   box-shadow: inset 0 0 0 4px #cfc8bd, 0 8px 20px rgba(0, 0, 0, .12);
 }
-.sky { position: absolute; inset: 0; background: linear-gradient(#5aa9ff, #bfe3ff 70%, #fff3d6); }
-.cloud { position: absolute; left: 110%; animation: drift linear infinite; }
+.window.rail { width: 100%; max-width: 320px; height: 200px; border-radius: 22px; border-color: #dfe4ea; }
+.window.porthole { width: 240px; height: 240px; border-radius: 50%; border-color: #c8a46e; box-shadow: inset 0 0 0 4px #9c7a45, 0 8px 20px rgba(0, 0, 0, .12); }
+
+/* 창밖 하늘: 지금 시각에 따라 바뀐다 (sky.js) */
+.sky { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(#5aa9ff, #bfe3ff 70%, #fff3d6); transition: background 2s; }
+.sky.dawn { background: linear-gradient(#4b3f84, #d97fb0 60%, #ffd3a1); }
+.sky.day { background: linear-gradient(#5aa9ff, #bfe3ff 70%, #fff3d6); }
+.sky.sunset { background: linear-gradient(#3f4c8f, #f07b52 58%, #ffc46b); }
+.sky.night { background: linear-gradient(#070b24, #172150 70%, #2c3566); }
+.drift { position: absolute; left: 110%; animation: drift linear infinite; line-height: 1; }
 @keyframes drift { to { left: -70%; } }
+.sky.night .drift, .sky.night .sea { filter: brightness(.4) saturate(.6); }
+.sky.sunset .drift, .sky.dawn .drift { filter: brightness(.85) sepia(.25); }
+.stars { position: absolute; inset: 0; opacity: 0; transition: opacity 2s; }
+.stars i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px #fff; animation: twinkle 3s ease-in-out infinite; }
+@keyframes twinkle { 50% { opacity: .25; } }
+.sky.night .stars { opacity: 1; }
+.sky.dawn .stars { opacity: .35; }
+.sky .moon, .sky .sun { position: absolute; font-size: 34px; opacity: 0; transition: opacity 2s; }
+.sky .moon { right: 14%; top: 8%; }
+.sky .sun { left: 12%; bottom: 38%; }
+.sky.night .moon { opacity: 1; }
+.sky.sunset .sun { opacity: .9; }
+.ground { position: absolute; left: 0; right: 0; bottom: 0; height: 24%; background: linear-gradient(#8fce7a, #5da14d); }
+.sky.night .ground { background: linear-gradient(#1f3a2a, #12251a); }
+.sky.sunset .ground, .sky.dawn .ground { background: linear-gradient(#7a9a5a, #4e6e3c); }
+.scenery.far { opacity: .8; }
+.sea { position: absolute; left: 0; right: 0; bottom: 0; height: 38%; background: linear-gradient(#3d8fd8, #1d5fa3); }
+.sky.night .sea { background: linear-gradient(#0e2347, #08152c); }
+.waves { position: absolute; left: -10%; width: 120%; font-size: 26px; white-space: nowrap; letter-spacing: -6px; animation: bob 2.4s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translate(14px, -4px); } }
 
 .countdown {
   margin-top: 14px;
@@ -752,3 +780,77 @@ h3 { font-size: 16px; margin: 22px 0 10px; }
   transition: opacity .25s, transform .25s;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- 여행 계획: 모드·수단·좌석 ---------- */
+.segmented { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.segmented button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fffdf9;
+  font-size: 13px;
+  word-break: keep-all;
+}
+.segmented button span { font-size: 20px; }
+.segmented button small { font-size: 11px; color: var(--sub); }
+.segmented button.on { border-color: var(--primary); background: #fff1df; font-weight: 700; color: var(--primary-dark); }
+.mode-pick button { padding: 12px 4px; font-size: 14px; }
+.mode-note { margin: 8px 0 12px; }
+
+.class-pick { margin-bottom: 12px; }
+.seatmap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.seat-front { font-size: 12px; color: var(--sub); }
+.seat-car { font-size: 12px; font-weight: 700; color: var(--primary-dark); }
+.seat-grid { display: flex; flex-direction: column; gap: 5px; padding: 12px 10px; border: 2px solid var(--line); border-radius: 26px 26px 12px 12px; background: #fffdf9; }
+.seat-row { display: flex; justify-content: center; gap: 5px; }
+.seat-row .aisle { width: 16px; }
+.seat {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #d9c8b2;
+  border-radius: 8px 8px 5px 5px;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.seat.cabin { width: 46px; border-radius: 6px; }
+.seat.win { border-color: #7fb6e6; background: #eef6ff; }
+.seat.taken { border-color: #e6ddd2; background: #ece6de; color: #c4b8a8; cursor: not-allowed; }
+.seat.picked { border-color: var(--primary-dark); background: var(--primary); color: #fff; }
+.seat:not(.taken):not(.picked):hover { border-color: var(--primary); }
+.seat-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 10px; margin-top: 4px; font-size: 11px; color: var(--sub); }
+.seat-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.seat-legend .seat { width: 14px; height: 14px; border-radius: 4px; }
+
+.fare-box { display: flex; justify-content: space-between; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.fare-box small { display: block; font-size: 11px; color: var(--sub); }
+.fare-box b { font-size: 15px; }
+.fare-box .price { text-align: right; }
+.fare-box s { color: var(--sub); font-size: 13px; }
+.fare-box .free { color: #e84393; }
+.issue-note { margin-top: 8px; }
+.focus-summary { margin-top: 4px; font-weight: 600; color: var(--primary-dark); }
+.primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+/* ---------- 집중 모드 화면: 탈것과 시간만 ---------- */
+.focus-panel { margin-top: 14px; text-align: center; }
+.focus-panel p { margin: 8px 0 0; font-size: 14px; color: var(--sub); }
+.focus-badge { display: inline-block; padding: 6px 14px; border-radius: 99px; background: #e7f8ee; color: #1e8a4c; font-size: 13px; font-weight: 700; }
+.focus-badge.paused { background: #fff0e6; color: var(--primary-dark); animation: pulse 1.4s infinite; }
+body.focus-mode .topbar, body.focus-mode .tabbar { display: none; }
+body.focus-mode, body.focus-mode #app { background: #10142c; color: #f4f1ea; }
+body.focus-mode main { padding-top: 24px; }
+body.focus-mode .countdown { font-size: 54px; }
+body.focus-mode .track { background: #2e365c; }
+body.focus-mode .route b, body.focus-mode .focus-panel b { color: #fff; }
+body.focus-mode .focus-panel p, body.focus-mode .sub { color: #aab0cc; }
+body.focus-mode .ghost { background: transparent; border-color: #3a4270; color: #aab0cc; }
+.sound-panel em { font-style: normal; }

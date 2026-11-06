@@ -195,10 +195,11 @@ const Games = (() => {
   function makeQuestion(dest, type) {
     const others = DESTINATIONS.filter((d) => d.id !== dest.id);
     let text, answer, pool;
+    if (type === 'time' && !dest.minutes) type = 'food'; // 인천 기준 비행시간이 없는 국내 여행지
     if (type === 'time') {
       text = `인천에서 ${dest.icon} ${dest.name}까지 비행시간은 약 얼마일까요?`;
       answer = flightLabel(dest.minutes);
-      pool = others.map((d) => flightLabel(d.minutes));
+      pool = others.filter((d) => d.minutes).map((d) => flightLabel(d.minutes));
     } else if (type === 'country') {
       text = `${dest.icon} ${josa(dest.name, '은', '는')} 어느 나라에 있을까요?`;
       answer = dest.country;
