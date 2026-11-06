@@ -70,6 +70,8 @@ function defaultState() {
     nickname: '',
     voiceOn: true,  // 기내 방송 음성
     notifyOn: false, // 돌봄 알림 (notify.js)
+    walkStamps: {},  // 산책 도장: { 장소 이름: { first: 처음 간 시각, visits: 방문 횟수 } } (walk.js)
+    walkStampsDone: false, // 산책 도장을 다 모아서 보너스를 받았는지
   };
 }
 

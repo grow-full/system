@@ -644,6 +644,290 @@ h3 { font-size: 16px; margin: 22px 0 10px; }
 .post-actions .liked { border-color: #ff7aa2; background: #ffe3ea; }
 .empty { padding: 30px 0; color: var(--sub); text-align: center; }
 
+/* ---------- 산책 ---------- */
+/* 산책 전 체크 */
+.walk-check-card { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+.walk-check-pet { display: flex; justify-content: center; padding: 6px 0 2px; }
+.walk-check-pet .mascot-wrap { --size: 120px; }
+.walk-check-pet .mascot-wrap[data-stage="egg"] { --size: 100px; }
+.hearts.bored .on { filter: none; }
+.walk-check-verdict {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff1e5;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  word-break: keep-all;
+}
+.walk-check-verdict[data-level="stop"] { background: #ffe3e3; color: #b23a3a; }
+.walk-check-verdict[data-level="ok"] { background: #e7f6e9; color: #2f7a3d; }
+
+/* 출발 장소 고르기 */
+.walk-pick-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.walk-pick-list button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--ink);
+  text-align: left;
+}
+.walk-pick-list .pin { flex: none; font-size: 22px; filter: grayscale(1); opacity: .5; }
+.walk-pick-list .txt { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.walk-pick-list b { font-size: 15px; }
+.walk-pick-list small { overflow: hidden; color: var(--sub); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.walk-pick-list .check { flex: none; width: 22px; height: 22px; border: 2px solid var(--line); border-radius: 50%; }
+.walk-pick-list button[aria-checked="true"] { border-color: var(--primary); background: #fff6ee; }
+.walk-pick-list button[aria-checked="true"] .pin { filter: none; opacity: 1; }
+.walk-pick-list button[aria-checked="true"] .check { border: 7px solid var(--primary); }
+.walk-pick-list button:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.walk-stats { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 10px; padding: 10px 14px; text-align: center; }
+.walk-stats div { display: flex; flex: 1; flex-direction: column; align-items: center; gap: 2px; }
+.walk-stats small { font-size: 12px; color: var(--sub); }
+.walk-stats b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.walk-stats .hearts { font-size: 15px; letter-spacing: 0; line-height: 27px; }
+.walk-stats .hearts.up { animation: bounce .6s; }
+.walk-stage {
+  position: relative;
+  /* 걸음 수 칸과 하단 탭 바를 빼고 한 화면에 들어오게 해서 방향 버튼이 가려지지 않게 한다 */
+  height: calc(100vh - 330px);
+  height: calc(100dvh - 330px);
+  min-height: 300px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #dfeee0;
+}
+.walk-view { position: absolute; inset: 0; }
+/* 겹친 층은 터치를 지도로 넘기고, 우왕이만 누를 수 있다 */
+.walk-overlay { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; }
+.walk-walker { --size: 150px; position: absolute; top: 0; left: 0; display: flex; flex-direction: column; align-items: center; will-change: transform; }
+.walk-walker .mascot-wrap { --size: inherit; width: var(--size); height: var(--size); pointer-events: auto; cursor: pointer; }
+/* 발밑 그림자를 진하게 해서 바닥에 서 있는 느낌을 준다 */
+.walk-walker .mascot-wrap svg > ellipse:first-child { fill: rgba(0, 0, 0, .35); }
+/* 걸을 때는 통통 튀면서 좌우로 흔들린다 */
+.walk-walker[data-walking="true"] .mascot-inner { animation: walk-bob .35s ease-in-out infinite alternate; }
+@keyframes walk-bob { from { transform: translateY(0) rotate(-3deg); } to { transform: translateY(-8px) rotate(3deg); } }
+.walk-speech {
+  position: absolute;
+  bottom: 100%;
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.walk-speech:empty { display: none; }
+/* 장소를 옮길 때 화면이 하얗게 부드럽게 넘어간다 */
+.walk-fade { position: absolute; inset: 0; background: #fff; opacity: 0; transition: opacity .35s; pointer-events: none; }
+.walk-fade.on { opacity: 1; }
+.walk-music {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: #fff;
+  color: var(--sub);
+  font-size: 13px;
+  font-weight: 600;
+}
+.walk-music[aria-pressed="true"] { border-color: var(--primary); background: #fff1e5; color: var(--primary-dark); }
+/* 산책 도장 */
+.walk-stamps-card { margin-top: 12px; }
+.walk-stamps { display: grid; grid-template-columns: repeat(auto-fill, 60px); justify-content: space-between; gap: 8px 6px; }
+.walk-stamp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  aspect-ratio: 1;
+  padding: 4px;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  background: #fff6ee;
+  color: var(--primary-dark);
+  transform: rotate(-8deg);
+}
+.walk-stamp span { font-size: 18px; line-height: 1; }
+.walk-stamp small { max-width: 100%; overflow: hidden; font-size: 8px; font-weight: 800; white-space: nowrap; text-overflow: ellipsis; }
+.walk-stamp.locked { border: 2px dashed #d8ccbc; background: none; color: #c9bba8; transform: none; }
+.walk-stamp.locked span { font-size: 15px; font-weight: 800; }
+.walk-pick-list .visited { margin-left: 6px; font-size: 11px; font-style: normal; color: var(--primary-dark); }
+
+/* 도장을 받을 때 화면 가운데에 쾅 찍힌다 */
+.walk-stamp-pop {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 150px;
+  height: 150px;
+  border: 5px solid var(--primary);
+  border-radius: 50%;
+  background: rgba(255, 246, 238, .94);
+  box-shadow: 0 8px 24px rgba(59, 42, 26, .3);
+  color: var(--primary-dark);
+  text-align: center;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-10deg);
+}
+.walk-stamp-pop span { font-size: 44px; line-height: 1.1; }
+.walk-stamp-pop b { max-width: 120px; font-size: 15px; word-break: keep-all; }
+.walk-stamp-pop small { font-size: 12px; font-weight: 700; }
+.walk-stamp-pop.show { animation: stamp-in .45s cubic-bezier(.2, 1.6, .4, 1), stamp-out .4s ease-in 1.8s forwards; }
+@keyframes stamp-in { from { opacity: 0; transform: translate(-50%, -50%) rotate(-10deg) scale(2.2); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-10deg) scale(1); } }
+@keyframes stamp-out { to { opacity: 0; transform: translate(-50%, -50%) rotate(-10deg) scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .walk-stamp-pop.show { animation: none; } }
+
+/* 우왕이 위치 지도 */
+.walk-map-card { margin-top: 12px; }
+.walk-map-card .collection-head { margin-bottom: 10px; }
+.walk-minimap { height: 220px; overflow: hidden; border-radius: 14px; background: #e8efe4; }
+.map-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.map-pin span { font-size: 18px; line-height: 1; }
+.map-pin b {
+  margin-top: 1px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
+  color: var(--ink);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.map-pin:hover b, .map-pin:focus-visible b { background: var(--primary); color: #fff; }
+.map-me {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 4px rgba(255, 138, 61, .35), 0 2px 6px rgba(0, 0, 0, .3);
+  font-size: 18px;
+}
+.walk-go { margin-top: 12px; }
+.walk-rules { margin: 12px 0 0; }
+.walk-rules ul { margin-top: 8px; }
+.walk-rules li b { color: var(--ink); }
+.walk-next-coin {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #fff1e5;
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.walk-go .collection-head { margin-bottom: 0; }
+.walk-places { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.walk-places button {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: #fff;
+  font-size: 13px;
+  color: var(--ink);
+}
+.walk-places button small { font-size: 11px; color: var(--sub); }
+.walk-places button .ico { align-self: center; font-size: 16px; line-height: 1; }
+.walk-places button:disabled:not(.here) .ico { filter: grayscale(1); opacity: .5; }
+.walk-places button:not(:disabled):active { transform: scale(.96); }
+.walk-places button.here { border-color: var(--primary); background: #fff1e5; }
+.walk-places button.here small { color: var(--primary-dark); font-weight: 700; }
+.walk-place {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  max-width: calc(100% - 20px);
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, .9);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.walk-hint {
+  position: absolute;
+  top: 50%;
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: rgba(59, 42, 26, .8);
+  color: #fff;
+  font-size: 13px;
+  transform: translateY(-50%);
+}
+.walk-hint[data-side="left"] { left: 10px; }
+.walk-hint[data-side="right"] { right: 10px; }
+.walk-pad {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  display: grid;
+  grid-template: repeat(2, 44px) / repeat(3, 44px);
+  gap: 4px;
+}
+.walk-pad button {
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .85);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .2);
+  font-size: 16px;
+  color: var(--ink);
+}
+.walk-pad button:active { background: #fff; transform: scale(.94); }
+.walk-pad .up { grid-area: 1 / 2; }
+.walk-pad .left { grid-area: 2 / 1; }
+.walk-pad .down { grid-area: 2 / 2; }
+.walk-pad .right { grid-area: 2 / 3; }
+.walk-notice {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 24px;
+  color: var(--sub);
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+  word-break: keep-all;
+}
+
 /* ---------- 하단 탭 ---------- */
 .tabbar {
   position: fixed;

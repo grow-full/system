@@ -278,6 +278,95 @@
 
         <div id="post-list"></div>
       </section>
+
+      <!-- 산책 -->
+      <section id="screen-walk" class="screen" hidden>
+        <!-- 산책 전 체크: 건강과 심심한 정도를 보고 산책을 나간다 -->
+        <div id="walk-check">
+          <h2>산책 가기 전에 🩺</h2>
+          <p class="sub">우왕이 상태를 확인하고 산책을 나가요.</p>
+          <div class="card walk-check-card">
+            <div class="walk-check-pet"><div id="walk-check-mascot" class="mascot-wrap"></div></div>
+            <div class="hearts-row"><span>🩺 건강</span><b id="wc-health"></b></div>
+            <div class="hearts-row"><span>🍙 배고픔</span><span class="hearts" id="wc-hunger"></span></div>
+            <div class="hearts-row"><span>🥱 심심함</span><span class="hearts bored" id="wc-bored"></span></div>
+            <p class="walk-check-verdict" id="wc-verdict"></p>
+          </div>
+          <button class="primary" id="btn-walk-next">📍 출발 장소 고르기</button>
+          <button class="ghost" id="btn-walk-care" hidden>🐣 우왕이 돌보러 가기</button>
+        </div>
+
+        <!-- 출발 장소 고르기 -->
+        <div id="walk-pick" hidden>
+          <div class="game-top">
+            <button class="back" id="btn-walk-back">← 상태 체크</button>
+          </div>
+          <h2>어디서 출발할까요? 📍</h2>
+          <p class="sub">고른 곳에서 우왕이와 산책을 시작해요.</p>
+          <div class="walk-pick-list" id="wc-places" role="radiogroup" aria-label="산책 출발 장소"></div>
+          <button class="primary" id="btn-walk-start">🐾 <span id="wc-pick-name">솔못</span>에서 산책 나가기</button>
+        </div>
+
+        <div id="walk-main" hidden>
+        <h2>산책 🐾</h2>
+        <p class="sub">방향키(또는 오른쪽 아래 버튼)로 우왕이를 한 걸음씩 움직여요. 끝까지 멀리 간 뒤 ↑를 한 번 더 누르면 다음 장소를 찾아가요. 화면을 끌어서 둘러볼 수도 있어요.</p>
+        <div class="card walk-stats">
+          <div><small>🐾 걸음</small><b id="walk-steps">0</b></div>
+          <div><small>⏱ 산책 시간</small><b id="walk-time">00:00</b></div>
+          <div><small>💗 행복</small><span class="hearts" id="walk-happy"></span></div>
+        </div>
+        <button class="walk-music" id="btn-walk-music" aria-pressed="true"><span id="walk-music-icon">🎵</span> <span id="walk-music-label">배경음 켜짐</span></button>
+        <div class="walk-stage">
+          <div class="walk-view" id="walk-view"></div>
+          <div class="walk-overlay" id="walk-overlay">
+            <div class="walk-walker" id="walk-walker">
+              <div class="walk-speech" id="walk-speech"></div>
+              <div id="walk-mascot" class="mascot-wrap"></div>
+            </div>
+            <div class="walk-hint" id="walk-hint" hidden></div>
+            <div class="walk-place" id="walk-place" hidden></div>
+            <p class="walk-notice" id="walk-notice" hidden></p>
+            <div class="walk-fade" id="walk-fade"></div>
+            <div class="walk-stamp-pop" id="walk-stamp-pop" hidden></div>
+          </div>
+          <div class="walk-pad" id="walk-pad">
+            <button data-move="forward" class="up" aria-label="앞으로 한 걸음">▲</button>
+            <button data-move="left" class="left" aria-label="왼쪽으로 한 걸음">◀</button>
+            <button data-move="back" class="down" aria-label="뒤로 한 걸음">▼</button>
+            <button data-move="right" class="right" aria-label="오른쪽으로 한 걸음">▶</button>
+          </div>
+        </div>
+        <p class="sub center" id="walk-status"></p>
+        <div class="card walk-map-card" id="walk-map-card" hidden>
+          <div class="collection-head"><b>🗺️ 우왕이는 지금 여기</b><small>📍를 누르면 그곳으로 걸어가요</small></div>
+          <div class="walk-minimap" id="walk-minimap"></div>
+        </div>
+        <div class="card walk-go" hidden>
+          <div class="collection-head"><b>🧭 어디로 갈까요?</b><small>누르면 우왕이가 걸어가요</small></div>
+          <div class="walk-places" id="walk-places"></div>
+        </div>
+        <details class="card howto walk-rules" open>
+          <summary>🪙 산책 보상 규칙</summary>
+          <p class="walk-next-coin" id="walk-next-coin"></p>
+          <ul>
+            <li><b>산책 10분마다 🪙 코인 5개</b>를 받아요. 10분, 20분, 30분… 될 때마다 계속 받아요.</li>
+            <li><b>100걸음마다 💗 행복 하트 1개</b>가 올라요. 하트가 가득 차 있으면 더 오르지 않아요.</li>
+            <li>방향키로 한 번 걸으면 3걸음, 장소로 이동하면 걸은 거리만큼 걸음 수가 올라요.</li>
+            <li>산책 시간은 이 화면을 보고 있을 때만 흘러요. 다른 탭이나 상태 체크 화면에서는 멈춰요.</li>
+            <li>새로 출발하거나 <b>처음부터 다시 하기</b>를 누르면 시간과 걸음 수가 0부터 다시 시작해요.</li>
+            <li>받은 코인은 바로 저장되고, 우왕이 방에서 🍰 간식을 사는 데 쓸 수 있어요.</li>
+            <li>장소에 도착해서 <b>그곳에서 50걸음 이상 걸으면 🏅 도장</b>을 받아요. 처음 받는 도장이면 <b>🪙 코인 3개</b>도 받아요. 장소를 옮기며 늘어난 걸음은 세지 않아요. 모든 장소 도장을 모으면 <b>🪙 30개 보너스</b>!</li>
+          </ul>
+        </details>
+        <div class="card walk-stamps-card">
+          <div class="collection-head"><b>🏅 산책 도장</b><small id="walk-stamp-count"></small></div>
+          <div class="walk-stamps" id="walk-stamps"></div>
+          <p class="collection-note">장소에 가서 그곳에서 50걸음 이상 걸으면 도장을 받아요. 처음 받는 도장마다 🪙 3개, 모든 도장을 모으면 🪙 30개 보너스!</p>
+        </div>
+        <button class="ghost" id="btn-walk-reset">🔄 산책 처음부터 다시 하기</button>
+        <button class="ghost" id="btn-walk-end">🏠 산책 끝내기</button>
+        </div>
+      </section>
     </main>
 
     <nav class="tabbar">
@@ -285,6 +374,7 @@
       <button data-tab="travel"><span>✈️</span>여행</button>
       <button data-tab="games"><span>🎮</span>게임</button>
       <button data-tab="community"><span>💬</span>커뮤니티</button>
+      <button data-tab="walk"><span>🐾</span>산책</button>
     </nav>
 
     <div class="toast" id="toast"></div>
@@ -301,6 +391,9 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/community.js"></script>
   <script src="js/notify.js"></script>
+  <script src="js/maps-key.js"></script>
+  <script src="js/maps-config.js"></script>
+  <script src="js/walk.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

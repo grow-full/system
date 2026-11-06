@@ -1,7 +1,7 @@
 // 탭 전환, 공통 도구, 1초마다 도는 시계.
 const $ = (selector) => document.querySelector(selector);
 
-const TABS = ['pet', 'travel', 'games', 'community'];
+const TABS = ['pet', 'travel', 'games', 'community', 'walk'];
 let currentTab = 'pet';
 
 // ---------- 공통 ----------
@@ -16,6 +16,7 @@ function toast(message) {
 
 function show(tab) {
   if (currentTab === 'games' && tab !== 'games') Games.stop();
+  if (currentTab === 'walk' && tab !== 'walk') Walk.stop();   // 산책 배경음 끄기
   currentTab = tab;
   TABS.forEach((t) => { $(`#screen-${t}`).hidden = t !== tab; });
   document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
@@ -25,6 +26,7 @@ function show(tab) {
   if (tab === 'travel') Travel.render();
   if (tab === 'games') Games.render();
   if (tab === 'community') Community.render();
+  if (tab === 'walk') Walk.render();
   renderTop();
 }
 
@@ -98,6 +100,7 @@ Travel.init();
 Games.init();
 Community.init();
 Notify.init();
+Walk.init();
 show('pet');
 
 // 앱을 꺼 둔 사이에 도착했으면 바로 처리한다
