@@ -193,7 +193,8 @@
       <section id="screen-games" class="screen" hidden>
         <div id="games-hub">
           <h2>게임 🎮</h2>
-          <p class="sub">게임으로 코인과 경험치를 모아요. 50점 이상이면 우왕이 행복도 올라가요.</p>
+          <p class="sub">코인은 게임으로만 벌 수 있어요. 10점마다 🪙1, 50점 이상이면 우왕이 행복도 올라가요.</p>
+          <p class="earned">지금까지 게임으로 번 코인 🪙 <b id="games-earned">0</b></p>
           <div id="game-list"></div>
         </div>
 
@@ -233,6 +234,11 @@
               <p class="quiz-q" id="q-text"></p>
               <div class="quiz-options" id="q-options"></div>
             </div>
+          </div>
+
+          <div id="game-arcade" class="game-pane" hidden>
+            <div class="game-hud" id="a-hud"></div>
+            <div id="a-board"></div>
           </div>
         </div>
 
@@ -297,6 +303,7 @@
   <script src="js/pet.js"></script>
   <script src="js/travel.js"></script>
   <script src="js/minigame.js"></script>
+  <script src="js/arcade.js"></script>
   <script src="js/games.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/community.js"></script>

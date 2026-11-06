@@ -1,10 +1,17 @@
-// 게임 탭: 게임 목록과 짝 맞추기, 여행 퀴즈. 특산품 받기는 minigame.js.
+// 게임 탭: 게임 목록과 짝 맞추기, 여행 퀴즈. 특산품 받기는 minigame.js, 나머지 게임은 arcade.js.
+// 코인은 게임으로만 번다: 10점마다 🪙1.
 const Games = (() => {
   const LIST = [
     { id: 'catch', icon: '🧺', title: '특산품 받기', desc: '떨어지는 여행지 먹거리를 받아요. ⚡는 피하세요!' },
     { id: 'memory', icon: '🃏', title: '짝 맞추기', desc: '뒤집힌 카드 16장에서 같은 그림 8쌍을 찾아요.' },
     { id: 'quiz', icon: '❓', title: '여행 퀴즈', desc: '비행시간, 나라, 대표 먹거리를 맞혀요. 5문제!' },
+    { id: 'mole', icon: '🐻', title: '우왕이 잡기', desc: '구멍에서 나오는 우왕이를 톡! ⚡는 누르지 마세요. 30초', pane: 'arcade' },
+    { id: 'runner', icon: '🌵', title: '장애물 피하기', desc: '달리는 우왕이! 점프로 선인장을 피하고 ⭐을 모아요. 2단 점프 가능', pane: 'arcade' },
+    { id: 'simon', icon: '🔔', title: '기내 방송 따라하기', desc: '불이 켜진 순서를 기억해서 똑같이 눌러요.', pane: 'arcade' },
+    { id: 'exchange', icon: '💱', title: '환전소 계산', desc: '30초 동안 계산 문제를 최대한 많이 풀어요.', pane: 'arcade' },
   ];
+  const PANES = ['catch', 'memory', 'quiz', 'arcade'];
+  const COIN_PER_POINTS = 10;
   const QUIZ_COUNT = 5;
 
   let current = null;
@@ -21,6 +28,7 @@ const Games = (() => {
     if (current) return;
     $('#games-hub').hidden = false;
     $('#game-view').hidden = true;
+    $('#games-earned').textContent = state.coinsEarned;
     $('#game-list').innerHTML = LIST.map((g) => `
       <button class="game-card" data-game="${g.id}">
         <span class="gi">${g.icon}</span>
@@ -36,15 +44,19 @@ const Games = (() => {
     $('#games-hub').hidden = true;
     $('#game-view').hidden = false;
     $('#game-result').hidden = true;
-    $('#game-title').textContent = LIST.find((g) => g.id === id).title;
-    ['catch', 'memory', 'quiz'].forEach((g) => { $(`#game-${g}`).hidden = g !== id; });
+    const game = LIST.find((g) => g.id === id);
+    const pane = game.pane || id;
+    $('#game-title').textContent = game.title;
+    PANES.forEach((p) => { $(`#game-${p}`).hidden = p !== pane; });
     if (id === 'catch') showCatchIntro();
     if (id === 'memory') startMemory();
     if (id === 'quiz') startQuiz();
+    if (pane === 'arcade') Arcade.start(id, (score, detail) => finish(id, score, detail));
   }
 
   function stopRunning() {
     MiniGame.stop();
+    Arcade.stop();
     clearInterval(memoryTimer);
   }
 
@@ -57,13 +69,14 @@ const Games = (() => {
   }
 
   function finish(id, score, detail = '') {
-    const coins = Math.floor(score / 10);
+    const coins = Math.floor(score / COIN_PER_POINTS);
     const exp = Math.floor(score / 5);
     const isBest = score > (state.bestScores[id] || 0);
     const happy = score >= 50 && state.pet.stage !== 'egg';
     if (isBest) state.bestScores[id] = score;
     state.gamesPlayed++;
     state.coins += coins;
+    state.coinsEarned += coins;
     if (happy) addHearts('happy', 1);
     rewardExp(exp);
     saveState();
