@@ -72,6 +72,9 @@ function defaultState() {
     notifyOn: false, // 돌봄 알림 (notify.js)
     walkStamps: {},  // 산책 도장: { 장소 이름: { first: 처음 간 시각, visits: 방문 횟수 } } (walk.js)
     walkStampsDone: false, // 산책 도장을 다 모아서 보너스를 받았는지
+    walkHeadset: false,    // 산책할 때 우왕이가 헤드셋을 꼈는지
+    walkFriends: [],       // 산책에서 만나 인사한 친구 이름
+    walkFriendsDone: false, // 숨은 친구를 다 찾아 보너스를 받았는지
   };
 }
 

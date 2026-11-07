@@ -24,7 +24,24 @@ const Walk = (() => {
   let fade = null;
   let startId = null;         // 처음 연 장소 (다시 하기 때 돌아갈 곳)
 
+  // 장소 이름을 바꾸면 이미 받은 도장도 새 이름으로 옮긴다 (예전 이름: 새 이름)
+  const RENAMED_PLACES = { '개신문화관': '개신문화관&중앙도서관', '개신문화관 뒷문': '사범대 가는길', '자연대': '자연과학대학' };
+  function migrateStampNames() {
+    let changed = false;
+    for (const [from, to] of Object.entries(RENAMED_PLACES)) {
+      if (state.walkStamps[from] && !state.walkStamps[to]) {
+        state.walkStamps[to] = state.walkStamps[from];
+        changed = true;
+      }
+      if (state.walkStamps[from]) { delete state.walkStamps[from]; changed = true; }
+    }
+    if (changed) saveState();
+  }
+
   function init() {
+    migrateStampNames();
+    // 없어진 옷(예: 빠진 기본 옷)을 입고 있었다면 벗긴다
+    Object.keys(state.equipped).forEach((slot) => { if (state.equipped[slot] && !OUTFITS[state.equipped[slot]]) state.equipped[slot] = null; });
     view = $('#walk-view');
     overlay = $('#walk-overlay');
     walker = $('#walk-walker');
@@ -34,17 +51,26 @@ const Walk = (() => {
     notice = $('#walk-notice');
     fade = $('#walk-fade');
     mascot.addEventListener('click', tap);
+    $('#walk-friend').addEventListener('click', () => { if (canWalk()) greet(); });
     document.addEventListener('keydown', onKey);
     $('#walk-pad').addEventListener('click', (e) => {
       const b = e.target.closest('[data-move]');
       if (b) nudge(b.dataset.move);
     });
-    $('#btn-walk-reset').addEventListener('click', restart);
     $('#btn-walk-start').addEventListener('click', startWalk);
     $('#btn-walk-end').addEventListener('click', endWalk);
     $('#btn-walk-music').addEventListener('click', toggleMusic);
+    $('#btn-walk-headset').addEventListener('click', toggleHeadset);
+    $('#btn-walk-drink').addEventListener('click', drink);
     $('#btn-walk-next').addEventListener('click', () => { if (!blockReason()) setStep('pick'); });
     $('#btn-walk-back').addEventListener('click', () => setStep('check'));
+    $('#btn-walk-dress').addEventListener('click', () => { if (chosenName && !blockReason()) setStep('dress'); });
+    $('#btn-walk-dress-back').addEventListener('click', () => setStep('pick'));
+    $('#btn-walk-random').addEventListener('click', randomOutfit);
+    $('#wd-list').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-dress]');
+      if (b) dressUp(b.dataset.dress);
+    });
     $('#wc-places').addEventListener('click', (e) => {
       const b = e.target.closest('[data-start]');
       if (b) { chosenName = b.dataset.start; renderPick(); }
@@ -54,6 +80,13 @@ const Walk = (() => {
       const b = e.target.closest('[data-place]');
       if (b) goTo(Number(b.dataset.place));
     });
+    $('#walk-nav').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-nav]');
+      if (b && !b.disabled) setNav(b.dataset.nav);
+    });
+    setNav('map');
+    $('#btn-summary-again').addEventListener('click', () => setStep('check'));
+    $('#btn-summary-pet').addEventListener('click', () => window.show('pet'));
     setInterval(tick, 1000);
   }
 
@@ -71,12 +104,37 @@ const Walk = (() => {
     }
   }
 
-  function placeName() {
+  // 이름표에 없는 사진은 가장 가까운 이름 있는 장소를 따서 "○○ 근처"라고 부른다.
+  // 구글 설명은 쓰지 않는다 (사진을 올린 사람 이름이 들어 있을 때가 있어서).
+  const NEAR_METERS = 150;   // 이보다 멀면 "캠퍼스 어딘가"
+
+  function exactName() {
     const id = plainId(pano.getPano());
     const names = typeof WALK_PLACES === 'undefined' ? {} : WALK_PLACES;
     for (const key in names) if (plainId(key) === id) return names[key];
-    // 이름표에 없는 장소는 구글 설명을 쓰지 않는다 (사진을 올린 사람 이름이 들어 있을 때가 있어서)
-    return '이름 없는 장소';
+    return '';
+  }
+
+  function nearName() {
+    if (!pano || !places.length || !spherical) return '';
+    let best = null;
+    for (const p of places) {
+      const s = nearestSpot(p);
+      if (s && (!best || s.meters < best.meters)) best = { name: p.name, meters: s.meters };
+    }
+    return best && best.meters <= NEAR_METERS ? best.name : '';
+  }
+
+  // 감상, 배경음, 아이콘을 고를 때 쓰는 이름 (근처 장소면 그 장소 것을 빌려 쓴다)
+  function moodName() {
+    return exactName() || nearName();
+  }
+
+  function placeName() {
+    const exact = exactName();
+    if (exact) return exact;
+    const near = nearName();
+    return near ? `${near} 근처` : '캠퍼스 어딘가';
   }
 
   // 지금 장소에 대한 우왕이의 감상 하나 (바로 전에 한 말은 피한다)
@@ -85,7 +143,9 @@ const Walk = (() => {
   function placeComment() {
     const all = typeof WALK_COMMENTS === 'undefined' ? {} : WALK_COMMENTS;
     const fallback = typeof WALK_COMMENTS_DEFAULT === 'undefined' ? PHRASES : WALK_COMMENTS_DEFAULT;
-    const lines = (pano && all[placeName()]) || fallback;
+    const timely = inWalk ? timeComment() : '';
+    if (timely && timely !== lastComment) { lastComment = timely; return timely; }
+    const lines = (pano && all[moodName()]) || fallback;
     const choices = lines.length > 1 ? lines.filter((l) => l !== lastComment) : lines;
     lastComment = choices[Math.floor(Math.random() * choices.length)];
     return lastComment;
@@ -143,6 +203,25 @@ const Walk = (() => {
     await leaveBlockedStart();
     initMinimap();
     renderStamps();   // 뺀 사람 사진을 거른 뒤의 장소 목록으로 다시 그린다
+    renderPlace();    // 이름표 없는 곳이면 "○○ 근처"로 다시 쓴다
+    updateMusic();
+  }
+
+  // ---------- 지도 / 목록 바꿔 보기 ----------
+  // 지도가 준비되기 전(또는 못 불러오면)에는 목록으로 보여 준다
+  let navView = 'map';
+  let mapReady = false;
+
+  function setNav(view) {
+    navView = view;
+    const show = mapReady ? view : 'list';
+    $('#walk-minimap').hidden = show !== 'map';
+    $('#walk-places').hidden = show !== 'list';
+    $('#walk-nav-map').disabled = !mapReady;
+    ['map', 'list'].forEach((v) => $(`#walk-nav-${v}`).setAttribute('aria-selected', show === v));
+    $('#walk-nav-help').textContent = show === 'map'
+      ? '📍를 누르면 우왕이가 그곳으로 걸어가요'
+      : '가까운 순서예요. 누르면 우왕이가 걸어가요';
   }
 
   // ---------- 우왕이 위치 지도 ----------
@@ -154,7 +233,8 @@ const Walk = (() => {
     if (minimap || !pano) return;
     const { Map: GoogleMap } = await google.maps.importLibrary('maps');
     const { AdvancedMarkerElement } = await google.maps.importLibrary('marker');
-    $('#walk-map-card').hidden = false;
+    mapReady = true;
+    setNav(navView);
     minimap = new GoogleMap($('#walk-minimap'), {
       mapId: 'DEMO_MAP_ID',          // 그림 마커(AdvancedMarker)를 쓰려면 필요하다
       center: pano.getPosition(),
@@ -201,11 +281,12 @@ const Walk = (() => {
   }
 
   // ---------- 보여 주지 않을 사람의 사진 ----------
-  // 구글이 사진마다 붙이는 저작권 표시(올린 사람 이름)에 WALK_BLOCKED_AUTHORS의 이름이 있으면 뺀다
+  // WALK_BLOCKED_PANOS에 있는 사진, 또는 저작권 표시(올린 사람 이름)에 WALK_BLOCKED_AUTHORS의 이름이 있는 사진은 뺀다
   function isBlocked(data) {
     const authors = typeof WALK_BLOCKED_AUTHORS === 'undefined' ? [] : WALK_BLOCKED_AUTHORS;
+    const panos = typeof WALK_BLOCKED_PANOS === 'undefined' ? [] : WALK_BLOCKED_PANOS;
     const credit = (data && data.copyright) || '';
-    return authors.some((name) => credit.includes(name));
+    return panos.includes(data && data.location && data.location.pano) || authors.some((name) => credit.includes(name));
   }
 
   // 지금(처음) 장소가 뺀 사람의 사진이면 가장 가까운 다른 장소로 옮긴다
@@ -311,24 +392,6 @@ const Walk = (() => {
       };
       requestAnimationFrame(step);
     });
-  }
-
-  // ---------- 처음부터 다시 ----------
-  function restart() {
-    steps = 0;
-    walkSeconds = 0;
-    heartProgress = 0;
-    lastMove = Date.now();
-    if (pano) {
-      pano.setPano(startId || WALK_PANO_ID);
-      pano.setPov({ heading: 0, pitch: 0 });
-      pano.setZoom(1);
-      heading = target = 0;
-      depth = targetDepth = 0;
-    }
-    renderStats();
-    say('처음 자리로 돌아왔어요! 다시 걸어 볼까요? 🐾', 2200);
-    toast('산책을 처음부터 다시 시작해요');
   }
 
   // ---------- 지도 불러오기 ----------
@@ -508,6 +571,99 @@ const Walk = (() => {
     hint.hidden = !off;
     if (off) hint.textContent = off === 'left' ? '← 우왕이는 이쪽에 있어요' : '우왕이는 이쪽에 있어요 →';
     hint.dataset.side = off;
+
+    // 친구도 같은 방식으로 장소 안의 방향에 세운다
+    const fEl = $('#walk-friend');
+    if (!friend || away || walkingAway) { fEl.hidden = true; return; }
+    const fSize = BASE_SIZE * 2 ** (zoom - 1) * (1 - 0.7 * FRIEND_DEPTH) * 0.75;
+    const fx = w / 2 + wrap(friendHeading - pov.heading) * pxPerDeg;
+    const fy = h * (FOOT_AT + (HORIZON_AT - FOOT_AT) * FRIEND_DEPTH);
+    fEl.style.setProperty('--fsize', `${fSize}px`);
+    fEl.style.transform = `translate(${fx - fSize / 2}px, ${fy - fSize}px)`;
+    fEl.style.zIndex = depth > FRIEND_DEPTH ? 3 : 1;   // 우왕이가 친구보다 멀리 가면 친구가 앞에 보인다
+    fEl.hidden = fx < -fSize || fx > w + fSize;
+  }
+
+  // ---------- 우왕이 친구 ----------
+  // 몇몇 장소에는 친구가 산다 (maps-config.js의 WALK_FRIENDS). 우왕이가 가까이 가면 서로 인사한다.
+  const FRIEND_DEPTH = 0.25;   // 친구가 서 있는 거리 (우왕이 바로 앞보다 조금 멀리)
+  const MEET_DEG = 9;          // 이만큼 가까워지면 만난 것으로 본다 (방향)
+  const MEET_DEPTH = 0.22;     // (거리)
+  let friend = null;
+  let friendHeading = 0;
+  let friendMet = false;       // 이번 방문에서 인사를 나눴는지
+  let greeting = false;
+
+  // 장소에 도착했을 때 그 장소의 친구를 세운다
+  function setFriend(name) {
+    const all = typeof WALK_FRIENDS === 'undefined' ? {} : WALK_FRIENDS;
+    friend = (name && all[name]) || null;
+    friendMet = false;
+    $('#walk-friend-speech').textContent = '';
+    if (!friend) { $('#walk-friend').hidden = true; return; }
+    friendHeading = wrap(pano.getPov().heading + (friend.offset || 25));
+    const art = typeof FRIEND_ART === 'undefined' ? {} : FRIEND_ART;
+    const body = $('#walk-friend-body');
+    if (friend.image) body.innerHTML = `<img src="${friend.image}" alt="">`;   // 그림 파일이 있으면 그걸 쓴다
+    else if (art[friend.art]) body.innerHTML = art[friend.art];
+    else body.textContent = friend.emoji || '🙂';
+    $('#walk-friend-name').textContent = friend.name;
+    $('#walk-friend').setAttribute('aria-label', `${friend.name}에게 인사하기`);
+  }
+
+  // 우왕이가 친구 가까이 왔는지 (loop에서 매 프레임)
+  function checkMeet() {
+    if (!friend || friendMet || greeting || walkingAway || !canWalk()) return;
+    if (Math.abs(wrap(heading - friendHeading)) < MEET_DEG && Math.abs(depth - FRIEND_DEPTH) < MEET_DEPTH) greet();
+  }
+
+  async function greet() {
+    if (!friend || greeting) return;
+    greeting = true;
+    friendMet = true;
+    const f = friend;
+    if (session && !session.friends.includes(f.name)) session.friends.push(f.name);
+    if (!state.walkFriends.includes(f.name)) {
+      // 처음 만난 친구: 코인, 다 찾으면 보너스 (보너스는 한 번만)
+      state.walkFriends.push(f.name);
+      state.coins += FRIEND_COINS;
+      if (session) session.coins += FRIEND_COINS;
+      const list = friendList();
+      const got = list.filter((x) => state.walkFriends.includes(x.name)).length;
+      const allDone = !state.walkFriendsDone && list.length > 0 && got >= list.length;
+      if (allDone) {
+        state.walkFriendsDone = true;
+        state.coins += FRIEND_ALL_BONUS;
+        if (session) session.coins += FRIEND_ALL_BONUS;
+      }
+      saveState();
+      renderTop();
+      renderFriendHint();
+      setTimeout(() => toast(`🤝 ${f.name}를 찾았어요! 🪙 +${FRIEND_COINS} (${got}/${list.length})`), 1700);
+      if (allDone) {
+        setTimeout(() => {
+          Sound.sfx('levelup');
+          toast(`🎉 숨어 있던 친구 ${list.length}명을 모두 찾았어요! 보너스 🪙 +${FRIEND_ALL_BONUS}`);
+        }, 4400);
+      }
+    }
+    const fEl = $('#walk-friend');
+    const fSpeech = $('#walk-friend-speech');
+    // 우왕이가 친구 쪽을 바라본다
+    setMascot(mascot, { look: wrap(friendHeading - heading) < 0 ? 'left' : 'right' });
+    fSpeech.textContent = f.hello;
+    fEl.classList.remove('hop');
+    void fEl.offsetWidth;
+    fEl.classList.add('hop');
+    Sound.sfx('ding');
+    await wait(1700);
+    if (friend !== f) { greeting = false; return; }   // 그새 다른 장소로 갔으면 그만
+    say(f.reply, 2400);
+    playMascot(mascot, 'joy', 600);
+    await wait(2400);
+    fSpeech.textContent = '';
+    fEl.classList.remove('hop');
+    greeting = false;
   }
 
   // 부드럽게 걸어가기
@@ -531,6 +687,7 @@ const Walk = (() => {
         if (Math.abs(off) > fov * 0.3) pano.setPov({ heading: wrap(pov.heading + Math.sign(off) * 0.4), pitch: pov.pitch });
       }
       walker.dataset.walking = turning || stepping || walkingAway;
+      checkMeet();
       place();
       frame = requestAnimationFrame(step);
     };
@@ -556,12 +713,20 @@ const Walk = (() => {
   function addSteps(meters) {
     const added = Math.max(1, Math.round(meters / METERS_PER_STEP));
     steps += added;
-    heartProgress += added;
+    addHeartProgress(added);
+    checkThirst();
+    return added;
+  }
+
+  // 하트까지 모은 걸음을 더하고, 다 차면 행복 하트를 준다
+  function addHeartProgress(amount) {
+    heartProgress += amount;
     let gained = 0;
     while (heartProgress >= STEPS_PER_HEART) {
       heartProgress -= STEPS_PER_HEART;
       if (state.pet.happy < MAX_HEARTS) { addHearts('happy', 1); gained++; }
     }
+    if (gained && session) session.hearts += gained;
     if (gained) {
       saveState();
       Sound.sfx('levelup');
@@ -572,17 +737,98 @@ const Walk = (() => {
       el.classList.add('up');
     }
     renderStats();
-    return added;
+  }
+
+  // ---------- 물 마시기 ----------
+  // 80걸음쯤 걸으면 목이 마르다. 목마를 때 마시면 다음 하트까지 30걸음 당겨 준다.
+  const THIRST_STEPS = 80;
+  const DRINK_BONUS = 30;
+  let drankAt = 0;          // 마지막으로 물 마셨을 때의 걸음 수
+  let thirsty = false;
+  let drinking = false;
+
+  function checkThirst() {
+    if (thirsty || steps - drankAt < THIRST_STEPS) return;
+    thirsty = true;
+    renderDrink();
+    say('목말라요… 물 마시고 싶어요 💧', 2600);
+  }
+
+  function renderDrink() {
+    const btn = $('#btn-walk-drink');
+    btn.classList.toggle('thirsty', thirsty);
+    $('#walk-drink-label').textContent = thirsty ? '목말라요!' : '물 마시기';
+  }
+
+  function drink() {
+    if (!inWalk || drinking || !canWalk()) return;
+    drinking = true;
+    // 컵은 우왕이 그림 안에 넣어서, 몸이 흔들려도 입에 딱 붙어 있게 한다
+    const inner = mascot.querySelector('.mascot-inner') || mascot;
+    let cup = inner.querySelector('.walk-cup');
+    if (!cup) {
+      cup = document.createElement('span');
+      cup.className = 'walk-cup';
+      cup.setAttribute('aria-hidden', 'true');
+      cup.innerHTML = TUMBLER_SVG;
+      inner.appendChild(cup);
+    }
+    cup.classList.remove('show');
+    void cup.offsetWidth;
+    cup.classList.add('show');
+    playMascot(mascot, 'eat', 1300).then(() => playMascot(mascot, 'joy', 600));   // 입을 벌리고 꿀꺽꿀꺽
+    setTimeout(() => Sound.sfx('gulp'), 450);
+    if (thirsty) {
+      thirsty = false;
+      drankAt = steps;
+      if (session) session.drinks++;
+      say(pickOne(['꿀꺽꿀꺽… 캬, 시원해요! 💧', '물 마시니까 힘이 나요 💪', '살 것 같아요! 고마워요 😊']), 2400);
+      addHeartProgress(DRINK_BONUS);
+    } else {
+      say(pickOne(['홀짝… 아직 목은 안 말라요 😋', '조금만 마실게요, 더 걸어요! 🐾']), 2000);
+    }
+    renderDrink();
+    setTimeout(() => { drinking = false; }, 1900);
+  }
+
+  // 텀블러 그림: 뚜껑 왼쪽의 마시는 구멍이 우왕이 입에 닿는다
+  const TUMBLER_SVG = '<svg viewBox="0 0 26 48">'
+    + '<path d="M2.5 10 H23.5 L22 44 Q21.8 46.5 19 46.5 H7 Q4.2 46.5 4 44 Z" fill="#7cc4c0" stroke="#4f8f8b" stroke-width="1.5" stroke-linejoin="round"/>'
+    + '<path d="M3.3 22 H22.7 L22.45 28 H3.55 Z" fill="#5fa9a5"/>'
+    + '<path d="M6.5 13 L7.4 41" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".55"/>'
+    + '<rect x="1" y="3" width="24" height="7.5" rx="2.5" fill="#f6f2ec" stroke="#8a7f74" stroke-width="1.5"/>'
+    + '<rect x="3" y="0.8" width="7" height="3.2" rx="1.3" fill="#e4ddd3" stroke="#8a7f74" stroke-width="1.2"/>'
+    + '</svg>';
+
+  // 다음 코인·하트·도장까지 남은 양을 막대로 보여 준다
+  function renderNext() {
+    const bar = (id, done, total) => { $(id).style.width = `${Math.min(100, Math.round((done / total) * 100))}%`; };
+
+    const coinDone = walkSeconds % WALK_COIN_SECONDS;
+    const left = WALK_COIN_SECONDS - coinDone;
+    const min = Math.floor(left / 60);
+    const sec = left % 60;
+    $('#wn-coin-left').textContent = min ? `${min}분 ${sec}초 남음` : `${sec}초 남음`;
+    bar('#wn-coin-bar', coinDone, WALK_COIN_SECONDS);
+
+    const full = state.pet.happy >= MAX_HEARTS;
+    $('#wn-heart').classList.toggle('full', full);
+    $('#wn-heart-left').textContent = full ? '행복 가득!' : `${STEPS_PER_HEART - heartProgress}걸음 남음`;
+    bar('#wn-heart-bar', full ? 1 : heartProgress, full ? 1 : STEPS_PER_HEART);
+
+    // 도장은 이름 있는 장소에서 아직 안 받았을 때만 보여 준다
+    const stampLeft = stampStepsLeft();
+    $('#wn-stamp').hidden = stampLeft <= 0;
+    if (stampLeft > 0) {
+      $('#wn-stamp-label').textContent = `${hereName} 도장`;
+      $('#wn-stamp-left').textContent = `${stampLeft}걸음 남음`;
+      bar('#wn-stamp-bar', STAMP_STEPS - stampLeft, STAMP_STEPS);
+    }
   }
 
   function renderStats() {
     $('#walk-steps').textContent = steps.toLocaleString();
-    // 다음 코인·하트까지 남은 양
-    const left = WALK_COIN_SECONDS - (walkSeconds % WALK_COIN_SECONDS);
-    const toHeart = STEPS_PER_HEART - heartProgress;
-    const stampLeft = stampStepsLeft();
-    $("#walk-next-coin").textContent = `다음 🪙 코인까지 ${Math.floor(left / 60)}분 ${String(left % 60).padStart(2, "0")}초 · 다음 💗 하트까지 ${toHeart}걸음`
-      + (stampLeft > 0 ? ` · 🏅 도장까지 ${stampLeft}걸음` : "");
+    renderNext();
     const m = Math.floor(walkSeconds / 60);
     const s = walkSeconds % 60;
     $('#walk-time').textContent = m >= 60
@@ -602,6 +848,7 @@ const Walk = (() => {
       // 산책 10분마다 코인 5개
       if (walkSeconds % WALK_COIN_SECONDS === 0) {
         state.coins += WALK_COIN_REWARD;
+        if (session) session.coins += WALK_COIN_REWARD;
         saveState();
         renderTop();
         Sound.sfx('levelup');
@@ -639,8 +886,9 @@ const Walk = (() => {
       setMascot(mascot, { look: '', anim: '' });
       mountedStage = pet.stage;
     }
-    dressMascot(mascot);
+    dressMascot(mascot, true);
     setMascot(mascot, { mood: pet.sick ? 'sad' : pet.happy >= 3 ? 'happy' : 'normal', sleep: false, sick: pet.sick });
+    renderHeadset();
 
     let status = '';
     if (pet.stage === 'egg') status = '알에서 태어나면 같이 산책할 수 있어요 🥚';
@@ -649,6 +897,7 @@ const Walk = (() => {
     $('#walk-status').textContent = status;
     renderStats();
     renderPlace();
+    applyTime();   // 실제 시계에 맞춰 아침·낮·저녁·밤 색
 
     // 가만히 있을 때도 가끔 이 장소 이야기를 한다
     if (Date.now() > speechUntil) {
@@ -676,7 +925,7 @@ const Walk = (() => {
     const pet = state.pet;
     const box = $('#walk-check-mascot');
     if (checkStage !== pet.stage) { mountMascot(box, pet.stage); checkStage = pet.stage; }
-    dressMascot(box);
+    dressMascot(box, true);
     setMascot(box, { mood: pet.sick || pet.hunger === 0 || pet.happy === 0 ? 'sad' : pet.happy >= 3 ? 'happy' : 'normal', sleep: false, sick: pet.sick });
 
     const bored = MAX_HEARTS - pet.happy;   // 행복이 낮을수록 심심하다
@@ -703,14 +952,18 @@ const Walk = (() => {
     $('#btn-walk-care').hidden = !(pet.sick || pet.hunger === 0);
   }
 
-  // 산책 탭 안의 단계: 'check'(상태 체크) → 'pick'(출발 장소 고르기) → 'walk'(산책)
+  // 산책 탭 안의 단계: 'check'(상태 체크) → 'pick'(출발 장소) → 'dress'(옷 입기) → 'walk'(산책)
   function setStep(step) {
     inWalk = step === 'walk';
     $('#walk-check').hidden = step !== 'check';
     $('#walk-pick').hidden = step !== 'pick';
+    $('#walk-dress').hidden = step !== 'dress';
+    $('#walk-summary').hidden = step !== 'summary';
     $('#walk-main').hidden = step !== 'walk';
     if (step === 'check') renderCheck();
     if (step === 'pick') renderPick();
+    if (step === 'dress') { renderDress(); sayDress('오늘은 뭐 입고 나갈까요? 👕'); }
+    renderFriendHint();
     if (step === 'walk') renderStamps();
     window.scrollTo(0, 0);
     updateMusic();
@@ -747,28 +1000,265 @@ const Walk = (() => {
       chosenName = (startKey && list.includes(names[startKey]) ? names[startKey] : list[0]) || '';
     }
     const comments = typeof WALK_COMMENTS === 'undefined' ? {} : WALK_COMMENTS;
+    // 두 칸 바둑판: 아이콘과 이름만 (감상 한 줄은 고른 장소만 아래 막대에)
     $('#wc-places').innerHTML = list.map((name) => {
       const on = name === chosenName;
-      const line = (comments[name] && comments[name][0]) || '우왕이와 걸어 볼까요?';
+      const visited = state.walkStamps[name] ? '<em class="visited" title="도장 받은 곳">🏅</em>' : '';
       return `<button role="radio" aria-checked="${on}" data-start="${name}">`
-        + `<span class="pin">${placeIcon(name)}</span><span class="txt"><b>${name}${state.walkStamps[name] ? " <em class=\"visited\">🏅 방문</em>" : ""}</b><small>${line}</small></span><span class="check"></span></button>`;
+        + `<span class="pin">${placeIcon(name)}</span><b>${name}</b>${visited}</button>`;
     }).join('');
+    const line = (comments[chosenName] && comments[chosenName][0]) || '우왕이와 걸어 볼까요?';
+    $('#wc-pick-line').textContent = chosenName ? `${placeIcon(chosenName)} ${chosenName} · ${line}` : '';
     $('#wc-pick-name').textContent = chosenName;
+    $('#btn-walk-dress').disabled = !chosenName || Boolean(blockReason());
+  }
+
+  // ---------- 숨은 친구 안내 ----------
+  // 어디에 있는지는 알려 주지 않고, 몇 명이 숨어 있고 몇 명을 만났는지만 보여 준다.
+  const FRIEND_COINS = 2;        // 친구를 처음 만나면
+  const FRIEND_ALL_BONUS = 15;   // 친구를 모두 찾으면
+
+  // 친구 목록 (이름이 같으면 한 번만)
+  function friendList() {
+    const all = typeof WALK_FRIENDS === 'undefined' ? {} : WALK_FRIENDS;
+    const seen = new Set();
+    return Object.values(all).filter((f) => !seen.has(f.name) && seen.add(f.name));
+  }
+
+  function friendFace(f) {
+    if (f.image) return `<img src="${f.image}" alt="">`;
+    const art = typeof FRIEND_ART === 'undefined' ? null : FRIEND_ART[f.art];
+    return art || `<span class="emoji">${f.emoji || '🐾'}</span>`;
+  }
+
+  function renderFriendHint() {
+    const list = friendList();
+    const met = list.filter((f) => state.walkFriends.includes(f.name));
+    let text = '';
+    if (list.length && met.length >= list.length) {
+      text = `🎉 숨어 있던 친구 ${list.length}명을 모두 찾았어요! 다시 만나러 가도 반겨 줘요.`;
+    } else if (list.length) {
+      text = `🤫 캠퍼스 곳곳에 우왕이 친구 ${list.length}명이 숨어 있어요! 여기저기 걸어 다니며 찾아서 인사해 보세요.`;
+    }
+    const hintEl = $('#wc-friend-hint');   // 출발 장소 고르기 화면에만 있다
+    hintEl.textContent = text;
+    hintEl.hidden = !text;
+
+    // 찾은 친구 칸: 만난 친구는 얼굴, 아직이면 그림자와 ?
+    $('#walk-friend-count').textContent = `${met.length} / ${list.length}`;
+    $('#walk-friends').innerHTML = list.map((f) => (state.walkFriends.includes(f.name)
+      ? `<div class="walk-friend-badge" title="${f.name}"><div class="face">${friendFace(f)}</div><small>${f.name}</small></div>`
+      : `<div class="walk-friend-badge locked" title="아직 못 찾은 친구"><div class="face">${friendFace(f)}<b>?</b></div><small>???</small></div>`)).join('');
+  }
+
+  // ---------- 옷 입기 ----------
+  // 옷장(state.equipped)을 그대로 쓰기 때문에 여기서 입힌 옷은 우왕이 탭에서도 입고 있다.
+  // 헤드셋은 산책할 때만 쓰는 소품이라 state.walkHeadset에 따로 저장한다.
+  let dressStage = null;
+
+  // 옷을 입힐 때 우왕이가 하는 말 (의상 id: 말)
+  const DRESS_LINES = {
+    headset: '헤드셋 끼니까 신나요 🎧♪',
+    basic_cap: '학사모 쓰니까 졸업하는 기분이에요 🎓',
+    basic_glasses: '뿔테 안경 쓰니까 공부 잘할 것 같아요 📚',
+    jeju: '감귤 모자 상큼해요! 🍊',
+    tokyo: '벚꽃 머리핀, 봄 같아요 🌸',
+    osaka: '초롱 들고 가면 밤길도 환해요 🏮',
+    fukuoka: '걸을 때마다 딸랑딸랑 🎐',
+    taipei: '버블티 마시면서 걸을래요 🧋',
+    danang: '밀짚모자 쓰니까 여름 같아요 👒',
+    bangkok: '재스민 꽃 향기가 솔솔 🌼',
+    singapore: '비가 와도 걱정 없어요 🌂',
+    paris: '오늘은 화가 우왕이에요 🎨',
+    london: '신사 우왕이, 인사드려요 🎩',
+    rome: '젤라토 녹기 전에 출발! 🍦',
+    hawaii: '알로하~ 꽃목걸이 예뻐요 🌺',
+    la: '선글라스 끼니까 멋쟁이 같아요 😎',
+    newyork: '야구 모자 쓰고 씩씩하게! 🧢',
+    sydney: '솔못에 들어가려는 건 아니에요… 🤿',
+  };
+  const UNDRESS_LINES = ['벗었어요, 가벼워요!', '이건 다음에 입을래요', '홀가분해요 🐾'];
+
+  function sayDress(text) {
+    const el = $('#wd-say');
+    el.textContent = text;
+    el.classList.remove('pop');
+    void el.offsetWidth;   // 같은 애니메이션을 다시 재생
+    el.classList.add('pop');
+  }
+
+  function pickOne(list) {
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function dressUp(id) {
+    const box = $('#walk-dress-mascot');
+    let on;
+    if (id === 'headset') {
+      state.walkHeadset = !state.walkHeadset;
+      on = state.walkHeadset;
+    } else {
+      if (!ownedOutfitIds().includes(id)) return;
+      const { slot } = OUTFITS[id];
+      state.equipped[slot] = state.equipped[slot] === id ? null : id;
+      on = state.equipped[slot] === id;
+    }
+    saveState();
+    renderDress();
+    renderHeadset();
+    if (on) {
+      const o = OUTFITS[id];
+      sayDress(DRESS_LINES[id] || `${o.emoji} ${o.name} 잘 어울려요?`);
+      playMascot(box, 'joy', 600);
+    } else {
+      sayDress(pickOne(UNDRESS_LINES));
+    }
+  }
+
+  // 오늘의 코디: 부위마다 가진 옷 중 하나를 고르거나 비워 두고, 헤드셋도 반반으로 정한다
+  function randomOutfit() {
+    const box = $('#walk-dress-mascot');
+    const owned = ownedOutfitIds();
+    const before = JSON.stringify([state.equipped, state.walkHeadset]);
+    for (let tries = 0; tries < 5; tries++) {
+      const bySlot = {};
+      owned.forEach((id) => { (bySlot[OUTFITS[id].slot] = bySlot[OUTFITS[id].slot] || []).push(id); });
+      Object.keys(state.equipped).forEach((slot) => {
+        const choices = bySlot[slot] || [];
+        state.equipped[slot] = choices.length && Math.random() < 0.7 ? pickOne(choices) : null;
+      });
+      // 가진 옷이 있으면 적어도 하나는 입힌다
+      if (owned.length && !Object.values(state.equipped).some(Boolean)) {
+        const id = pickOne(owned);
+        state.equipped[OUTFITS[id].slot] = id;
+      }
+      state.walkHeadset = Math.random() < 0.5;
+      if (JSON.stringify([state.equipped, state.walkHeadset]) !== before) break;   // 방금이랑 똑같으면 다시
+    }
+    saveState();
+    renderDress();
+    renderHeadset();
+    playMascot(box, 'joy', 600);
+    Sound.sfx('ding');
+    const worn = Object.values(state.equipped).filter(Boolean).map((id) => OUTFITS[id].emoji);
+    if (state.walkHeadset) worn.push('🎧');
+    sayDress(!owned.length
+      ? (state.walkHeadset ? '오늘은 헤드셋! 여행 가서 옷도 받아 와요 ✈️' : '오늘은 그냥 나갈래요! 여행 가서 옷도 받아 와요 ✈️')
+      : `오늘의 코디 완성! ${worn.join('')} ✨`);
+  }
+
+
+  function renderDress() {
+    const pet = state.pet;
+    const box = $('#walk-dress-mascot');
+    if (dressStage !== pet.stage) { mountMascot(box, pet.stage); dressStage = pet.stage; }
+    dressMascot(box, true);
+    setMascot(box, { mood: 'happy', sleep: false, sick: pet.sick, headset: Boolean(state.walkHeadset) });
+    $('#dress-room').dataset.time = timeOfDay();   // 창밖이 실제 시간대를 따라간다
+
+    const headsetOn = Boolean(state.walkHeadset);
+    const owned = ownedOutfitIds();
+    const item = (id, emoji, name, sub, on) => `<button class="wear${on ? ' on' : ''}" data-dress="${id}" aria-pressed="${on}">`
+      + `<span>${emoji}</span>${name}<small>${sub}${on ? ' · 입는 중' : ''}</small></button>`;
+    $('#wd-list').innerHTML = [
+      item('headset', '🎧', '헤드셋', '산책 소품', headsetOn),
+      ...owned.map((id) => item(id, outfitIcon(OUTFITS[id]), OUTFITS[id].name, SLOT_NAMES[OUTFITS[id].slot], state.equipped[OUTFITS[id].slot] === id)),
+    ].join('');
+
+    const worn = Object.entries(state.equipped).filter(([, id]) => id && OUTFITS[id]).map(([, id]) => `${outfitIcon(OUTFITS[id])} ${OUTFITS[id].name}`);
+    if (headsetOn) worn.push('🎧 헤드셋');
+    $('#wd-worn').innerHTML = worn.length ? `입은 옷: ${worn.join(', ')}` : '지금은 아무것도 안 입었어요. 그대로 나가도 좋아요!';
+    $('#wd-place-name').textContent = chosenName;
     $('#btn-walk-start').disabled = !chosenName || Boolean(blockReason());
+  }
+
+  // ---------- 시간대 ----------
+  // 실제 시계에 맞춰 화면 색과 우왕이의 말이 바뀐다
+  const TIMES = {
+    morning: { label: '아침', icon: '☀️', lines: ['아침 공기가 상쾌해요 ☀️', '1교시 가는 사람들이 바빠 보여요', '아침 산책은 기분이 좋아요 🌤️'] },
+    day: { label: '낮', icon: '🌤️', lines: ['햇빛이 따뜻해요 🌤️', '점심 먹고 산책하기 딱 좋아요', '낮에는 캠퍼스가 북적북적해요'] },
+    evening: { label: '저녁', icon: '🌇', lines: ['노을이 예뻐요 🌇', '하늘이 주황색으로 물들었어요', '저녁 바람이 선선해요'] },
+    night: { label: '밤', icon: '🌙', lines: ['밤 산책은 조금 무섭지만 신나요 🌙', '가로등 불빛이 예뻐요 💡', '졸리지만 조금만 더 걸어요 😪'] },
+  };
+
+  function timeOfDay(date = new Date()) {
+    const h = date.getHours();
+    if (h >= 5 && h < 10) return 'morning';
+    if (h >= 10 && h < 17) return 'day';
+    if (h >= 17 && h < 19) return 'evening';
+    return 'night';
+  }
+
+  function applyTime() {
+    const tint = $('#walk-tint');
+    const now = timeOfDay();
+    if (tint.dataset.time !== now) tint.dataset.time = now;
+  }
+
+  // 가끔(5번에 1번) 장소 감상 대신 시간대에 맞는 말을 한다
+  function timeComment() {
+    return Math.random() < 0.2 ? TIMES[timeOfDay()].lines[Math.floor(Math.random() * TIMES[timeOfDay()].lines.length)] : '';
+  }
+
+  // ---------- 이번 산책 기록 (끝낼 때 요약으로 보여 준다) ----------
+  let session = null;
+
+  function newSession() {
+    session = { coins: 0, hearts: 0, drinks: 0, stamps: [], friends: [], places: new Set(), time: timeOfDay() };
+  }
+
+  function fmtTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return m >= 60
+      ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  let summaryStage = null;
+
+  function renderSummary() {
+    const s = session || { coins: 0, hearts: 0, stamps: [], friends: [], places: new Set(), time: timeOfDay() };
+    const t = TIMES[s.time];
+    $('#ws-title').textContent = `${t.label} 산책 끝! ${t.icon}`;
+    $('#ws-sub').textContent = steps > 0
+      ? `우왕이와 ${steps.toLocaleString()}걸음 걸었어요.${s.hearts ? ` 산책 덕분에 💗 행복이 ${s.hearts} 올랐어요.` : ''}${s.drinks ? ` 물도 💧 ${s.drinks}번 마셨어요.` : ''}`
+      : '이번엔 거의 안 걸었어요. 다음엔 같이 더 걸어요!';
+    $('#ws-steps').textContent = steps.toLocaleString();
+    $('#ws-time').textContent = fmtTime(walkSeconds);
+    $('#ws-coins').textContent = `🪙 ${s.coins}`;
+    $('#ws-places').textContent = `${s.places.size}곳`;
+
+    $('#ws-stamps-row').hidden = !s.stamps.length;
+    $('#ws-stamps').innerHTML = s.stamps.map((n) => `<span class="walk-stamp" title="${n}"><span>${placeIcon(n)}</span><small>${n}</small></span>`).join('');
+    const met = friendList().filter((f) => s.friends.includes(f.name));
+    $('#ws-friends-row').hidden = !met.length;
+    $('#ws-friends').innerHTML = met.map((f) => `<span class="walk-friend-badge"><span class="face">${friendFace(f)}</span><small>${f.name}</small></span>`).join('');
+
+    const pet = state.pet;
+    const box = $('#walk-summary-mascot');
+    if (summaryStage !== pet.stage) { mountMascot(box, pet.stage); summaryStage = pet.stage; }
+    dressMascot(box, true);
+    setMascot(box, { mood: 'happy', sleep: false, sick: pet.sick, headset: Boolean(state.walkHeadset) });
+    if (steps > 0) setTimeout(() => playMascot(box, 'joy', 600), 300);
   }
 
   function startWalk() {
     if (blockReason()) return;
     setStep('walk');
+    newSession();
+    steps = 0;
+    walkSeconds = 0;
+    heartProgress = 0;
+    drankAt = 0;
+    thirsty = false;
+    renderDrink();
     const startPano = chosenStartId();
     if (pano && startPano) {
-      // 고른 장소로 옮기고, "처음부터 다시 하기"도 여기서 시작하게 한다
+      // 고른 장소로 옮긴다
       pano.setPano(startPano);
       pano.setPov({ heading: 0, pitch: 0 });
       startId = startPano;
-      steps = 0;
-      walkSeconds = 0;
-      heartProgress = 0;
     }
     render();   // 지도가 아직 없으면 여기서 고른 장소로 불러온다
     if (pano) {
@@ -776,15 +1266,27 @@ const Walk = (() => {
       depth = targetDepth = 0;
       loop();
     }
-    say(chosenName ? `${chosenName}에서 산책 출발! 🐾` : '산책 출발! 🐾', 1800);
+    const t = TIMES[timeOfDay()];
+    applyTime();
+    say(chosenName ? `${chosenName}에서 ${t.label} 산책 출발! ${t.icon}` : `${t.label} 산책 출발! ${t.icon}`, 2000);
     updateMusic();   // 버튼을 누른 순간이라 브라우저가 소리를 허락한다
     stampedPano = '';
     setTimeout(checkStamp, 800);   // 출발 장소도 도장을 찍는다 (지도가 자리를 잡은 뒤)
   }
 
+  // 산책에서 돌아오면 옷과 헤드셋을 모두 벗는다 (다음 산책 때 다시 골라 입는다)
+  function undressAll() {
+    Object.keys(state.equipped).forEach((slot) => { state.equipped[slot] = null; });
+    state.walkHeadset = false;
+    saveState();
+    renderHeadset();
+  }
+
   function endWalk() {
-    toast(`산책 끝! ${steps.toLocaleString()}걸음 걸었어요 🐾`);
-    setStep('check');
+    setStep('summary');
+    renderSummary();   // 요약에는 입고 나갔던 모습 그대로 보여 준다
+    undressAll();
+    Sound.sfx('ding');
   }
 
   // 산책 탭을 열 때마다 체크 화면부터 보여 준다
@@ -817,8 +1319,10 @@ const Walk = (() => {
     if (here === stampedPano) return;
     stampedPano = here;
     hereName = namedHere();
+    if (hereName && session) session.places.add(hereName);
     hereSteps = 0;
     hereDone = false;
+    setFriend(hereName);   // 이 장소에 사는 친구
     renderStats();
     if (hereName && !state.walkStamps[hereName]) {
       setTimeout(() => say(`여기서 ${STAMP_STEPS}걸음 걸으면 도장을 받아요 🏅`, 2600), 2600);
@@ -852,12 +1356,14 @@ const Walk = (() => {
     // 처음 온 장소: 도장 + 코인
     state.walkStamps[name] = { first: Date.now(), visits: 1 };
     state.coins += STAMP_COINS;
+    if (session) { session.coins += STAMP_COINS; session.stamps.push(name); }
     const total = placeNames().length;
     const got = placeNames().filter((n) => state.walkStamps[n]).length;
     const allDone = !state.walkStampsDone && total > 0 && got >= total;
     if (allDone) {
       state.walkStampsDone = true;
       state.coins += STAMP_ALL_BONUS;
+      if (session) session.coins += STAMP_ALL_BONUS;
     }
     saveState();
     renderTop();
@@ -908,7 +1414,29 @@ const Walk = (() => {
     if (!visible || !musicOn || !pano) { Sound.bgm(''); return; }
     const map = typeof WALK_MUSIC === 'undefined' ? {} : WALK_MUSIC;
     const fallback = typeof WALK_MUSIC_DEFAULT === 'undefined' ? 'campus' : WALK_MUSIC_DEFAULT;
-    Sound.bgm(map[placeName()] || fallback);
+    Sound.bgm(map[moodName()] || fallback);
+  }
+
+  // ---------- 헤드셋 ----------
+  // 산책할 때만 우왕이에게 헤드셋을 씌운다 (게이머 우왕이의 헤드폰 그림을 같이 쓴다)
+  function toggleHeadset() {
+    state.walkHeadset = !state.walkHeadset;
+    saveState();
+    renderHeadset();
+    if (!inWalk) return;
+    if (state.walkHeadset) {
+      say(musicOn ? '음악이 더 잘 들려요 🎧♪' : '헤드셋 꼈어요! 음악도 켜 볼까요? 🎧', 2200);
+      playMascot(mascot, 'joy', 600);
+    } else {
+      say('주변 소리도 들어 볼게요 👂', 1800);
+    }
+  }
+
+  function renderHeadset() {
+    const on = Boolean(state.walkHeadset);
+    setMascot(mascot, { headset: on });
+    $('#btn-walk-headset').setAttribute('aria-pressed', on);
+    $('#walk-headset-label').textContent = on ? '헤드셋 벗기' : '헤드셋 끼기';
   }
 
   function toggleMusic() {
@@ -922,6 +1450,7 @@ const Walk = (() => {
 
   // 다른 탭으로 갈 때 (app.js)
   function stop() {
+    if (inWalk) undressAll();   // 산책 중에 다른 탭으로 가도 산책을 다녀온 것으로 본다
     inWalk = false;
     Sound.bgm('');
   }

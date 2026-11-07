@@ -200,6 +200,64 @@ const Sound = (() => {
     return () => clearInterval(timer);
   }
 
+  // 뻐꾸기 (뻐-꾹)
+  function cuckoo(out, time) {
+    tone(out, 659.25, time, 0.4, 'sine', 0.045, 0.03);
+    tone(out, 523.25, time + 0.38, 0.55, 'sine', 0.04, 0.03);
+  }
+
+  // 나뭇잎 바스락 (짧게 스치는 잡음)
+  function rustle(out, time) {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer();
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 2500 + Math.random() * 2500;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(0.03, time + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.7);
+    src.connect(filter).connect(gain).connect(out);
+    src.start(time, Math.random());
+    src.stop(time + 0.75);
+  }
+
+  // 피아노 비슷한 소리 (맑은 소리 + 아래 옥타브를 살짝 섞는다)
+  function piano(out, freq, time, duration, volume) {
+    tone(out, freq, time, duration, 'triangle', volume, 0.005);
+    tone(out, freq * 2, time, duration * 0.4, 'sine', volume * 0.25, 0.005);
+  }
+
+  // 오르골 (높고 맑은 소리 + 반짝이는 배음)
+  function musicBox(out, freq, time, volume) {
+    tone(out, freq, time, 1.4, 'sine', volume, 0.004);
+    tone(out, freq * 3, time, 0.4, 'sine', volume * 0.18, 0.004);
+  }
+
+  // 통기타 줄 튕기는 소리 (밝게 시작해서 점점 부드러워진다)
+  function guitar(out, freq, time, volume, duration = 1.6) {
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(Math.min(freq * 8, 5000), time);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(freq * 1.5, 300), time + 0.4);
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(volume, time + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+    osc.connect(filter).connect(gain).connect(out);
+    osc.start(time);
+    osc.stop(time + duration + 0.05);
+  }
+
+  // 기타 화음을 한 번 긁는다 (아래로는 낮은 줄부터, 위로는 높은 줄부터)
+  function strum(out, chord, time, volume, up = false) {
+    const strings = up ? [...chord].reverse() : chord;
+    strings.forEach((f, i) => guitar(out, f, time + i * 0.018, volume, up ? 0.6 : 1.4));
+  }
+
   const pick = (list) => list[Math.floor(Math.random() * list.length)];
   // 화음 진행 (도-솔-라-파): 각 화음의 구성음
   const CHORDS = [[261.63, 329.63, 392.0], [196.0, 246.94, 293.66], [220.0, 261.63, 329.63], [174.61, 220.0, 261.63]];
@@ -227,12 +285,74 @@ const Sound = (() => {
       return stopSeq;
     },
 
-    // 캠퍼스: 밝고 경쾌한 멜로디 + 가벼운 박자
+    // 자연: 여러 새소리가 중심, 살랑이는 바람과 나뭇잎 소리, 음악은 아주 조금만
+    nature(out) {
+      const stopWind = swell(out, 'lowpass', 450, 0.02, 0.06);
+      const notes = [523.25, 587.33, 659.25, 783.99, 880.0];
+      const stopSeq = sequence(0.5, (t, s) => {
+        if (s % 16 === 0) CHORDS[(s / 16) % 4].forEach((f) => tone(out, f / 2, t, 7, 'sine', 0.016, 2));
+        if (Math.random() < 0.5) bird(out, t + Math.random() * 0.4);
+        if (Math.random() < 0.2) bird(out, t + 0.2 + Math.random() * 0.3);   // 다른 새가 대답한다
+        if (Math.random() < 0.04) cuckoo(out, t);
+        if (Math.random() < 0.06) rustle(out, t + Math.random() * 0.4);
+        if (Math.random() < 0.08) tone(out, pick(notes), t, 2.2, 'sine', 0.02, 0.05);
+      });
+      return () => { stopWind(); stopSeq(); };
+    },
+
+    // 도서관: 공부할 힘이 나는 경쾌한 피아노 (통통 튀는 왼손 + 또박또박 멜로디)
+    library(out) {
+      const scale = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+      const stopSeq = sequence(0.26, (t, s) => {
+        const chord = CHORDS[Math.floor(s / 8) % 4];
+        if (s % 4 === 0) piano(out, chord[0] / 2, t, 0.6, 0.06);                 // 왼손 낮은 음
+        if (s % 4 === 2) chord.forEach((f) => piano(out, f, t, 0.35, 0.02));      // 왼손 화음 (쿵-짝)
+        if (s % 2 === 0 ? Math.random() < 0.8 : Math.random() < 0.35) {
+          piano(out, Math.random() < 0.6 ? chord[(s / 2) % 3 | 0] * 2 : pick(scale), t, 0.45, 0.035);
+        }
+        if (s % 4 === 2) hit(out, t, 8000, 0.03, 0.012);
+      });
+      return stopSeq;
+    },
+
+    // 학생회관: 동아리방에서 들려오는 통기타 (쿵 짝 짝짝 스트로크 + 베이스)
+    guitar(out) {
+      const prog = [
+        [196.0, 246.94, 293.66, 392.0],    // G
+        [164.81, 246.94, 329.63, 392.0],   // Em
+        [130.81, 261.63, 329.63, 392.0],   // C
+        [146.83, 293.66, 369.99, 440.0],   // D
+      ];
+      const pattern = { 0: 'down', 2: 'down', 3: 'up', 5: 'up', 6: 'down', 7: 'up' };
+      const stopSeq = sequence(0.24, (t, s) => {
+        const chord = prog[Math.floor(s / 16) % 4];
+        const bar = s % 8;
+        if (bar === 0 || bar === 4) guitar(out, chord[0] / 2, t, 0.07, 1.2);   // 베이스 줄
+        if (pattern[bar] && (bar !== 7 || Math.random() < 0.6)) strum(out, chord.slice(1), t, 0.022, pattern[bar] === 'up');
+        if (bar === 4) hit(out, t, 2500, 0.06, 0.02);                         // 몸통 두드리는 소리
+      });
+      return stopSeq;
+    },
+
+    // 기숙사: 오르골 자장가 (3박자 왈츠)
+    home(out) {
+      const notes = [523.25, 587.33, 659.25, 698.46, 783.99, 880.0, 1046.5];
+      const stopSeq = sequence(0.42, (t, s) => {
+        const chord = CHORDS[Math.floor(s / 6) % 4];
+        const beat = s % 3;
+        if (beat === 0) tone(out, chord[0] / 2, t, 1.2, 'sine', 0.06);
+        else musicBox(out, chord[beat] * 2, t, 0.02);
+        if (Math.random() < (beat === 0 ? 0.7 : 0.3)) musicBox(out, pick(notes) * 2, t, 0.028);
+      });
+      return stopSeq;
+    },
+
+    // 캠퍼스: 밝고 경쾌한 멜로디 + 가벼운 박자 (멜로디는 매번 조금씩 달라진다)
     campus(out) {
       const stopSeq = sequence(0.3, (t, s) => {
         const chord = CHORDS[Math.floor(s / 8) % 4];
         if (s % 8 === 0) tone(out, chord[0] / 2, t, 2.2, 'triangle', 0.07);
-        tone(out, chord[s % 3] * 2, t, 0.25, 'triangle', 0.035);
+        if (Math.random() < 0.8) tone(out, (Math.random() < 0.75 ? chord[s % 3] : pick(chord)) * 2, t, 0.25, 'triangle', 0.035);
         if (s % 2 === 1) hit(out, t, 7000, 0.04, 0.025);
         if (s % 4 === 2 && Math.random() < 0.6) tone(out, chord[2] * 2, t, 0.5, 'sine', 0.04);
       });
@@ -341,6 +461,21 @@ const Sound = (() => {
         break;
       case 'bad':
         note(150, t, 0.3, 'sawtooth', 0.08);
+        break;
+      case 'gulp':   // 꿀꺽꿀꺽 (방울이 떨어지듯 낮아지는 소리 두 번)
+        [0, 0.28].forEach((d) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(520, t + d);
+          osc.frequency.exponentialRampToValueAtTime(180, t + d + 0.14);
+          gain.gain.setValueAtTime(0, t + d);
+          gain.gain.linearRampToValueAtTime(0.14, t + d + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.18);
+          osc.connect(gain).connect(master);
+          osc.start(t + d);
+          osc.stop(t + d + 0.2);
+        });
         break;
       case 'beep':
         note(2200, t, 0.05, 'square', 0.03);
