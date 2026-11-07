@@ -5,10 +5,10 @@ const Games = (() => {
     { id: 'catch', icon: '🧺', title: '특산품 받기', desc: '떨어지는 여행지 먹거리를 받아요. ⚡는 피하세요!' },
     { id: 'memory', icon: '🃏', title: '짝 맞추기', desc: '뒤집힌 카드 16장에서 같은 그림 8쌍을 찾아요.' },
     { id: 'quiz', icon: '❓', title: '여행 퀴즈', desc: '비행시간, 나라, 대표 먹거리를 맞혀요. 5문제!' },
-    { id: 'mole', icon: '🐻', title: '우왕이 잡기', desc: '구멍에서 나오는 우왕이를 톡! ⚡는 누르지 마세요. 30초', pane: 'arcade' },
+    { id: 'tiles', icon: '🎁', title: '기념품 타일 매치', desc: '덮이지 않은 타일을 골라 같은 기념품 3개를 모아요. 아래 7칸이 차면 끝!', pane: 'arcade' },
     { id: 'runner', icon: '🌵', title: '장애물 피하기', desc: '달리는 우왕이! 점프로 선인장을 피하고 ⭐을 모아요. 2단 점프 가능', pane: 'arcade' },
-    { id: 'simon', icon: '🔔', title: '기내 방송 따라하기', desc: '불이 켜진 순서를 기억해서 똑같이 눌러요.', pane: 'arcade' },
-    { id: 'exchange', icon: '💱', title: '환전소 계산', desc: '30초 동안 계산 문제를 최대한 많이 풀어요.', pane: 'arcade' },
+    { id: 'blocks', icon: '🧳', title: '짐 싸기 블록 퍼즐', desc: '블록을 끌어다 놓고 가로·세로 한 줄을 채워 지워요.', pane: 'arcade' },
+    { id: 'match3', icon: '🍊', title: '특산품 3매치', desc: '이웃한 칸을 바꿔 같은 먹거리 3개 이상을 맞춰요. 20번 이동!', pane: 'arcade' },
   ];
   const PANES = ['catch', 'memory', 'quiz', 'arcade'];
   const COIN_PER_POINTS = 10;
