@@ -53,7 +53,8 @@ function defaultState() {
     pet: defaultPet(),
     level: 1,
     exp: 0,
-    coins: 20,
+    coins: 0,       // 코인은 게임으로만 번다 (games.js)
+    coinsEarned: 0, // 지금까지 게임으로 번 코인
     lastTick: Date.now(),
     ticket: null,   // 발권했지만 아직 타지 않은 표 (요금은 발권할 때 낸다)
     flight: null,   // { mode, transport, from, destId, start, duration, elapsed, flightNo, seat, seatClass, fare }
