@@ -127,16 +127,15 @@
   - **💧 물 마시기:** 80걸음쯤 걸으면 우왕이가 목말라하고 버튼이 파랗게 콩콩 뜁니다. 그때 물을 마시면 다음 💗 하트까지 30걸음을 채워 줍니다(목마르지 않을 때 마시면 보상 없음). 마실 때는 텀블러의 마시는 구멍을 입에 대고 꿀꺽꿀꺽 마시며, 끝 요약에 마신 횟수가 나옵니다.
 - 장소 이름표·감상·음악·아이콘은 `js/maps-config.js`에서 고칩니다. 사진에 표시되는 올린 사람 이름으로 특정 사람의 사진을 뺄 수 있습니다(`WALK_BLOCKED_AUTHORS`). 실내 교실처럼 산책에 맞지 않는 사진은 파노라마 ID로 하나씩 뺍니다(`WALK_BLOCKED_PANOS`).
 
-## 산책 탭을 쓰려면 (Google Maps API 키)
+## 산책 탭 지도 (Google Maps API 키)
 
-1. [Google Cloud 콘솔](https://console.cloud.google.com)에서 프로젝트를 만들고 결제 계정을 연결합니다 (무료 사용량 안에서는 보통 요금이 나오지 않습니다).
-2. **Maps JavaScript API**를 사용 설정합니다.
-3. **API 및 서비스 → 사용자 인증 정보**에서 API 키를 만들고, 아래 두 제한을 겁니다.
-   - 애플리케이션 제한사항: **웹사이트** → `http://localhost:8000/*`
-   - API 제한사항: **Maps JavaScript API**만
-4. `js/maps-key.example.js`를 같은 폴더에 `js/maps-key.js`로 복사하고 키를 넣습니다.
+산책 탭의 지도 키는 `js/maps-key.js`에 들어 있고, 저장소에 함께 올라가 있습니다. 그래서 저장소를 받거나 배포된 사이트를 열면 따로 설정할 것이 없습니다.
 
-> `js/maps-key.js`는 `.gitignore`에 들어 있어서 GitHub에 올라가지 않습니다. 저장소가 공개라서, 키를 다른 파일에 넣어 커밋하지 마세요.
+- 지도 키는 브라우저에서 쓰는 키라, 앱을 열면 누구나 볼 수 있습니다. 그래서 Google Cloud 콘솔에서 아래 제한을 걸어 두었습니다.
+  - 웹사이트 제한: `https://grow-full.github.io/*`, `http://localhost:8000/*`
+  - API 제한: **Maps JavaScript API**만
+- 이 두 주소가 아닌 곳(다른 포트, 다른 배포 주소)에서 열면 지도가 뜨지 않습니다. 그럴 때는 키 주인에게 웹사이트 제한에 그 주소를 추가해 달라고 하세요.
+- 제한을 풀거나, 제한 없는 다른 키를 이 파일에 넣지 마세요. 저장소가 공개라서 누구나 키를 가져다 쓸 수 있게 됩니다.
 
 ## 커뮤니티를 모두와 공유하려면 (Firebase)
 
@@ -201,7 +200,7 @@ js/notify.js          돌봄 알림 켜기/끄기와 알림 보내기
 js/audio.js           기내 소음·빗소리·음악·효과음·산책 배경음 합성 (음원 파일 없음)
 js/walk.js            산책 (체크, 출발 장소, 옷 입기, 스트리트 뷰, 걷기, 도장, 위치 지도)
 js/maps-config.js     산책 장소 이름표, 우왕이 감상, 배경음, 아이콘
-js/maps-key.example.js Google Maps API 키 예시 (복사해서 maps-key.js로)
+js/maps-key.js        산책 탭 Google Maps API 키 (사용 제한을 건 배포용 키)
 js/cloud.js           아이디 로그인과 계정 저장·기기 간 이어 하기 (Supabase)
 js/supabase-config.js Supabase 설정 (비어 있으면 이 기기에만 저장)
 js/app.js             탭 전환, 1초 시계, 시작
