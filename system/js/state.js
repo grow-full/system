@@ -19,8 +19,10 @@ const ADULT_FORMS = {
 // 단위: 분. 숫자를 바꾸면 우왕이가 빨리/천천히 배고파진다.
 const CARE = {
   hungerEvery: 40,     // 배고픔 하트 1개가 줄어드는 간격
-  happyEvery: 50,      // 행복 하트 1개가 줄어드는 간격 (아프거나 똥이 많으면 2배 빠름)
-  poopEvery: 90,       // 똥을 싸는 간격
+  happyEvery: 50,      // 행복 하트 1개가 줄어드는 간격 (아프거나 똥이 많거나 더러우면 2배 빠름)
+  dirtyEvery: 120,     // 이만큼 지나면 꼬질꼬질해짐 (놀아주기를 끝내도 바로 더러워짐)
+  poopEvery: 45,       // 똥을 싸는 간격
+  poopAfterMeal: 5,    // 밥·간식을 먹고 이만큼 지나면 반드시 똥을 1번 싼다
   sickFromPoop: 60,    // 똥 2개 이상을 이만큼 두면 병에 걸림
   sickFromStarve: 120, // 배고픔 0으로 이만큼 지나면 병에 걸림
   napLength: 60,       // 낮잠 길이
@@ -40,10 +42,12 @@ function defaultPet() {
     weight: 5,
     poop: 0,
     sick: false,
+    dirty: false, // 꼬질꼬질해서 씻겨 줘야 함
     lightsOff: false,
     careMistakes: 0,
     wasNight: false,
-    timers: { hunger: 0, happy: 0, poop: 0, sickRisk: 0, starve: 0, nap: 0, nightLight: 0 },
+    digest: [],   // 먹은 것마다 똥을 싸기까지 남은 분
+    timers: { hunger: 0, happy: 0, poop: 0, dirt: 0, sickRisk: 0, starve: 0, nap: 0, nightLight: 0 },
   };
 }
 
@@ -106,6 +110,11 @@ function resetState() {
   saveState();
 }
 
+// 밥·간식을 먹으면 부른다. CARE.poopAfterMeal분 뒤에 똥을 1번 싼다.
+function eatFood() {
+  state.pet.digest.push(CARE.poopAfterMeal);
+}
+
 function addHearts(key, delta) {
   state.pet[key] = Math.max(0, Math.min(MAX_HEARTS, state.pet[key] + delta));
 }
@@ -165,7 +174,7 @@ function stepMinute(time) {
     tm.hunger = 0;
     addHearts('hunger', -1);
   }
-  tm.happy += pet.sick || pet.poop >= 2 ? 2 : 1;
+  tm.happy += pet.sick || pet.poop >= 2 || pet.dirty ? 2 : 1;
   if (tm.happy >= CARE.happyEvery) {
     tm.happy = 0;
     addHearts('happy', -1);
@@ -173,6 +182,18 @@ function stepMinute(time) {
   if (++tm.poop >= CARE.poopEvery) {
     tm.poop = 0;
     pet.poop = Math.min(4, pet.poop + 1);
+  }
+  // 먹은 것은 정해진 시간이 지나면 반드시 똥이 된다
+  pet.digest = pet.digest.map((m) => m - 1);
+  const digested = pet.digest.filter((m) => m <= 0).length;
+  if (digested) {
+    pet.digest = pet.digest.filter((m) => m > 0);
+    pet.poop = Math.min(4, pet.poop + digested);
+    tm.poop = 0;
+  }
+  if (!pet.dirty && ++tm.dirt >= CARE.dirtyEvery) {
+    pet.dirty = true;
+    tm.dirt = 0;
   }
 
   tm.sickRisk = pet.poop >= 2 ? tm.sickRisk + 1 : 0;
@@ -242,6 +263,7 @@ function petNeeds() {
   if (pet.sick) needs.push('아파요… 약이 필요해요 💊');
   if (isNight() && !pet.lightsOff) needs.push('졸려요… 불을 꺼 주세요 💡');
   if (pet.poop > 0) needs.push('똥을 치워 주세요 🚽');
+  if (pet.dirty) needs.push('꼬질꼬질해요… 씻겨 주세요 🛁');
   if (pet.hunger === 0) needs.push('배고파요! 밥을 주세요 🍙');
   if (pet.happy === 0) needs.push('심심해요… 놀아 주세요 🎾');
   return needs;

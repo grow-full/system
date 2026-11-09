@@ -20,6 +20,7 @@ function show(tab) {
   TABS.forEach((t) => { $(`#screen-${t}`).hidden = t !== tab; });
   document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   window.scrollTo(0, 0);
+  document.querySelectorAll(`#screen-${tab} .col-main, #screen-${tab} .col-side`).forEach((el) => { el.scrollTop = 0; });
 
   if (tab === 'pet') Pet.refresh();
   if (tab === 'travel') Travel.render();
@@ -92,13 +93,16 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) saveState();
 });
 
+hydrateIcons();
 simulate();
 Pet.init();
 Travel.init();
 Games.init();
 Community.init();
 Notify.init();
-show('pet');
+// 주소 끝에 #travel 처럼 붙이면 그 탭으로 시작한다
+const startTab = location.hash.slice(1);
+show(TABS.includes(startTab) ? startTab : 'pet');
 
 // 앱을 꺼 둔 사이에 도착했으면 바로 처리한다
 if (state.flight && Date.now() - state.flight.start >= state.flight.duration) Travel.completeFlight();

@@ -3,289 +3,346 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#fff8ef">
+  <meta name="theme-color" content="#5e1028">
   <title>우왕이와 떠나는 여행</title>
+  <!-- 한글 도트 글씨 갈무리 (인터넷이 없으면 기본 글씨체로 보임) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@2.40.3/dist/galmuri.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div id="app">
-    <header class="topbar">
+    <!-- 왼쪽 메뉴: 레벨, 탭, 코인, 알림 -->
+    <aside class="sidebar">
+      <div class="brand">우왕이와<br>떠나는 여행</div>
       <div class="lv">
         <span>Lv.<b id="lv">1</b></span>
         <div class="exp-bar" title="경험치"><i id="exp-fill"></i></div>
       </div>
-      <div class="top-right">
-        <button class="notify-btn" id="btn-notify" aria-label="돌봄 알림" aria-pressed="false">🔕</button>
-        <div class="coins">🪙 <b id="coins">0</b></div>
+      <nav class="tabbar">
+        <button data-tab="pet"><span class="ico" data-icon="tabPet"></span>우왕이</button>
+        <button data-tab="travel"><span class="ico" data-icon="tabTravel"></span>여행</button>
+        <button data-tab="games"><span class="ico" data-icon="tabGames"></span>게임</button>
+        <button data-tab="community"><span class="ico" data-icon="tabCommunity"></span>커뮤니티</button>
+      </nav>
+      <div class="side-foot">
+        <div class="coins"><span class="ico" data-icon="coin"></span><b id="coins">0</b></div>
+        <button class="notify-btn" id="btn-notify" aria-label="돌봄 알림" aria-pressed="false"></button>
       </div>
-    </header>
+    </aside>
 
     <main>
       <!-- 우왕이: 다마고치 방식으로 키우기 -->
       <section id="screen-pet" class="screen">
-        <div class="room" id="room">
-          <div class="room-window"><span class="sun">☀️</span><span class="moon">🌙</span></div>
-          <div class="room-badges" id="room-badges"></div>
-          <div class="speech" id="speech"></div>
-          <div class="poops" id="poops"></div>
-          <div class="walker" id="walker">
-            <div id="mascot" class="mascot-wrap"></div>
+        <div class="col-main">
+          <div class="room" id="room">
+            <div class="room-window"><span class="sun">☀️</span><span class="moon">🌙</span></div>
+            <div class="room-badges" id="room-badges"></div>
+            <div class="speech" id="speech"></div>
+            <div class="poops" id="poops"></div>
+            <div class="walker" id="walker">
+              <div id="mascot" class="mascot-wrap"></div>
+              <span class="fly" data-icon="fly" aria-hidden="true"></span>
+            </div>
+            <div class="room-fx" id="room-fx"></div>
+            <div class="zzz" data-icon="zzz"></div>
+            <div class="away" id="away" hidden>
+              <div class="away-icon">✈️</div>
+              <p id="away-text"></p>
+              <b id="away-time">00:00:00</b>
+              <button class="ghost inline" id="btn-away">여행 화면 보기</button>
+            </div>
           </div>
-          <div class="room-fx" id="room-fx"></div>
-          <div class="zzz">Z z z</div>
-          <div class="away" id="away" hidden>
-            <div class="away-icon">✈️</div>
-            <p id="away-text"></p>
-            <b id="away-time">00:00:00</b>
-            <button class="ghost inline" id="btn-away">여행 화면 보기</button>
+
+          <div class="collections">
+            <div class="card collection-card">
+              <div class="collection-head"><b>옷장</b><small id="wardrobe-count"></small></div>
+              <div class="wardrobe" id="wardrobe"></div>
+              <p class="collection-note">여행지에 처음 도착하면 그곳의 의상을 받아요. 누르면 입히고, 한 번 더 누르면 벗겨요. 머리·얼굴·목·손에 하나씩 입을 수 있어요.</p>
+            </div>
+
+            <div class="card collection-card">
+              <div class="collection-head"><b>우왕이 도감</b><small id="forms-count"></small></div>
+              <div class="forms" id="forms"></div>
+              <p class="collection-note" id="forms-note"></p>
+            </div>
           </div>
+
+          <details class="card howto">
+            <summary>돌보는 방법</summary>
+            <ul>
+              <li>알을 톡톡 누르면 더 빨리 깨어나요.</li>
+              <li>레벨 3에 어린이, 레벨 5에 어른이 돼요. 어른 모습은 그동안 어떻게 키웠는지(돌봄 실수, 여행 횟수, 게임 횟수)에 따라 5가지로 갈라져요.</li>
+              <li>밥으로 배고픔을, 놀아주기(우왕이가 볼 방향 맞히기)와 간식으로 행복을 채워요.</li>
+              <li>똥을 오래 두거나 오래 굶기면 병에 걸려요. 아프면 약을 주세요.</li>
+              <li>놀고 나거나 시간이 지나면 꼬질꼬질해져요. 씻겨 주세요.</li>
+              <li>밤 10시부터 아침 8시까지는 잠을 자요. 불을 꺼 주지 않으면 돌봄 실수가 돼요. 낮에 불을 끄면 낮잠을 자요.</li>
+              <li>말풍선으로 우왕이가 지금 필요한 것을 알려 줘요. 오래 내버려 두면 돌봄 실수가 쌓여요.</li>
+              <li>여행 중에는 기내에서 돌봐 줘서 배가 고프지 않아요.</li>
+            </ul>
+          </details>
+          <button class="ghost danger" id="btn-reset">처음부터 다시 키우기</button>
         </div>
 
-        <div class="card status-card">
-          <div class="hearts-row"><span>🍙 배고픔</span><span class="hearts" id="h-hunger"></span></div>
-          <div class="hearts-row"><span>💗 행복</span><span class="hearts" id="h-happy"></span></div>
-          <p class="pet-info" id="pet-info"></p>
-        </div>
-
-        <div class="actions" id="pet-actions">
-          <button data-action="meal"><span>🍙</span>밥</button>
-          <button data-action="snack"><span>🍰</span>간식<small>🪙 3</small></button>
-          <button data-action="play"><span>🎾</span>놀아주기</button>
-          <button data-action="clean"><span>🧹</span>청소</button>
-          <button data-action="medicine"><span>💊</span>약</button>
-          <button data-action="lights"><span>💡</span><em id="lights-label">불 끄기</em></button>
-        </div>
-
-        <div class="card play-panel" id="play-panel" hidden>
-          <p class="play-text" id="play-text"></p>
-          <div class="play-buttons">
-            <button data-guess="left">◀ 왼쪽</button>
-            <button data-guess="right">오른쪽 ▶</button>
+        <aside class="col-side">
+          <div class="card status-card">
+            <div class="hearts-row"><span><span class="ico" data-icon="meal"></span>배고픔</span><span class="hearts" id="h-hunger"></span></div>
+            <div class="hearts-row"><span><span class="ico" data-icon="heart"></span>행복</span><span class="hearts" id="h-happy"></span></div>
+            <p class="pet-info" id="pet-info"></p>
           </div>
-          <p class="play-score" id="play-score"></p>
-        </div>
 
-        <div class="card collection-card">
-          <div class="collection-head"><b>👗 옷장</b><small id="wardrobe-count"></small></div>
-          <div class="wardrobe" id="wardrobe"></div>
-          <p class="collection-note">여행지에 처음 도착하면 그곳의 의상을 받아요. 누르면 입히고, 한 번 더 누르면 벗겨요. 머리·얼굴·목·손에 하나씩 입을 수 있어요.</p>
-        </div>
+          <div class="actions" id="pet-actions">
+            <button data-action="meal"><span class="ico" data-icon="meal"></span>밥</button>
+            <button data-action="snack"><span class="ico" data-icon="snack"></span>간식<small>코인 3</small></button>
+            <button data-action="play"><span class="ico" data-icon="play"></span>놀아주기</button>
+            <button data-action="clean"><span class="ico" data-icon="clean"></span>청소</button>
+            <button data-action="bath"><span class="ico" data-icon="bath"></span>씻기기</button>
+            <button data-action="medicine"><span class="ico" data-icon="medicine"></span>약</button>
+            <button data-action="lights"><span class="ico" data-icon="lights"></span><em id="lights-label">불 끄기</em></button>
+            <button data-action="talk"><span class="ico" data-icon="talk"></span>말 걸기</button>
+          </div>
 
-        <div class="card collection-card">
-          <div class="collection-head"><b>📖 우왕이 도감</b><small id="forms-count"></small></div>
-          <div class="forms" id="forms"></div>
-          <p class="collection-note" id="forms-note"></p>
-        </div>
+          <div class="card talk-panel" id="talk-panel" hidden>
+            <p class="play-text">우왕이에게 뭐라고 말할까요?</p>
+            <div class="talk-buttons">
+              <button data-talk="hello">안녕!</button>
+              <button data-talk="love">사랑해</button>
+              <button data-talk="hungry">배고파?</button>
+              <button data-talk="mood">기분 어때?</button>
+              <button data-talk="where">어디 가고 싶어?</button>
+              <button data-talk="night">잘 자</button>
+            </div>
+            <form class="talk-form" id="talk-form" autocomplete="off">
+              <input id="talk-input" type="text" maxlength="40" placeholder="직접 말 걸기 (40자까지)">
+              <button type="submit">보내기</button>
+            </form>
+            <button class="ghost" id="btn-talk-close">그만 말하기</button>
+          </div>
 
-        <details class="card howto">
-          <summary>🐣 돌보는 방법</summary>
-          <ul>
-            <li>알을 톡톡 누르면 더 빨리 깨어나요.</li>
-            <li>레벨 3에 어린이, 레벨 5에 어른이 돼요. 어른 모습은 그동안 어떻게 키웠는지(돌봄 실수, 여행 횟수, 게임 횟수)에 따라 5가지로 갈라져요.</li>
-            <li>🍙 밥으로 배고픔을, 🎾 놀아주기(우왕이가 볼 방향 맞히기)와 🍰 간식으로 행복을 채워요.</li>
-            <li>🚽 똥을 오래 두거나 오래 굶기면 병에 걸려요. 아프면 💊 약을 주세요.</li>
-            <li>💡 밤 10시부터 아침 8시까지는 잠을 자요. 불을 꺼 주지 않으면 돌봄 실수가 돼요. 낮에 불을 끄면 낮잠을 자요.</li>
-            <li>말풍선으로 우왕이가 지금 필요한 것을 알려 줘요. 오래 내버려 두면 돌봄 실수가 쌓여요.</li>
-            <li>여행 중에는 기내에서 돌봐 줘서 배가 고프지 않아요.</li>
-          </ul>
-        </details>
-        <button class="ghost danger" id="btn-reset">처음부터 다시 키우기</button>
+          <div class="card play-panel" id="play-panel" hidden>
+            <p class="play-text" id="play-text"></p>
+            <div class="play-buttons">
+              <button data-guess="left">◀ 왼쪽</button>
+              <button data-guess="right">오른쪽 ▶</button>
+            </div>
+            <p class="play-score" id="play-score"></p>
+          </div>
+
+          <p class="room-hint">방 안의 빈 곳을 톡 누르면 우왕이가 그쪽을 쳐다보고, 꾹 누르고 있으면 걸어가요</p>
+        </aside>
       </section>
 
       <!-- 여행 -->
       <section id="screen-travel" class="screen" hidden>
-        <div id="travel-plan">
-          <h2>여행 계획 ✈️</h2>
-          <div class="card form">
-            <label>출발</label>
-            <div class="fixed-field">인천 (ICN)</div>
-            <label for="dest-select">도착</label>
-            <select id="dest-select"></select>
-            <div class="dest-info" id="dest-info"></div>
-          </div>
+        <div class="col-main">
+          <div id="travel-plan">
+            <h2>여행 계획</h2>
+            <div class="plan-grid">
+              <div class="card form">
+                <label>출발</label>
+                <div class="fixed-field">인천 (ICN)</div>
+                <label for="dest-select">도착</label>
+                <select id="dest-select"></select>
+                <div class="dest-info" id="dest-info"></div>
+              </div>
 
-          <h3>얼마나 기다릴까요?</h3>
-          <div class="card">
-            <div class="timer-set">
-              <div class="unit">
-                <button class="adj" data-unit="h" data-dir="1" aria-label="시간 늘리기">▲</button>
-                <output id="t-h">00</output>
-                <button class="adj" data-unit="h" data-dir="-1" aria-label="시간 줄이기">▼</button>
-                <small>시간</small>
-              </div>
-              <span class="colon">:</span>
-              <div class="unit">
-                <button class="adj" data-unit="m" data-dir="1" aria-label="분 늘리기">▲</button>
-                <output id="t-m">00</output>
-                <button class="adj" data-unit="m" data-dir="-1" aria-label="분 줄이기">▼</button>
-                <small>분</small>
-              </div>
-              <span class="colon">:</span>
-              <div class="unit">
-                <button class="adj" data-unit="s" data-dir="1" aria-label="초 늘리기">▲</button>
-                <output id="t-s">00</output>
-                <button class="adj" data-unit="s" data-dir="-1" aria-label="초 줄이기">▼</button>
-                <small>초</small>
+              <div class="card">
+                <h3 class="card-title">얼마나 기다릴까요?</h3>
+                <div class="timer-set">
+                  <div class="unit">
+                    <button class="adj" data-unit="h" data-dir="1" aria-label="시간 늘리기">▲</button>
+                    <output id="t-h">00</output>
+                    <button class="adj" data-unit="h" data-dir="-1" aria-label="시간 줄이기">▼</button>
+                    <small>시간</small>
+                  </div>
+                  <span class="colon">:</span>
+                  <div class="unit">
+                    <button class="adj" data-unit="m" data-dir="1" aria-label="분 늘리기">▲</button>
+                    <output id="t-m">00</output>
+                    <button class="adj" data-unit="m" data-dir="-1" aria-label="분 줄이기">▼</button>
+                    <small>분</small>
+                  </div>
+                  <span class="colon">:</span>
+                  <div class="unit">
+                    <button class="adj" data-unit="s" data-dir="1" aria-label="초 늘리기">▲</button>
+                    <output id="t-s">00</output>
+                    <button class="adj" data-unit="s" data-dir="-1" aria-label="초 줄이기">▼</button>
+                    <small>초</small>
+                  </div>
+                </div>
+                <div class="presets">
+                  <button data-preset="real" class="real">실제 비행시간</button>
+                  <button data-preset="3600">1시간</button>
+                  <button data-preset="1800">30분</button>
+                  <button data-preset="600">10분</button>
+                  <button data-preset="60">1분</button>
+                </div>
+                <p class="timer-note" id="timer-note"></p>
               </div>
             </div>
-            <div class="presets">
-              <button data-preset="real" class="real">✈️ 실제 비행시간</button>
-              <button data-preset="3600">1시간</button>
-              <button data-preset="1800">30분</button>
-              <button data-preset="600">10분</button>
-              <button data-preset="60">1분</button>
-            </div>
-            <p class="timer-note" id="timer-note"></p>
+            <button class="primary" id="btn-issue">탑승권 발권하기</button>
           </div>
-          <button class="primary" id="btn-issue">🎫 탑승권 발권하기</button>
 
+          <div id="travel-ticket" hidden>
+            <h2>탑승권이 발권되었어요</h2>
+            <div class="ticket" id="ticket"></div>
+            <button class="primary" id="btn-board">탑승하기 ✈️</button>
+            <button class="ghost" id="btn-ticket-back">계획 다시 세우기</button>
+          </div>
+
+          <div id="travel-flight" hidden>
+            <div class="flight-grid">
+              <div class="window"><div class="sky" id="sky"></div></div>
+              <div class="flight-info">
+                <div class="countdown" id="countdown">00:00:00</div>
+                <p class="eta" id="eta"></p>
+                <div class="route">
+                  <b>ICN</b>
+                  <div class="track"><i id="track-fill"></i><span class="plane" id="plane">✈️</span></div>
+                  <b id="to-code">---</b>
+                </div>
+                <div class="announce">
+                  <div id="mascot-flight" class="mascot-wrap tiny"></div>
+                  <p id="announce-text"></p>
+                </div>
+                <div class="sound-panel">
+                  <button data-sound="cabin"><span>🛩️</span>기내 소음</button>
+                  <button data-sound="rain"><span>🌧️</span>빗소리</button>
+                  <button data-sound="music"><span>🎵</span>잔잔한 음악</button>
+                  <button id="btn-voice"><span>📢</span>기내 방송</button>
+                </div>
+              </div>
+            </div>
+            <p class="sub center">다른 탭을 쓰거나 앱을 닫아도 비행 시간은 계속 흘러가요.</p>
+            <button class="ghost danger" id="btn-cancel-flight">회항하기 (여행 취소)</button>
+          </div>
+
+          <div id="travel-arrival" hidden>
+            <div class="hero" id="arrival-hero">
+              <div class="scene" id="arrival-scene"></div>
+              <h2 id="arrival-title"></h2>
+              <p>여권에 스탬프가 찍혔어요!</p>
+              <div class="stamp-pop" id="arrival-stamp"></div>
+            </div>
+            <div class="reward" id="arrival-reward"></div>
+            <div class="arrival-actions">
+              <button class="primary" id="btn-arrival-tips">꿀팁 보러 가기</button>
+              <button class="ghost" id="btn-arrival-games">게임하러 가기</button>
+              <button class="ghost" id="btn-arrival-done">새 여행 계획하기</button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="col-side">
           <h3>내 여권</h3>
           <div class="stamps" id="stamps"></div>
           <h3 id="souvenir-title">기념품</h3>
           <div class="souvenirs" id="souvenirs"></div>
-        </div>
-
-        <div id="travel-ticket" hidden>
-          <h2>탑승권이 발권되었어요 🎫</h2>
-          <div class="ticket" id="ticket"></div>
-          <button class="primary" id="btn-board">탑승하기 ✈️</button>
-          <button class="ghost" id="btn-ticket-back">계획 다시 세우기</button>
-        </div>
-
-        <div id="travel-flight" hidden>
-          <div class="window"><div class="sky" id="sky"></div></div>
-          <div class="countdown" id="countdown">00:00:00</div>
-          <p class="eta" id="eta"></p>
-          <div class="route">
-            <b>ICN</b>
-            <div class="track"><i id="track-fill"></i><span class="plane" id="plane">✈️</span></div>
-            <b id="to-code">---</b>
-          </div>
-          <div class="announce">
-            <div id="mascot-flight" class="mascot-wrap tiny"></div>
-            <p id="announce-text"></p>
-          </div>
-          <div class="sound-panel">
-            <button data-sound="cabin"><span>🛩️</span>기내 소음</button>
-            <button data-sound="rain"><span>🌧️</span>빗소리</button>
-            <button data-sound="music"><span>🎵</span>잔잔한 음악</button>
-            <button id="btn-voice"><span>📢</span>기내 방송</button>
-          </div>
-          <p class="sub center">다른 탭을 쓰거나 앱을 닫아도 비행 시간은 계속 흘러가요.</p>
-          <button class="ghost danger" id="btn-cancel-flight">회항하기 (여행 취소)</button>
-        </div>
-
-        <div id="travel-arrival" hidden>
-          <div class="hero" id="arrival-hero">
-            <div class="scene" id="arrival-scene"></div>
-            <h2 id="arrival-title"></h2>
-            <p>여권에 스탬프가 찍혔어요!</p>
-            <div class="stamp-pop" id="arrival-stamp"></div>
-          </div>
-          <div class="reward" id="arrival-reward"></div>
-          <button class="primary" id="btn-arrival-tips">💬 꿀팁 보러 가기</button>
-          <button class="ghost" id="btn-arrival-games">🎮 게임하러 가기</button>
-          <button class="ghost" id="btn-arrival-done">✅ 새 여행 계획하기</button>
-        </div>
+        </aside>
       </section>
 
       <!-- 게임 -->
       <section id="screen-games" class="screen" hidden>
-        <div id="games-hub">
-          <h2>게임 🎮</h2>
-          <p class="sub">게임으로 코인과 경험치를 모아요. 50점 이상이면 우왕이 행복도 올라가요.</p>
-          <div id="game-list"></div>
+        <div class="col-main">
+          <div class="game-empty" id="game-empty">
+            <div class="big">🎮</div>
+            <p>오른쪽에서 게임을 골라 주세요</p>
+          </div>
+
+          <div id="game-view" hidden>
+            <div class="game-top">
+              <button class="back" id="btn-game-back">◀ 그만하기</button>
+              <b id="game-title"></b>
+            </div>
+
+            <div id="game-catch" class="game-pane" hidden>
+              <div class="game-hud">
+                <span>점수 <b id="g-score">0</b></span>
+                <span id="g-lives"></span>
+                <span>시간 <b id="g-time">30</b></span>
+              </div>
+              <div class="game-box">
+                <canvas id="game-canvas"></canvas>
+                <div class="game-overlay" id="catch-intro"></div>
+              </div>
+            </div>
+
+            <div id="game-memory" class="game-pane" hidden>
+              <div class="game-hud">
+                <span>시도 <b id="m-moves">0</b></span>
+                <span>짝 <b id="m-pairs">0</b>/8</span>
+                <span>시간 <b id="m-time">0</b>초</span>
+              </div>
+              <div class="memory-grid" id="memory-grid"></div>
+            </div>
+
+            <div id="game-quiz" class="game-pane" hidden>
+              <div class="game-hud">
+                <span id="q-progress"></span>
+                <span>점수 <b id="q-score">0</b></span>
+              </div>
+              <div class="card">
+                <p class="quiz-q" id="q-text"></p>
+                <div class="quiz-options" id="q-options"></div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div id="game-view" hidden>
-          <div class="game-top">
-            <button class="back" id="btn-game-back">← 게임 목록</button>
-            <b id="game-title"></b>
+        <aside class="col-side">
+          <div id="games-hub">
+            <h2>게임</h2>
+            <p class="sub">게임으로 코인과 경험치를 모아요. 50점 이상이면 우왕이 행복도 올라가요.</p>
+            <div id="game-list"></div>
           </div>
-
-          <div id="game-catch" class="game-pane" hidden>
-            <div class="game-hud">
-              <span>점수 <b id="g-score">0</b></span>
-              <span id="g-lives"></span>
-              <span>⏱ <b id="g-time">30</b></span>
-            </div>
-            <div class="game-box">
-              <canvas id="game-canvas"></canvas>
-              <div class="game-overlay" id="catch-intro"></div>
-            </div>
-          </div>
-
-          <div id="game-memory" class="game-pane" hidden>
-            <div class="game-hud">
-              <span>시도 <b id="m-moves">0</b></span>
-              <span>짝 <b id="m-pairs">0</b>/8</span>
-              <span>⏱ <b id="m-time">0</b>초</span>
-            </div>
-            <div class="memory-grid" id="memory-grid"></div>
-          </div>
-
-          <div id="game-quiz" class="game-pane" hidden>
-            <div class="game-hud">
-              <span id="q-progress"></span>
-              <span>점수 <b id="q-score">0</b></span>
-            </div>
-            <div class="card">
-              <p class="quiz-q" id="q-text"></p>
-              <div class="quiz-options" id="q-options"></div>
-            </div>
-          </div>
-        </div>
+        </aside>
 
         <div class="result-modal" id="game-result" hidden></div>
       </section>
 
       <!-- 커뮤니티 -->
       <section id="screen-community" class="screen" hidden>
-        <h2>여행 꿀팁 커뮤니티 💬</h2>
-        <p class="mode-note" id="community-mode"></p>
-        <div class="community-bar">
-          <select id="tip-filter" aria-label="여행지 필터"></select>
-          <div class="seg">
-            <button data-sort="new" class="on">최신순</button>
-            <button data-sort="top">인기순</button>
-          </div>
+        <div class="col-main">
+          <h2>여행 꿀팁 커뮤니티</h2>
+          <div id="post-list"></div>
         </div>
-        <button class="primary" id="btn-write">✏️ 꿀팁 쓰기</button>
 
-        <form class="card form write-form" id="write-form" hidden>
-          <label for="w-name">닉네임</label>
-          <input id="w-name" maxlength="12" placeholder="익명 여행자" autocomplete="off">
-          <div class="row2">
-            <div>
-              <label for="w-dest">여행지</label>
-              <select id="w-dest"></select>
-            </div>
-            <div>
-              <label for="w-cat">분류</label>
-              <select id="w-cat"></select>
+        <aside class="col-side">
+          <p class="mode-note" id="community-mode"></p>
+          <div class="community-bar">
+            <select id="tip-filter" aria-label="여행지 필터"></select>
+            <div class="seg">
+              <button data-sort="new" class="on">최신순</button>
+              <button data-sort="top">인기순</button>
             </div>
           </div>
-          <label for="w-text">꿀팁</label>
-          <textarea id="w-text" maxlength="300" rows="4" placeholder="직접 다녀와서 알게 된 팁을 알려 주세요"></textarea>
-          <div class="form-foot">
-            <small id="w-count">0 / 300</small>
-            <div>
-              <button type="button" class="ghost inline" id="btn-write-cancel">취소</button>
-              <button type="submit" class="primary inline">등록</button>
-            </div>
-          </div>
-        </form>
+          <button class="primary" id="btn-write">꿀팁 쓰기</button>
 
-        <div id="post-list"></div>
+          <form class="card form write-form" id="write-form" hidden>
+            <label for="w-name">닉네임</label>
+            <input id="w-name" maxlength="12" placeholder="익명 여행자" autocomplete="off">
+            <div class="row2">
+              <div>
+                <label for="w-dest">여행지</label>
+                <select id="w-dest"></select>
+              </div>
+              <div>
+                <label for="w-cat">분류</label>
+                <select id="w-cat"></select>
+              </div>
+            </div>
+            <label for="w-text">꿀팁</label>
+            <textarea id="w-text" maxlength="300" rows="5" placeholder="직접 다녀와서 알게 된 팁을 알려 주세요"></textarea>
+            <div class="form-foot">
+              <small id="w-count">0 / 300</small>
+              <div>
+                <button type="button" class="ghost inline" id="btn-write-cancel">취소</button>
+                <button type="submit" class="primary inline">등록</button>
+              </div>
+            </div>
+          </form>
+        </aside>
       </section>
     </main>
-
-    <nav class="tabbar">
-      <button data-tab="pet"><span>🐣</span>우왕이</button>
-      <button data-tab="travel"><span>✈️</span>여행</button>
-      <button data-tab="games"><span>🎮</span>게임</button>
-      <button data-tab="community"><span>💬</span>커뮤니티</button>
-    </nav>
 
     <div class="toast" id="toast"></div>
   </div>
@@ -293,6 +350,7 @@
   <script src="js/data.js"></script>
   <script src="js/state.js"></script>
   <script src="js/audio.js"></script>
+  <script src="js/pixel-icons.js"></script>
   <script src="js/mascot.js"></script>
   <script src="js/pet.js"></script>
   <script src="js/travel.js"></script>

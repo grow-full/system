@@ -83,6 +83,7 @@ const Travel = (() => {
     if (current === 'ticket') renderTicket();
     if (current === 'flight') renderFlight();
     if (current === 'arrival') renderArrival();
+    renderPassport(); // 여권·기념품은 오른쪽 패널에 늘 보인다
   }
 
   // ---------- 계획 ----------
@@ -98,7 +99,6 @@ const Travel = (() => {
         <p>${visits ? `방문 ${visits}회` : `첫 방문 선물: ${d.souvenir.emoji} ${d.souvenir.name} · ${d.outfit.emoji} ${d.outfit.name}`}</p>
       </div>`;
     renderTimer();
-    renderPassport();
   }
 
   function renderTimer() {

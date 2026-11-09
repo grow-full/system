@@ -11,18 +11,23 @@ const Games = (() => {
   let memory = null;
   let memoryTimer = 0;
   let quiz = null;
+  let pending = []; // 게임 안에서 걸어 둔 타이머 (게임을 바꾸거나 멈추면 모두 취소)
+
+  function later(fn, ms) {
+    pending.push(setTimeout(fn, ms));
+  }
 
   function init() {
     MiniGame.init($('#game-canvas'));
     $('#btn-game-back').addEventListener('click', stop);
   }
 
+  // 게임 목록은 오른쪽 패널에 늘 보인다. 가운데는 고른 게임, 안 골랐으면 안내 화면
   function render() {
-    if (current) return;
-    $('#games-hub').hidden = false;
-    $('#game-view').hidden = true;
+    $('#game-view').hidden = !current;
+    $('#game-empty').hidden = Boolean(current);
     $('#game-list').innerHTML = LIST.map((g) => `
-      <button class="game-card" data-game="${g.id}">
+      <button class="game-card${g.id === current ? ' on' : ''}" data-game="${g.id}">
         <span class="gi">${g.icon}</span>
         <span class="info"><b>${g.title}</b><small>${g.desc}</small></span>
         <span class="best">최고 ${state.bestScores[g.id] || 0}점</span>
@@ -33,8 +38,7 @@ const Games = (() => {
   function open(id) {
     stopRunning();
     current = id;
-    $('#games-hub').hidden = true;
-    $('#game-view').hidden = false;
+    render();
     $('#game-result').hidden = true;
     $('#game-title').textContent = LIST.find((g) => g.id === id).title;
     ['catch', 'memory', 'quiz'].forEach((g) => { $(`#game-${g}`).hidden = g !== id; });
@@ -46,6 +50,8 @@ const Games = (() => {
   function stopRunning() {
     MiniGame.stop();
     clearInterval(memoryTimer);
+    pending.forEach(clearTimeout);
+    pending = [];
   }
 
   // 다른 탭으로 가거나 목록으로 돌아갈 때
@@ -165,13 +171,13 @@ const Games = (() => {
         clearInterval(memoryTimer);
         const seconds = Math.floor((Date.now() - memory.start) / 1000);
         const score = Math.max(10, 200 - memory.moves * 4 - seconds);
-        setTimeout(() => finish('memory', score, `${memory.moves}번 시도 · ${seconds}초`), 400);
+        later(() => finish('memory', score, `${memory.moves}번 시도 · ${seconds}초`), 400);
       }
       return;
     }
     memory.lock = true;
     renderMemory();
-    setTimeout(() => {
+    later(() => {
       first.open = card.open = false;
       memory.lock = false;
       renderMemory();
@@ -231,7 +237,7 @@ const Games = (() => {
       Sound.sfx('bad');
     }
     $('#q-score').textContent = quiz.score;
-    setTimeout(() => {
+    later(() => {
       quiz.index++;
       if (quiz.index < QUIZ_COUNT) renderQuiz();
       else finish('quiz', quiz.score, `${QUIZ_COUNT}문제 중 ${quiz.score / 20}개 정답`);
