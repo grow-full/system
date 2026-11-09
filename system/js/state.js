@@ -3,7 +3,11 @@ const STORAGE_KEY = 'wooang-travel-v2';
 
 const MAX_HEARTS = 4;
 const HATCH_SECONDS = 30;
-const SNACK_COST = 3;
+// 돌보기 가격 (코인). 코인은 게임·산책·수업 퀴즈로 번다
+const MEAL_COST = 2;
+const SNACK_COST = 5;
+const MEDICINE_COST = 10;
+const START_COINS = 20; // 처음 시작할 때 받는 코인 (밥값이 없어 굶지 않게)
 const CHILD_LEVEL = 3;
 const ADULT_LEVEL = 5;
 
@@ -91,16 +95,22 @@ function defaultState() {
     pet: defaultPet(),
     level: 1,
     exp: 0,
-    coins: 0,       // 코인은 게임으로만 번다 (games.js)
+    coins: START_COINS, // 코인은 게임·산책·수업 퀴즈로 벌고, 밥·간식·약·여행표에 쓴다
     coinsEarned: 0, // 지금까지 게임으로 번 코인
     lastTick: Date.now(),
     ticket: null,   // 발권했지만 아직 타지 않은 표 (요금은 발권할 때 낸다)
     flight: null,   // { mode, transport, from, destId, start, duration, elapsed, flightNo, seat, seatClass, fare }
     arrival: null,  // 도착 화면을 아직 확인하지 않은 여행
+    lecture: null,  // 듣고 있는 수업 { courseId, start, duration } (courses.js, pet.js)
+    lectureQuiz: null, // 수업이 끝나고 아직 풀지 않은 복습 퀴즈의 과목 id
+    courses: {},    // 수강 기록: { 과목 id: 출석 횟수 }
+    study: null,    // 방에서 공부하는 중 { courseId, start, duration } (pet.js)
+    studied: {},    // 공부 기록: { 과목 id: 공부 횟수 }
     trips: 0,
     gamesPlayed: 0,
     visited: {},
     souvenirs: [],
+    decor: [],      // 방 꾸미기: 장식 자리마다 놓은 기념품(여행지 id 또는 null) (pet.js DECOR_SLOTS)
     outfits: [],    // 받은 의상 (여행지 id)
     equipped: { head: null, face: null, neck: null, hand: null },
     forms: [],      // 지금까지 키워 본 어른 모습 (다시 키워도 남는다)

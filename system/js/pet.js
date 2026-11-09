@@ -17,6 +17,11 @@ const Pet = (() => {
   let busy = false;      // 먹기·청소 같은 동작이 진행 중
   let play = null;       // 놀아주기 진행 상태
   let talking = false;   // 말 걸기 판이 열려 있음
+  let picking = false;   // 수업 고르기 판이 열려 있음
+  let lectureYear = 1;   // 수업 고르기 판에서 보고 있는 학년
+  let pickMode = 'lecture'; // 과목 고르기 판의 용도: 'lecture'(수업 듣기) 또는 'study'(공부하기)
+  const STUDY_PHRASES = ['열심히 공부 중… ✏️', '음… 이게 무슨 뜻이지? 🤔', '아하! 알겠다 💡', '필기 꼼꼼히! 📝'];
+  let quizResult = null; // 복습 퀴즈를 풀었으면 결과 글
   let hold = null;       // 누르고 있는 상태 { dir, px, py, timer, raf, last, walking }
   let gazeTimer = 0;     // 톡 누른 곳을 쳐다보는 중이면 정면으로 돌아오기까지의 타이머
   let lastPoop = null;   // 지난번 화면을 그릴 때의 똥 개수
@@ -56,6 +61,32 @@ const Pet = (() => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapMascot(); }
     });
     $('#btn-away').addEventListener('click', () => show('travel'));
+    $('#btn-study-stop').addEventListener('click', stopStudy);
+    $('#cost-meal').textContent = `코인 ${MEAL_COST}`; // 가격표는 state.js 값을 그대로 보여 준다
+    $('#cost-snack').textContent = `코인 ${SNACK_COST}`;
+    $('#cost-medicine').textContent = `코인 ${MEDICINE_COST}`;
+    $('#decor-items').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-souvenir]');
+      if (b) toggleDecor(b.dataset.souvenir);
+    });
+    $('#room-decor').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-decor]');
+      const d = b && destById(b.dataset.decor);
+      if (d && !gone() && !isAsleep()) say(`${d.souvenir.emoji} ${d.name}에서 사 온 ${josa(d.souvenir.name, "이에요", "예요")}!`, 2500);
+    });
+    $('#lecture-list').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-course]');
+      if (b) (pickMode === "study" ? startStudy : startLecture)(b.dataset.course);
+    });
+    $('#lecture-years').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-year]');
+      if (b) { lectureYear = Number(b.dataset.year); renderLectureList(); }
+    });
+    $('#btn-lecture-close').addEventListener('click', () => { picking = false; render(); });
+    document.querySelectorAll('[data-ox]').forEach((b) => b.addEventListener('click', () => answerQuiz(b.dataset.ox)));
+    $('#btn-quiz-done').addEventListener('click', closeQuiz);
+    renderLectureList();
+    renderLectureRecord();
     $('#wardrobe').addEventListener('click', (e) => {
       const b = e.target.closest('[data-wear]');
       if (b) wear(b.dataset.wear);
@@ -70,8 +101,10 @@ const Pet = (() => {
   function tick() {
     const pet = state.pet;
     if (pet.stage === 'egg' && (eggTaps >= 5 || Date.now() - pet.bornAt >= HATCH_SECONDS * 1000)) hatchNow();
+    if (state.lecture && Date.now() >= state.lecture.start + state.lecture.duration) finishLecture();
+    if (state.study && Date.now() >= state.study.start + state.study.duration) finishStudy();
     if ($('#screen-pet').hidden) return;
-    if (isAsleep() || state.flight) motion.stopWalk(); // 잠들거나 떠나면 걷던 동작을 바로 정리
+    if (isAsleep() || gone()) motion.stopWalk(); // 잠들거나 떠나면 걷던 동작을 바로 정리
     else if (++ticks % 3 === 0) walk();
     else if (Math.random() < MOTION.idle.chance) idleTwitch();
     render();
@@ -94,6 +127,11 @@ const Pet = (() => {
     }, 1200);
   }
 
+  // 여행이나 수업을 가서 방에 없는 동안 (state.flight 또는 state.lecture)
+  function gone() {
+    return state.flight || state.lecture;
+  }
+
   function centerX() {
     return Math.max(0, (room.clientWidth - mascot.offsetWidth) / 2);
   }
@@ -111,7 +149,7 @@ const Pet = (() => {
   }
 
   function walk() {
-    if (busy || Date.now() < reactingUntil || play || hold || gazeTimer || state.flight || state.pet.stage === 'egg' || isAsleep()) return;
+    if (busy || Date.now() < reactingUntil || play || hold || gazeTimer || gone() || state.study || state.pet.stage === 'egg' || isAsleep()) return;
     // 대기 동작(기지개·꾸벅 등)이 끝나기 전에 걷기 시작해서 동작이 뚝 끊기지 않게 한다
     if (motion.walking() || motion.acting() || motion.idling() || uwangReducedMotion()) return;
     const size = mascot.offsetWidth;
@@ -122,14 +160,14 @@ const Pet = (() => {
   }
 
   function idleTwitch() {
-    if (busy || play || hold || gazeTimer || state.flight || state.pet.stage === 'egg' || isAsleep() || Date.now() < reactingUntil) return;
+    if (busy || play || hold || gazeTimer || gone() || state.study || state.pet.stage === 'egg' || isAsleep() || Date.now() < reactingUntil) return;
     if (motion.walking() || motion.acting() || motion.idling()) return; // 진행 중인 동작을 끊지 않는다
     motion.twitch();
   }
 
   // ---------- 톡 누르면 쳐다보기 / 꾹 누르면 걷기 ----------
   function canMove() {
-    return state.pet.stage !== 'egg' && !hatching && !busy && !play && !state.flight && !isAsleep();
+    return state.pet.stage !== 'egg' && !hatching && !busy && !play && !gone() && !state.study && !isAsleep();
   }
 
   // 방의 빈 곳을 누르면, 우왕이보다 오른쪽인지 왼쪽인지로 갈 방향을 정한다
@@ -222,7 +260,8 @@ const Pet = (() => {
     const pet = state.pet;
     if (Date.now() < speech.until) return speech.text;
     if (pet.stage === 'egg') return '톡톡 눌러 보세요!';
-    if (state.flight || isAsleep()) return '';
+    if (gone() || isAsleep()) return '';
+    if (state.study) return STUDY_PHRASES[Math.floor(Date.now() / 6000) % STUDY_PHRASES.length];
     const needs = petNeeds();
     if (needs.length) return needs[0];
     return PHRASES[Math.floor(Date.now() / 15000) % PHRASES.length];
@@ -230,7 +269,7 @@ const Pet = (() => {
 
   function render() {
     const pet = state.pet;
-    const away = Boolean(state.flight);
+    const away = gone();
     const asleep = isAsleep();
 
     if (mountedStage !== pet.stage) {
@@ -247,6 +286,16 @@ const Pet = (() => {
     room.dataset.asleep = asleep && !away;
     setMascot(mascot, { dirty: pet.dirty && !away });
     walker.dataset.dirty = pet.dirty && !away && !asleep;
+    renderDecor();
+    walker.dataset.study = Boolean(state.study) && !away;
+    $('#study-desk').hidden = !state.study || away;
+    if (state.study && !away) renderStudyDesk();
+    $('#study-bar').hidden = !state.study || away;
+    if (state.study) {
+      const sc = courseById(state.study.courseId);
+      $('#study-text').textContent = `📖 ${sc ? sc.name : ''} 공부 중`;
+      $('#study-time').textContent = formatClock(Math.max(0, Math.ceil((state.study.start + state.study.duration - Date.now()) / 1000))).slice(3);
+    }
 
     // 보고 있는 동안 똥이 늘었으면 알려 준다
     if (lastPoop !== null && pet.poop > lastPoop && !away && !asleep) say('끙차! 💩', 2000);
@@ -255,8 +304,12 @@ const Pet = (() => {
     $('#room-badges').innerHTML = pet.sick && !away ? `<span title="아파요">${icon('sick', 32)}</span>` : '';
     $('#speech').textContent = speechText();
 
-    $('#away').hidden = !away;
-    if (away) {
+    // 여행 중이면 비행 안내, 수업 중이면 강의실 장면
+    const inClass = Boolean(state.lecture) && !state.flight;
+    $('#away').hidden = !away || inClass;
+    $('#classroom').hidden = !inClass;
+    if (inClass) renderClassroom();
+    else if (away) {
       const f = state.flight;
       $('#away-text').textContent = `${josa(destById(f.destId).name, '으로', '로')} 여행 중이에요`;
       $('#away-time').textContent = formatClock(Math.max(0, Math.ceil((f.start + f.duration - Date.now()) / 1000)));
@@ -277,24 +330,286 @@ const Pet = (() => {
     if (status) status.textContent = pet.stage === 'egg' ? '알을 5번 누르면 태어나요' :
       `${pet.bodyShape === 'thin' ? '마른 체형' : '보통 체형'} · ${{normal:'피로 없음',tired:'졸림',exhausted:'심한 피로 · 다크서클'}[pet.fatigueStage]}`;
     $('#lights-label').textContent = pet.lightsOff ? '불 켜기' : '불 끄기';
-    const locked = pet.stage === 'egg' || away || busy;
+    const locked = pet.stage === 'egg' || away || busy || Boolean(state.study);
     document.querySelectorAll('[data-action]').forEach((b) => { b.disabled = locked; });
     if (talking && (pet.stage === 'egg' || away || asleep)) talking = false; // 자거나 여행을 떠나면 말 걸기 판을 닫는다
-    $('#pet-actions').hidden = Boolean(play) || talking;
+    if (picking && (pet.stage === 'egg' || away || asleep)) picking = false;
+    const quizzing = Boolean(state.lectureQuiz) && !away && !play;
+    if (state.study) { talking = false; picking = false; }
+    $('#pet-actions').hidden = Boolean(play) || talking || picking || quizzing || Boolean(state.study);
     $('#play-panel').hidden = !play;
     $('#talk-panel').hidden = !talking || Boolean(play);
+    $('#lecture-panel').hidden = !picking || Boolean(play) || quizzing;
+    $('#lecture-quiz').hidden = !quizzing;
+    if (quizzing) renderQuiz();
+  }
+
+  // ---------- 수업 듣기 (경영정보학과) ----------
+  // 과목이 많아서 학년 하나씩 골라 보여 준다
+  function renderLectureList() {
+    const study = pickMode === 'study';
+    $('#lecture-title').textContent = study ? '어떤 과목을 공부할까요?' : '어떤 수업을 들을까요?';
+    $('#lecture-note').textContent = study
+      ? `방에서 ${STUDY_MINUTES}분 공부해요 · 경험치 +8, 수업을 들은 과목이면 복습이라 +4 더`
+      : `충북대 경영정보학과 교육과정 · 한 번에 ${LECTURE_MINUTES}분 · 끝나면 경험치 +15와 복습 퀴즈`;
+    $('#lecture-years').innerHTML = [1, 2, 3, 4].map((y) =>
+      `<button data-year="${y}" aria-pressed="${y === lectureYear}">${y}학년</button>`).join('');
+    $('#lecture-list').innerHTML = COURSES.filter((c) => c.year === lectureYear).map((c) => {
+      const n = state.courses[c.id] || 0;
+      const s = state.studied[c.id] || 0;
+      const tag = study ? [n ? '복습' : '', s ? `공부 ${s}회` : ''].filter(Boolean).join(' · ') : (n ? `${n}회` : '');
+      return `<button data-course="${c.id}"><span>${c.icon}</span><span class="lecture-name">${c.name}<em>${c.sem}학기 · ${c.type}</em></span>${tag ? `<small>${tag}</small>` : ''}</button>`;
+    }).join('');
+  }
+
+  // ---------- 강의실 장면 (수업 듣는 동안) ----------
+  // 우왕이와 똑같이 생긴 학생들이 책상에 앉아 있고, 앞에서는 안경 낀 할아버지 우왕이 교수님이 강의한다.
+  // 그림은 우왕이 실제 이미지(보통 체형, 피로 없음)를 그대로 쓰고, 교수님은 털을 회색으로 바래고 안경·흰 눈썹·콧수염을 얹는다.
+  let classKey = '';
+  function classFigure(cls) {
+    const fr = uwangFrame('states', 1, 0);
+    return `<div class="cls-uwang ${cls}" style="background-image:${fr.backgroundImage};background-size:${fr.backgroundSize};background-position:${fr.backgroundPosition}"></div>`;
+  }
+
+  function classSeat(me, i) {
+    return `<div class="cls-seat${me ? ' me' : ''}" style="--d:${(i * 0.37) % 1.6}s">
+      ${me ? '<span class="cls-tag">우왕이</span>' : ''}
+      ${classFigure('student')}
+      <div class="cls-desk">${me ? '<i class="cls-note"></i>' : ''}</div>
+    </div>`;
+  }
+
+  function professorLines(course) {
+    return [`자, ${course.name} 수업을 시작하겠어요`, '칠판을 잘 보세요 👉', '이 부분이 아주 중요합니다', '여기까지 질문 있는 학생?', '이건 시험에 꼭 나옵니다! 📝', '흠흠, 다음으로 넘어가 볼까요'];
+  }
+
+  function renderClassroom() {
+    const lec = state.lecture;
+    const course = courseById(lec.courseId);
+    if (!course) return;
+    const box = $('#classroom');
+    const key = `${lec.courseId}:${lec.start}`;
+    if (classKey !== key) {
+      classKey = key;
+      const back = [0, 1, 2, 3, 4].map((i) => classSeat(false, i)).join('');
+      const front = [0, 1, 2, 3].map((i) => classSeat(i === 2, i + 5)).join('');
+      box.innerHTML = `
+        <div class="cls-wall">
+          <div class="cls-board">
+            <b>${course.icon} ${course.name}</b>
+            <span class="cls-board-line" id="cls-board-line"></span>
+            <small>${course.year}학년 ${course.sem}학기 · ${course.type}</small>
+          </div>
+          <div class="cls-clock"><span>⏰</span><b id="cls-time">00:00</b><button id="btn-skip-class">그만 듣기</button></div>
+        </div>
+        <div class="cls-prof">
+          <div class="cls-speech" id="cls-speech"></div>
+          <div class="cls-prof-body">
+            ${classFigure('prof')}
+            <span class="prof-brow l"></span><span class="prof-brow r"></span>
+            <span class="prof-glasses">${HORN_GLASSES_SVG}</span>
+            <span class="prof-stache"></span>
+            <i class="prof-stick"></i>
+          </div>
+        </div>
+        <div class="cls-row cls-back">${back}</div>
+        <div class="cls-row cls-front">${front}</div>`;
+      $('#btn-skip-class').addEventListener('click', skipLecture);
+    }
+    const left = Math.max(0, Math.ceil((lec.start + lec.duration - Date.now()) / 1000));
+    $('#cls-time').textContent = formatClock(left).slice(3);
+    const lines = professorLines(course);
+    const n = Math.floor((Date.now() - lec.start) / 5000) % lines.length; // 5초마다 다음 설명
+    $('#cls-speech').textContent = lines[n];
+    $('#cls-board-line').textContent = course.learned[Math.floor((Date.now() - lec.start) / 10000) % course.learned.length]; // 10초마다 칠판 내용이 바뀐다
+  }
+
+  // ---------- 공부 책상 (공부하는 동안 우왕이가 방 책상에 앉아 혼자 공부한다) ----------
+  // 걸어 다니는 우왕이는 숨기고, 책상 뒤 의자에 앉은 우왕이(실제 그림)를 보여 준다. 크기는 지금 성장 단계 크기를 따른다.
+  let deskKey = '';
+  function renderStudyDesk() {
+    const course = courseById(state.study.courseId);
+    const box = $('#study-desk');
+    const key = `${state.study.courseId}:${state.study.start}:${state.pet.stage}`;
+    if (deskKey === key) return;
+    deskKey = key;
+    box.style.setProperty('--size', `${mascot.offsetWidth || 128}px`);
+    box.innerHTML = `
+      <div class="desk-chair"></div>
+      <div class="desk-pet">${classFigure('studying')}</div>
+      <div class="desk-top">
+        <span class="desk-books"><i></i><i></i><i></i></span>
+        <span class="desk-note"><b>${course ? course.icon : '📖'}</b></span>
+        <i class="desk-pencil"></i>
+        <span class="desk-lamp"><i></i></span>
+      </div>
+      <div class="desk-legs"><i></i><i></i></div>`;
+    box.querySelector('.desk-pet').addEventListener('click', () => say('공부 중이에요! 쉿 🤫', 1500));
+  }
+
+  // ---------- 공부하기: 방에서 책을 펴고 공부한다 (방을 떠나지 않는다) ----------
+  function startStudy(id) {
+    const pet = state.pet;
+    const course = courseById(id);
+    if (!course || busy || play || gone() || state.study || pet.stage === 'egg') return;
+    if (isAsleep()) return toast('자는 중이라 공부할 수 없어요 💤');
+    if (pet.sick) return toast('아플 때는 쉬어야 해요. 먼저 약을 주세요 💊');
+    if (pet.hunger === 0) return toast('배가 너무 고파서 공부가 안 돼요. 밥 먼저! 🍙');
+    endHold();
+    stopGaze();
+    stopWalking();
+    picking = false;
+    state.study = { courseId: id, start: Date.now(), duration: STUDY_MINUTES * 60000 };
+    saveState();
+    Sound.sfx('beep');
+    say(`${course.name} 공부 시작! ✏️`, 2000);
+    render();
+  }
+
+  function finishStudy() {
+    const course = courseById(state.study.courseId);
+    state.study = null;
+    if (!course) { saveState(); return render(); }
+    state.studied[course.id] = (state.studied[course.id] || 0) + 1;
+    const review = Boolean(state.courses[course.id]);
+    const exp = review ? 12 : 8;
+    rewardExp(exp);
+    saveState();
+    toast(`${course.name} 공부 끝! 경험치 +${exp}${review ? ' (복습 보너스)' : ''} ✏️`);
+    say(`${review ? '복습 완료' : '공부 완료'}! ${course.learned[Math.floor(Math.random() * course.learned.length)]} 💡`, 5000);
+    renderLectureRecord();
+    render();
+    if (!$('#screen-pet').hidden && room.clientWidth) motion.joy();
+  }
+
+  function stopStudy() {
+    if (!state.study) return;
+    state.study = null;
+    saveState();
+    say('휴, 조금 쉬었다 할래요 😮‍💨', 2000);
+    render();
+  }
+
+  function startLecture(id) {
+    const pet = state.pet;
+    const course = courseById(id);
+    if (!course || busy || play || gone() || pet.stage === 'egg') return;
+    if (isAsleep()) return toast('자는 중이라 수업에 갈 수 없어요 💤');
+    if (pet.sick) return toast('아파서 결석해요… 먼저 약을 주세요 💊');
+    if (pet.hunger === 0) return toast('배가 너무 고파서 수업에 집중할 수 없어요. 밥 먼저! 🍙');
+    endHold();
+    stopGaze();
+    motion.stopWalk();
+    picking = false;
+    state.lecture = { courseId: id, start: Date.now(), duration: LECTURE_MINUTES * 60000 };
+    saveState();
+    Sound.sfx('beep');
+    toast(`📚 우왕이가 ${course.name} 수업을 들으러 갔어요!`);
+    render();
+  }
+
+  // 수업 시간이 다 되면 돌아와서 배운 것을 말하고, 복습 퀴즈를 낸다
+  function finishLecture() {
+    const course = courseById(state.lecture.courseId);
+    state.lecture = null;
+    if (!course) { saveState(); return render(); }
+    state.courses[course.id] = (state.courses[course.id] || 0) + 1;
+    addHearts('hunger', -1); // 공부하면 배가 고파진다
+    state.lectureQuiz = course.id;
+    quizResult = null;
+    rewardExp(15);
+    saveState();
+    toast(`${course.name} 수업 끝! 경험치 +15 🎓`);
+    say(`오늘 배운 것: ${course.learned[Math.floor(Math.random() * course.learned.length)]} 📖`, 5000);
+    renderLectureList();
+    renderLectureRecord();
+    render();
+    if (!$('#screen-pet').hidden && room.clientWidth) motion.joy();
+  }
+
+  function skipLecture() {
+    if (!state.lecture) return;
+    state.lecture = null;
+    saveState();
+    toast('수업을 빼먹었어요… 출석으로 치지 않아요 😅');
+    render();
+  }
+
+  function renderQuiz() {
+    const course = courseById(state.lectureQuiz);
+    if (!course) { state.lectureQuiz = null; return; }
+    $('#quiz-course').textContent = `${course.icon} ${course.name} 복습 퀴즈`;
+    $('#quiz-q').textContent = course.quiz.q;
+    $('#quiz-ox').hidden = Boolean(quizResult);
+    $('#quiz-result').hidden = !quizResult;
+    $('#btn-quiz-done').hidden = !quizResult;
+    if (quizResult) $('#quiz-result').textContent = quizResult;
+  }
+
+  function answerQuiz(choice) {
+    const course = courseById(state.lectureQuiz);
+    if (!course || quizResult) return;
+    const right = (choice === 'o') === course.quiz.answer;
+    if (right) {
+      state.coins += 5;
+      rewardExp(5);
+      Sound.sfx('levelup');
+      quizResult = `정답! 🪙 +5 · 경험치 +5 — ${course.quiz.why}`;
+      say('맞혔다! 수업 열심히 들었어요 😆', 2500);
+      motion.joy();
+    } else {
+      Sound.sfx('beep');
+      quizResult = `아쉬워요, 정답은 ${course.quiz.answer ? 'O' : 'X'} — ${course.quiz.why}`;
+      say('으… 다음엔 꼭 맞힐래요 😢', 2500);
+      motion.refuse();
+    }
+    saveState();
+    render();
+  }
+
+  function closeQuiz() {
+    state.lectureQuiz = null;
+    quizResult = null;
+    saveState();
+    render();
+  }
+
+  // 수업을 듣거나 공부한 과목을 모아 보여 준다 (출석 횟수 · 공부 횟수)
+  function renderLectureRecord() {
+    const done = COURSES.filter((c) => state.courses[c.id] || state.studied[c.id]);
+    const attend = COURSES.reduce((s, c) => s + (state.courses[c.id] || 0), 0);
+    const studied = COURSES.reduce((s, c) => s + (state.studied[c.id] || 0), 0);
+    $('#lecture-count').textContent = `${done.length}/${COURSES.length}과목 · 출석 ${attend}회 · 공부 ${studied}회`;
+    $('#lecture-record').innerHTML = done.length
+      ? done.map((c) => {
+          const parts = [state.courses[c.id] ? `출석 ${state.courses[c.id]}` : '', state.studied[c.id] ? `공부 ${state.studied[c.id]}` : ''].filter(Boolean).join(' · ');
+          return `<span class="lecture-chip">${c.icon} ${c.name} <b>${parts}</b></span>`;
+        }).join('')
+      : '<span class="collection-note">아직 들은 수업이 없어요. "수업 듣기"나 "공부하기"를 눌러 보세요!</span>';
   }
 
   // ---------- 돌보기 ----------
+  // 돌보기 값을 낸다. 코인이 모자라면 알려 주고 false (밥·간식·약 가격은 state.js)
+  function pay(cost, label) {
+    if (state.coins < cost) {
+      toast(`코인이 부족해요 (${label} 🪙${cost}, 가진 코인 🪙${state.coins}). 게임·산책·수업 퀴즈로 모아 보세요!`);
+      return false;
+    }
+    state.coins -= cost;
+    renderTop();
+    return true;
+  }
+
   function act(action) {
     const pet = state.pet;
-    if (busy || play || state.flight || pet.stage === 'egg') return;
+    if (busy || play || gone() || pet.stage === 'egg') return;
     if (action === 'lights') return toggleLights();
     if (isAsleep()) {
       return toast(isNight() ? '밤이라 자고 있어요 🌙 아침 8시에 일어나요' : '낮잠 자는 중이에요. 불을 켜면 일어나요 💡');
     }
     if (action === 'meal') {
       if (pet.hunger >= MAX_HEARTS) return refuse();
+      if (!pay(MEAL_COST, '밥')) return;
       addHearts('hunger', 1);
       eatFood();
       recoverNutrition();
@@ -304,8 +619,7 @@ const Pet = (() => {
       return eat('meal');
     }
     if (action === 'snack') {
-      if (state.coins < SNACK_COST) return toast(`코인이 부족해요 (간식 🪙${SNACK_COST}). 게임으로 모아 보세요!`);
-      state.coins -= SNACK_COST;
+      if (!pay(SNACK_COST, '간식')) return;
       addHearts('happy', 1);
       eatFood();
       pet.weight += 2;
@@ -327,10 +641,18 @@ const Pet = (() => {
     }
     if (action === 'medicine') {
       if (!pet.sick) return toast('아프지 않아요! 약은 필요 없어요');
+      if (!pay(MEDICINE_COST, '약')) return;
+      saveState();
       return cure();
     }
     if (action === 'talk') {
       talking = true;
+      return render();
+    }
+    if (action === 'lecture' || action === 'study') {
+      pickMode = action;
+      renderLectureList();
+      picking = true;
       return render();
     }
   }
@@ -404,7 +726,7 @@ const Pet = (() => {
 
   function talk(key) {
     if (!talking || busy) return;
-    if (state.pet.stage === 'egg' || state.flight || isAsleep()) {
+    if (state.pet.stage === 'egg' || gone() || isAsleep()) {
       talking = false;
       return render();
     }
@@ -602,7 +924,8 @@ const Pet = (() => {
       say(`톡톡! (${eggTaps}/5)`, 1500);
       return;
     }
-    if (busy || play || state.flight || isAsleep()) return;
+    if (busy || play || gone() || isAsleep()) return;
+    if (state.study) { say("공부 중이에요! 쉿 🤫", 1500); return; }
     const c = MOTION.touch;
     const now = Date.now();
     touchTimes = touchTimes.filter(t => now - t < c.spamWindowMs);
@@ -709,13 +1032,73 @@ const Pet = (() => {
     $('#forms').innerHTML = keys.map((k) => {
       const f = ADULT_FORMS[k];
       const current = state.pet.stage === 'adult' && state.pet.form === k;
-      return state.forms.includes(k)
-        ? `<div class="form-item${current ? ' current' : ''}" title="${f.hint}"><span>${f.icon}</span>${f.name}</div>`
-        : `<div class="form-item locked" title="${f.hint}"><span>❔</span>???</div>`;
+      // 모은 모습은 실제 우왕이 그림(모습별 색·표시는 style.css의 data-form)으로, 못 모은 모습은 검은 실루엣으로
+      const got = state.forms.includes(k);
+      const fr = uwangFrame('states', 1, 0);
+      const fig = `<div class="dex-fig${got ? '' : ' locked'}" data-form="${k}">
+          <div class="dex-art" style="background-image:${fr.backgroundImage};background-size:${fr.backgroundSize};background-position:${fr.backgroundPosition}"></div>
+          ${got ? `<span class="dex-mark">${FORM_MARKS[k] || ''}</span>` : '<span class="dex-q">?</span>'}
+        </div>`;
+      return got
+        ? `<div class="form-item${current ? ' current' : ''}" title="${f.name}: ${f.hint} 키웠어요">${fig}<b>${f.name}</b>${current ? '<small>지금 모습</small>' : ''}</div>`
+        : `<div class="form-item locked" title="힌트: ${f.hint}">${fig}<b>???</b></div>`;
     }).join('');
     $('#forms-note').textContent = state.pet.stage === 'adult'
       ? '처음부터 다시 키우면 다른 모습으로 자랄 수도 있어요. 도감은 그대로 남아요.'
       : `어른이 되면 키운 방법에 따라 모습이 정해져요. 힌트: ${Object.values(ADULT_FORMS).map((f) => `${f.icon} ${f.hint}`).join(' / ')}`;
+  }
+
+  // ---------- 방 꾸미기: 여행지 기념품을 방의 장식 자리에 놓는다 ----------
+  // 자리: 벽 선반 3칸, 창문 아래 액자, 바닥 2곳 (DECOR_SLOTS). state.decor[i] = 그 자리에 놓은 여행지 id
+  const DECOR_SLOTS = ['shelf-1', 'shelf-2', 'shelf-3', 'frame', 'floor-1', 'floor-2'];
+  let decorKey = '';
+
+  function placedDecor() {
+    const decor = DECOR_SLOTS.map((_, i) => state.decor[i] || null);
+    return decor.map((id) => (id && state.souvenirs.includes(id) && destById(id) ? id : null));
+  }
+
+  function renderDecor() {
+    const decor = placedDecor();
+    const key = decor.join(',') + '|' + state.souvenirs.join(',');
+    if (decorKey === key) return;
+    decorKey = key;
+    // 방 안
+    $('#room-decor').innerHTML = `<div class="decor-shelf"></div>` + DECOR_SLOTS.map((slot, i) => {
+      const d = decor[i] && destById(decor[i]);
+      return d ? `<button class="decor decor-${slot}" data-decor="${d.id}" title="${d.souvenir.name}">${d.souvenir.emoji}</button>` : '';
+    }).join('') + (decor[3] ? '' : '<div class="decor-frame-empty"></div>');
+    // 방 꾸미기 카드
+    const owned = DESTINATIONS.filter((d) => state.souvenirs.includes(d.id));
+    const placed = decor.filter(Boolean).length;
+    $('#decor-count').textContent = `장식 ${placed} / ${DECOR_SLOTS.length}`;
+    $('#decor-items').innerHTML = owned.length
+      ? owned.map((d) => {
+          const on = decor.includes(d.id);
+          return `<button class="decor-item${on ? ' on' : ''}" data-souvenir="${d.id}" aria-pressed="${on}" title="${d.name} 기념품"><span>${d.souvenir.emoji}</span><small>${d.souvenir.name}</small></button>`;
+        }).join('')
+      : '<p class="collection-note">아직 기념품이 없어요. 여행지에 처음 가면 기념품을 받아 와요 ✈️</p>';
+  }
+
+  // 기념품을 누르면 빈자리에 놓고, 이미 놓여 있으면 치운다
+  function toggleDecor(id) {
+    const d = destById(id);
+    if (!d || !state.souvenirs.includes(id)) return;
+    const decor = placedDecor();
+    const at = decor.indexOf(id);
+    if (at >= 0) {
+      decor[at] = null;
+      toast(`${d.souvenir.emoji} ${josa(d.souvenir.name, "을", "를")} 치웠어요`);
+    } else {
+      const free = decor.indexOf(null);
+      if (free < 0) return toast(`장식 자리가 꽉 찼어요 (${DECOR_SLOTS.length}곳). 먼저 하나를 치워 주세요`);
+      decor[free] = id;
+      toast(`${d.souvenir.emoji} ${josa(d.souvenir.name, "으로", "로")} 방을 꾸몄어요!`);
+      if (!gone() && !isAsleep() && state.pet.stage !== 'egg') say('우와, 방이 예뻐졌어요! ✨', 2200);
+    }
+    state.decor = decor;
+    saveState();
+    renderDecor();
   }
 
   function refresh() {
@@ -732,6 +1115,11 @@ const Pet = (() => {
     stopGaze();
     lastPoop = null;
     talking = false;
+    picking = false;
+    quizResult = null;
+    classKey = "";
+    deskKey = "";
+    decorKey = "";
     interactionVersion++;
     mascot._animationToken = (mascot._animationToken || 0) + 1;
     motion.reset(); // 이동·동작·타이머·음식·하트 효과 정리
@@ -746,6 +1134,8 @@ const Pet = (() => {
     fx.innerHTML = '';
     render();
     renderCollections();
+    renderLectureList();
+    renderLectureRecord();
     moveTo(centerX(), true);
   }
 

@@ -1825,3 +1825,203 @@ body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #
 }
 #visual-status { margin: 0; color: var(--sub); font-size: 12px; text-align: left; }
 @media (prefers-reduced-motion: reduce) { .uwang-art { transition: none; } }
+
+/* ---------- 수업 듣기 (경영정보학과) ---------- */
+.actions button.wide { grid-column: 1 / -1; flex-direction: row; min-height: 0; }
+.lecture-panel, .lecture-quiz { margin-top: 18px; text-align: center; }
+.lecture-note { margin: -4px 0 12px; color: var(--sub); font-size: 12px; word-break: keep-all; }
+.lecture-list { display: grid; gap: 6px; margin-bottom: 12px; text-align: left; max-height: 420px; overflow-y: auto; padding: 2px; }
+.lecture-years { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+.lecture-years button { padding: 6px 0; border: 0; border-radius: 0; background: #fff; box-shadow: var(--px-border); font: inherit; font-size: 12px; color: var(--ink); cursor: pointer; }
+.lecture-years button[aria-pressed="true"] { background: var(--primary); color: #fff; }
+.lecture-name { display: flex; flex-direction: column; gap: 2px; }
+.lecture-name em { font-style: normal; font-size: 11px; color: var(--sub); }
+.lecture-list button {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 0; border-radius: 0;
+  background: #fff; box-shadow: var(--px-border);
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+}
+.lecture-list button:hover { background: var(--tint); }
+.lecture-list button small { margin-left: auto; color: var(--sub); font-size: 12px; }
+.lecture-quiz .play-text { word-break: keep-all; }
+.quiz-result { margin: 0 0 12px; padding: 10px; background: var(--tint); box-shadow: var(--px-border); word-break: keep-all; }
+.lecture-card { grid-column: 1 / -1; }
+.lecture-record { display: flex; flex-wrap: wrap; gap: 8px; }
+.lecture-chip { padding: 4px 8px; background: #fff; box-shadow: var(--px-border); font-size: 12px; }
+.lecture-chip b { color: var(--primary); margin-left: 2px; }
+
+/* ---------- 공부하기: 방에서 책 펴고 공부 ---------- */
+.study-card { margin-top: 18px; text-align: center; }
+.study-time { display: block; margin-bottom: 8px; font-size: 28px; color: var(--primary); }
+
+/* ---------- 강의실 (수업 듣는 동안 방 대신 보인다, pet.js renderClassroom) ----------
+   크기는 방 높이(cqh) 비율이라 컴퓨터(420px)·휴대폰(300px) 방에서 같은 모양으로 줄어든다 */
+.classroom {
+  position: absolute; inset: 0; z-index: 5; overflow: hidden;
+  container-type: size;
+  background: linear-gradient(#e6ead8 0 60%, #b98d5e 60% 61.5%, #d9b384 61.5%);
+  background-image:
+    linear-gradient(#e6ead8 0 60%, #b98d5e 60% 61.5%, transparent 61.5%),
+    repeating-linear-gradient(90deg, #d9b384 0 46px, #cfa575 46px 48px);
+}
+.cls-board {
+  position: absolute; left: 30%; right: 17%; top: 5%; height: 36%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.5cqh;
+  padding: 0 3%; text-align: center; color: #f4f1e6;
+  background: #2f5d46;
+  box-shadow: 0 0 0 4px #8a5a2b, 0 0 0 6px var(--ink), 0 8px 0 2px #6b4420;
+}
+.cls-board b { font-size: max(12px, 4.4cqh); }
+.cls-board-line { font-size: max(10px, 3.4cqh); word-break: keep-all; opacity: .92; }
+.cls-board small { font-size: max(9px, 2.8cqh); color: #c9dccf; }
+.cls-clock {
+  position: absolute; right: 2%; top: 5%; width: 13%;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 6px 2px; background: #fffaf0; box-shadow: var(--px-border); font-size: max(10px, 3cqh);
+}
+.cls-clock b { color: var(--primary); font-size: max(12px, 4cqh); }
+.cls-clock button {
+  padding: 3px 4px; border: 0; border-radius: 0; background: var(--tint); box-shadow: var(--px-border);
+  font: inherit; font-size: max(9px, 2.6cqh); color: var(--ink); cursor: pointer; white-space: nowrap;
+}
+
+/* 교수님: 칠판 왼쪽에 서서 지휘봉으로 칠판을 가리킨다 */
+.cls-prof { position: absolute; left: 2%; top: 0; width: 28%; height: 64%; }
+.cls-speech {
+  position: absolute; left: 0; right: -6%; top: 3%; z-index: 2;
+  padding: 4px 6px; background: #fff; box-shadow: var(--px-border);
+  font-size: max(10px, 3cqh); line-height: 1.3; text-align: center; word-break: keep-all;
+}
+.cls-prof-body { --size: 42cqh; position: absolute; left: 50%; bottom: 0; width: var(--size); height: var(--size); transform: translateX(-50%); animation: profSway 2.4s steps(2) infinite; transform-origin: 50% 88%; }
+@keyframes profSway { 50% { transform: translateX(-50%) rotate(-2deg); } }
+.cls-uwang { position: absolute; inset: 0; background-repeat: no-repeat; }
+/* 늙은 우왕이: 털이 바래서 회색빛 */
+.cls-uwang.prof { filter: saturate(.25) brightness(1.12) contrast(.95); }
+.prof-glasses { position: absolute; left: 50%; top: 36%; width: 58%; transform: translate(-50%, -50%); }
+.prof-glasses svg { display: block; width: 100%; height: auto; }
+.prof-brow { position: absolute; top: 26%; width: 15%; height: 4.5%; background: #fff; box-shadow: 0 0 0 1px #8a8a8a; }
+.prof-brow.l { left: 31%; transform: rotate(-12deg); }
+.prof-brow.r { right: 31%; transform: rotate(12deg); }
+.prof-stache { position: absolute; left: 50%; top: 45%; width: 26%; height: 7%; transform: translateX(-50%); background: #fff; border-radius: 50% 50% 40% 40% / 70% 70% 30% 30%; box-shadow: 0 0 0 1px #9a9a9a; }
+.prof-stick { position: absolute; right: -14%; top: 22%; width: 3.5%; height: 52%; background: #6b4420; box-shadow: 0 0 0 1px var(--ink); transform: rotate(38deg); transform-origin: 50% 100%; animation: stickPoint 1.6s steps(2) infinite; }
+@keyframes stickPoint { 50% { transform: rotate(48deg); } }
+
+/* 학생 자리: 우왕이와 똑같은 학생들이 책상 뒤에 앉아 있다 */
+.cls-row { position: absolute; display: flex; justify-content: center; align-items: flex-end; }
+.cls-row.cls-back { left: 31%; right: 2%; bottom: 25%; gap: 1.5%; }
+.cls-row.cls-front { left: 24%; right: 0; bottom: -1%; gap: 2%; }
+.cls-seat { --size: 22cqh; position: relative; width: calc(var(--size) * .82); height: calc(var(--size) * .9); }
+.cls-row.cls-front .cls-seat { --size: 31cqh; }
+.cls-seat .cls-uwang { left: 50%; right: auto; bottom: auto; top: 0; width: var(--size); height: var(--size); transform: translateX(-50%); animation: seatBob 2.2s steps(2) infinite; animation-delay: calc(var(--d) * -1); }
+@keyframes seatBob { 50% { transform: translateX(-50%) translateY(2%); } }
+.cls-desk { position: absolute; left: -4%; right: -4%; bottom: 0; height: 38%; background: #a8713d; box-shadow: 0 -4px 0 0 #c48a52, 0 0 0 2px var(--ink); }
+/* 내 우왕이: 이름표를 달고, 고개를 끄덕이며 노트 필기 */
+.cls-seat.me .cls-uwang { animation: meNod 1.2s steps(2) infinite; transform-origin: 50% 88%; }
+@keyframes meNod { 50% { transform: translateX(-50%) rotate(4deg) translateY(2%); } }
+.cls-tag { position: absolute; left: 50%; top: -14%; z-index: 2; transform: translateX(-50%); padding: 1px 5px; background: var(--primary); color: #fff; font-size: max(9px, 2.6cqh); white-space: nowrap; box-shadow: var(--px-border); animation: blinkStep 1.6s steps(1) infinite; }
+.cls-note { position: absolute; left: 50%; top: -14%; width: 36%; height: 26%; transform: translateX(-50%); background: #fff; box-shadow: 0 0 0 2px var(--ink); }
+.cls-note::after { content: ''; position: absolute; left: 15%; right: 15%; top: 35%; height: 2px; background: #9fb4d8; box-shadow: 0 5px 0 #9fb4d8; }
+@media (prefers-reduced-motion: reduce) {
+  .cls-prof-body, .prof-stick, .cls-seat .cls-uwang, .cls-seat.me .cls-uwang, .cls-tag { animation: none; }
+}
+
+/* ---------- 공부 책상: 우왕이가 방 책상에 앉아 혼자 공부 (pet.js renderStudyDesk) ----------
+   --size는 지금 우왕이 크기. 책상 앞판이 다리·아랫배를 가려서 의자에 앉은 것처럼 보인다 */
+.walker[data-study="true"] { visibility: hidden; }
+.study-desk { position: absolute; left: 50%; bottom: 10px; z-index: 2; width: calc(var(--size) * 1.9); height: calc(var(--size) * 1.2); transform: translateX(-50%); }
+.desk-chair { position: absolute; left: 50%; bottom: calc(var(--size) * .3); width: calc(var(--size) * .78); height: calc(var(--size) * .62); transform: translateX(-50%); background: #8a5a2b; box-shadow: 0 0 0 3px var(--ink), inset 0 6px 0 #a8713d; }
+.desk-pet { position: absolute; left: 50%; bottom: calc(var(--size) * .14); width: var(--size); height: var(--size); transform: translateX(-50%); cursor: pointer; }
+.desk-pet .cls-uwang { animation: deskNod 1.4s steps(2) infinite; transform-origin: 50% 88%; }
+@keyframes deskNod { 50% { transform: rotate(5deg) translateY(2%); } }
+.desk-top { position: absolute; left: 0; right: 0; bottom: calc(var(--size) * .32); height: calc(var(--size) * .09); background: #c48a52; box-shadow: 0 0 0 3px var(--ink); }
+.desk-legs { position: absolute; left: 3%; right: 3%; bottom: 0; height: calc(var(--size) * .32); background: #a8713d; box-shadow: 0 0 0 3px var(--ink); }
+.desk-legs i { position: absolute; top: 22%; width: 22%; height: 26%; background: #8a5a2b; box-shadow: 0 0 0 2px var(--ink); }
+.desk-legs i:first-child { left: 10%; }
+.desk-legs i:last-child { right: 10%; }
+.desk-legs i::after { content: ''; position: absolute; left: 40%; top: 35%; width: 20%; height: 30%; background: var(--yellow, #f5c84c); }
+/* 책상 위: 책 더미, 펼친 노트, 움직이는 연필, 스탠드 */
+.desk-books { position: absolute; left: 6%; bottom: 100%; display: flex; flex-direction: column-reverse; }
+.desk-books i { display: block; width: calc(var(--size) * .34); height: calc(var(--size) * .07); box-shadow: 0 0 0 2px var(--ink); margin-top: 2px; }
+.desk-books i:nth-child(1) { background: var(--primary); }
+.desk-books i:nth-child(2) { background: var(--sky); width: calc(var(--size) * .3); margin-left: 4%; }
+.desk-books i:nth-child(3) { background: #6cc070; width: calc(var(--size) * .32); }
+.desk-note { position: absolute; left: 50%; bottom: 100%; width: calc(var(--size) * .5); height: calc(var(--size) * .14); transform: translateX(-50%); display: flex; align-items: center; justify-content: center; background: #fff; box-shadow: 0 0 0 2px var(--ink); font-size: calc(var(--size) * .08); }
+.desk-note::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--lcd-dark); }
+.desk-note b { position: relative; left: 22%; font-weight: normal; }
+.desk-pencil { position: absolute; left: 40%; bottom: calc(100% + var(--size) * .04); width: calc(var(--size) * .2); height: calc(var(--size) * .035); background: #f5c84c; box-shadow: 0 0 0 2px var(--ink); transform: rotate(-30deg); animation: pencilWrite .5s steps(2) infinite; }
+@keyframes pencilWrite { 50% { transform: rotate(-30deg) translate(calc(var(--size) * .06), 2px); } }
+.desk-lamp { position: absolute; right: 8%; bottom: 100%; width: calc(var(--size) * .05); height: calc(var(--size) * .42); background: #5b5fb0; box-shadow: 0 0 0 2px var(--ink); }
+.desk-lamp i { position: absolute; right: -2px; top: -2px; width: calc(var(--size) * .26); height: calc(var(--size) * .13); background: #5b5fb0; box-shadow: 0 0 0 2px var(--ink); clip-path: polygon(15% 0, 85% 0, 100% 100%, 0 100%); }
+.desk-lamp i::after { content: ''; position: absolute; left: -60%; top: 100%; width: 220%; height: calc(var(--size) * .4); background: radial-gradient(ellipse at 50% 0, rgba(255, 230, 140, .55), transparent 70%); }
+@media (prefers-reduced-motion: reduce) { .desk-pet .cls-uwang, .desk-pencil { animation: none; } }
+
+/* ---------- 방 꾸미기: 여행 기념품 장식 (pet.js renderDecor) ---------- */
+.room-decor { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.decor-shelf { position: absolute; right: 26px; top: 176px; width: 168px; height: 10px; background: #a8713d; box-shadow: 0 0 0 3px var(--ink), 0 6px 0 0 rgba(74, 13, 34, .25); }
+.decor-shelf::before, .decor-shelf::after { content: ''; position: absolute; top: 100%; width: 8px; height: 14px; background: #8a5a2b; box-shadow: 0 0 0 2px var(--ink); }
+.decor-shelf::before { left: 16px; }
+.decor-shelf::after { right: 16px; }
+.decor {
+  position: absolute; padding: 0; border: 0; background: none; box-shadow: none;
+  font-size: 34px; line-height: 1; cursor: pointer; pointer-events: auto;
+  filter: drop-shadow(2px 2px 0 rgba(74, 13, 34, .35));
+}
+.decor:hover { transform: translateY(-3px); }
+/* 선반 위 3칸 (선반 윗면에 바닥을 맞춘다) */
+.decor-shelf-1 { right: 148px; top: 138px; }
+.decor-shelf-2 { right: 92px; top: 138px; }
+.decor-shelf-3 { right: 36px; top: 138px; }
+/* 창문 아래 액자 */
+.decor-frame, .decor-frame-empty { left: 40px; top: 140px; width: 70px; height: 58px; display: grid; place-items: center; background: #fffaf0; box-shadow: 0 0 0 4px #c48a52, 0 0 0 6px var(--ink); font-size: 30px; }
+.decor-frame-empty { position: absolute; background: repeating-linear-gradient(45deg, #f6eedf 0 6px, #efe3cc 6px 12px); }
+/* 바닥 (우왕이 뒤쪽) */
+.decor-floor-1 { left: 18px; bottom: 18px; font-size: 40px; }
+.decor-floor-2 { left: 70px; bottom: 26px; font-size: 36px; }
+.room[data-lights="off"] .decor { filter: brightness(.6); }
+
+/* 방 꾸미기 카드 */
+.decor-card { grid-column: 1 / -1; }
+.decor-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.decor-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 4px; border: 0; border-radius: 0; background: #fff; box-shadow: var(--px-border);
+  font: inherit; color: var(--ink); cursor: pointer;
+}
+.decor-item span { font-size: 26px; line-height: 1; }
+.decor-item small { font-size: 11px; text-align: center; word-break: keep-all; }
+.decor-item.on { background: var(--tint); box-shadow: 0 -2px 0 0 var(--primary), 0 2px 0 0 var(--primary), -2px 0 0 0 var(--primary), 2px 0 0 0 var(--primary); }
+.decor-item.on::after { content: '장식 중'; font-size: 10px; color: var(--primary); }
+
+@media (max-width: 899px) {
+  .decor-shelf { right: 16px; top: 124px; width: 128px; }
+  .decor { font-size: 26px; }
+  .decor-shelf-1 { right: 106px; top: 94px; }
+  .decor-shelf-2 { right: 64px; top: 94px; }
+  .decor-shelf-3 { right: 22px; top: 94px; }
+  .decor-frame, .decor-frame-empty { left: 26px; top: 100px; width: 52px; height: 44px; font-size: 22px; }
+  .decor-floor-1 { left: 12px; bottom: 14px; font-size: 30px; }
+  .decor-floor-2 { left: 52px; bottom: 20px; font-size: 26px; }
+}
+
+/* ---------- 어른 모습별 생김새 (방의 우왕이와 도감이 같이 쓴다) ----------
+   반짝: 금빛으로 빛남 / 꼬질: 털이 갈색으로 바램 / 튼튼: 몸이 옆으로 통통 / 여행가·게이머: 머리 위 표시(🧭·🎧) */
+.mascot-wrap[data-form="shiny"] .uwang-breath, .dex-fig[data-form="shiny"] .dex-art { filter: sepia(.35) saturate(1.7) brightness(1.12) drop-shadow(0 0 5px #ffe27a); }
+.mascot-wrap[data-form="messy"] .uwang-breath, .dex-fig[data-form="messy"] .dex-art { filter: sepia(.55) saturate(.75) brightness(.9); }
+.mascot-wrap[data-form="sturdy"] .uwang-layer, .mascot-wrap[data-form="sturdy"] .uwang-expression, .dex-fig[data-form="sturdy"] .dex-art { transform: scaleX(1.12); transform-origin: 50% 88%; }
+.mascot-wrap[data-form="shiny"] .uwang-form-mark { animation: blinkStep 1.2s steps(1) infinite; }
+
+/* ---------- 우왕이 도감: 모은 모습은 실제 그림, 못 모은 모습은 실루엣 ---------- */
+.form-item { gap: 2px; padding: 6px 2px; }
+.form-item b { font-size: 11px; font-weight: normal; text-align: center; word-break: keep-all; }
+.form-item small { font-size: 10px; color: var(--primary); }
+.dex-fig { --size: 58px; position: relative; width: var(--size); height: var(--size); }
+.dex-art { position: absolute; inset: 0; background-repeat: no-repeat; }
+.form-item .dex-mark { display: block; position: absolute; top: -2px; right: -4px; font-size: 16px; line-height: 1; }
+.form-item .dex-fig[data-form="shiny"] .dex-mark { animation: blinkStep 1.2s steps(1) infinite; }
+.dex-fig.locked .dex-art { filter: brightness(0); opacity: .2; transform: none; }
+.form-item .dex-q { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; color: #fff; text-shadow: 0 0 0 var(--ink), 1px 1px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink); }
+.form-item.current .dex-fig { animation: dexHop 1s steps(2) infinite; }
+@keyframes dexHop { 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .form-item.current .dex-fig, .dex-mark { animation: none; } }
+.decor-items .collection-note { grid-column: 1 / -1; margin: 0; }

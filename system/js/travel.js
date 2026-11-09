@@ -367,6 +367,8 @@ const Travel = (() => {
   function board() {
     const tk = state.ticket;
     if (!tk) return;
+    if (state.lecture) return toast('우왕이가 수업 중이에요. 수업이 끝나면 떠나요 📚');
+    if (state.study) return toast('우왕이가 공부 중이에요. 공부가 끝나면 떠나요 ✏️');
     $('#btn-board').disabled = true;
     Sound.sfx('tear');
     $('#ticket').classList.add('torn');
@@ -600,6 +602,13 @@ const Travel = (() => {
     state.visited[d.id] = (state.visited[d.id] || 0) + 1;
     state.trips++;
     if (newSouvenir) state.souvenirs.push(d.id);
+    // 새 기념품은 방에 빈 장식 자리가 있으면 바로 꾸며 둔다 (자리 6곳: pet.js DECOR_SLOTS)
+    let decorPlaced = false;
+    if (newSouvenir) {
+      const decor = Array.from({ length: 6 }, (_, i) => state.decor[i] || null);
+      const free = decor.indexOf(null);
+      if (free >= 0) { decor[free] = d.id; state.decor = decor; decorPlaced = true; }
+    }
     if (newOutfit) state.outfits.push(d.id);
     let focusSeconds = 0;
     let costumes = [];
@@ -608,7 +617,7 @@ const Travel = (() => {
       costumes = Focus.addTime(focusSeconds).map((c) => c.id);
     }
     state.flight = null;
-    state.arrival = { destId: d.id, newSouvenir, newOutfit, focusSeconds, costumes };
+    state.arrival = { destId: d.id, newSouvenir, newOutfit, focusSeconds, costumes, decorPlaced };
     addHearts('happy', 1);
     rewardExp(30);
     saveState();
@@ -628,7 +637,7 @@ const Travel = (() => {
     $('#arrival-stamp').textContent = d.code;
     const chips = ['✨ 경험치 +30', '💗 행복 +1'].map((t) => `<span class="chip">${t}</span>`);
     if (a.focusSeconds) chips.push(`<span class="chip">📚 집중 ${Focus.durationLabel(a.focusSeconds)}</span>`);
-    if (a.newSouvenir) chips.push(`<span class="chip new">🎁 새 기념품: ${d.souvenir.emoji} ${d.souvenir.name}</span>`);
+    if (a.newSouvenir) chips.push(`<span class="chip new">🎁 새 기념품: ${d.souvenir.emoji} ${d.souvenir.name}${a.decorPlaced ? ' (우왕이 방에 장식했어요)' : ' (방 꾸미기에서 장식해 보세요)'}</span>`);
     if (a.newOutfit) chips.push(`<span class="chip new">👗 새 의상: ${d.outfit.emoji} ${d.outfit.name} (옷장에서 입혀 보세요)</span>`);
     (a.costumes || []).forEach((id) => {
       const c = OUTFITS[id];
