@@ -5,7 +5,7 @@ const REGIONS = ['국내', '아시아', '유럽', '미주·오세아니아'];
 
 const DESTINATIONS = [
   {
-    id: 'jeju', name: '제주도', country: '대한민국', region: '국내', code: 'CJU', minutes: 70,
+    id: 'jeju', name: '제주도', country: '대한민국', region: '국내', code: 'CJU', minutes: 70, lat: 33.51, lon: 126.49, airport: true,
     icon: '🏝️', color: '#ff9f43', sky: 'linear-gradient(135deg, #4facfe, #43e97b)', scene: '🌊🏝️🍊',
     item: { emoji: '🍊', name: '감귤' }, souvenir: { emoji: '🗿', name: '돌하르방 미니어처' },
     tips: [
@@ -14,7 +14,61 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'tokyo', name: '도쿄', country: '일본', region: '아시아', code: 'NRT', minutes: 140,
+    id: 'seoul', name: '서울', country: '대한민국', region: '국내', code: 'GMP', lat: 37.56, lon: 126.80, airport: true,
+    icon: '👑', color: '#5f27cd', sky: 'linear-gradient(135deg, #a1c4fd, #c2e9fb)', scene: '👑🌃🥟',
+    item: { emoji: '🥟', name: '시장 만두' }, souvenir: { emoji: '🧸', name: '해치 인형' },
+    tips: [
+      { category: '교통', text: '티머니 카드 하나로 지하철과 버스를 갈아탈 수 있어요.' },
+      { category: '관광', text: '한복을 입으면 경복궁 같은 고궁에 무료로 들어갈 수 있어요.' },
+    ],
+  },
+  {
+    id: 'busan', name: '부산', country: '대한민국', region: '국내', code: 'PUS', lat: 35.18, lon: 128.94, airport: true,
+    icon: '🌉', color: '#0abde3', sky: 'linear-gradient(135deg, #48c6ef, #6f86d6)', scene: '🌉🏖️🐟',
+    item: { emoji: '🍢', name: '부산 어묵' }, souvenir: { emoji: '🐚', name: '해운대 조개 키링' },
+    tips: [
+      { category: '교통', text: '해운대와 광안리는 지하철 2호선으로 갈 수 있어요.' },
+      { category: '맛집', text: '자갈치시장에서 회를 사면 위층 식당에서 바로 먹을 수 있어요.' },
+    ],
+  },
+  {
+    id: 'gyeongju', name: '경주', country: '대한민국', region: '국내', code: 'GYJ', lat: 35.84, lon: 129.21,
+    icon: '🔔', color: '#b8860b', sky: 'linear-gradient(135deg, #f6d365, #fda085)', scene: '🔔🌸🍞',
+    item: { emoji: '🍞', name: '황남빵' }, souvenir: { emoji: '🏺', name: '신라 토기 미니어처' },
+    tips: [
+      { category: '관광', text: '대릉원과 첨성대는 걸어서 둘러볼 수 있을 만큼 가까워요.' },
+      { category: '교통', text: '신경주역에서 시내까지는 버스로 30분 정도 걸려요.' },
+    ],
+  },
+  {
+    id: 'gangneung', name: '강릉', country: '대한민국', region: '국내', code: 'YNY', lat: 38.06, lon: 128.67, airport: true,
+    icon: '☕', color: '#10ac84', sky: 'linear-gradient(135deg, #89f7fe, #66a6ff)', scene: '☕🌊🌅',
+    item: { emoji: '🥔', name: '감자 옹심이' }, souvenir: { emoji: '🌅', name: '정동진 일출 엽서' },
+    tips: [
+      { category: '관광', text: '정동진은 해돋이 명소라 새벽에 가면 일출을 볼 수 있어요.' },
+      { category: '맛집', text: '안목해변 커피거리에서 바다를 보며 커피를 마실 수 있어요.' },
+    ],
+  },
+  {
+    id: 'jeonju', name: '전주', country: '대한민국', region: '국내', code: 'JNJ', lat: 35.82, lon: 127.15,
+    icon: '🏘️', color: '#ee5253', sky: 'linear-gradient(135deg, #fbc2eb, #a6c1ee)', scene: '🏘️🍚🎋',
+    item: { emoji: '🍚', name: '전주 비빔밥' }, souvenir: { emoji: '🪭', name: '한지 부채' },
+    tips: [
+      { category: '관광', text: '한옥마을에서 한복을 빌려 입고 사진을 많이 찍어요.' },
+      { category: '맛집', text: '남부시장 야시장은 금요일과 토요일 저녁에 열려요.' },
+    ],
+  },
+  {
+    id: 'yeosu', name: '여수', country: '대한민국', region: '국내', code: 'RSU', lat: 34.84, lon: 127.62, airport: true,
+    icon: '🌃', color: '#341f97', sky: 'linear-gradient(135deg, #667eea, #764ba2)', scene: '🌃🌉⛵',
+    item: { emoji: '🥬', name: '돌산 갓김치' }, souvenir: { emoji: '⛵', name: '요트 미니어처' },
+    tips: [
+      { category: '관광', text: '밤에는 돌산대교와 바다 야경이 아주 예뻐요.' },
+      { category: '교통', text: '여수엑스포역이 KTX 종점이라 바닷가 관광지와 가까워요.' },
+    ],
+  },
+  {
+    id: 'tokyo', name: '도쿄', country: '일본', region: '아시아', code: 'NRT', minutes: 140, lat: 35.77, lon: 140.39,
     icon: '🗻', color: '#e84393', sky: 'linear-gradient(135deg, #ff9a9e, #fbc2eb)', scene: '🗻🌸🍣',
     item: { emoji: '🍣', name: '초밥' }, souvenir: { emoji: '🎏', name: '잉어 깃발' },
     tips: [
@@ -23,7 +77,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'osaka', name: '오사카', country: '일본', region: '아시아', code: 'KIX', minutes: 110,
+    id: 'osaka', name: '오사카', country: '일본', region: '아시아', code: 'KIX', minutes: 110, lat: 34.43, lon: 135.24,
     icon: '🏯', color: '#fd79a8', sky: 'linear-gradient(135deg, #f6d365, #fda085)', scene: '🏯🐙🎡',
     item: { emoji: '🐙', name: '타코야키' }, souvenir: { emoji: '🐱', name: '복고양이 인형' },
     tips: [
@@ -32,7 +86,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'fukuoka', name: '후쿠오카', country: '일본', region: '아시아', code: 'FUK', minutes: 80,
+    id: 'fukuoka', name: '후쿠오카', country: '일본', region: '아시아', code: 'FUK', minutes: 80, lat: 33.59, lon: 130.45,
     icon: '♨️', color: '#e17055', sky: 'linear-gradient(135deg, #fbc2eb, #a6c1ee)', scene: '♨️🍜🏮',
     item: { emoji: '🍜', name: '돈코츠 라멘' }, souvenir: { emoji: '🎐', name: '유리 풍경' },
     tips: [
@@ -41,7 +95,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'taipei', name: '타이베이', country: '대만', region: '아시아', code: 'TPE', minutes: 150,
+    id: 'taipei', name: '타이베이', country: '대만', region: '아시아', code: 'TPE', minutes: 150, lat: 25.08, lon: 121.23,
     icon: '🏙️', color: '#00b894', sky: 'linear-gradient(135deg, #84fab0, #8fd3f4)', scene: '🏙️🧋🏮',
     item: { emoji: '🧋', name: '버블티' }, souvenir: { emoji: '🏮', name: '풍등 미니어처' },
     tips: [
@@ -50,7 +104,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'danang', name: '다낭', country: '베트남', region: '아시아', code: 'DAD', minutes: 280,
+    id: 'danang', name: '다낭', country: '베트남', region: '아시아', code: 'DAD', minutes: 280, lat: 16.04, lon: 108.2,
     icon: '🏖️', color: '#fdcb6e', sky: 'linear-gradient(135deg, #f093fb, #f5576c)', scene: '🏖️🥖🌴',
     item: { emoji: '🥖', name: '반미' }, souvenir: { emoji: '☕', name: '베트남 커피 필터' },
     tips: [
@@ -59,7 +113,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'bangkok', name: '방콕', country: '태국', region: '아시아', code: 'BKK', minutes: 350,
+    id: 'bangkok', name: '방콕', country: '태국', region: '아시아', code: 'BKK', minutes: 350, lat: 13.69, lon: 100.75,
     icon: '🛕', color: '#e1a100', sky: 'linear-gradient(135deg, #fddb92, #d1fdff)', scene: '🛕🥭🐘',
     item: { emoji: '🥭', name: '망고' }, souvenir: { emoji: '🐘', name: '코끼리 바지' },
     tips: [
@@ -68,7 +122,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'singapore', name: '싱가포르', country: '싱가포르', region: '아시아', code: 'SIN', minutes: 390,
+    id: 'singapore', name: '싱가포르', country: '싱가포르', region: '아시아', code: 'SIN', minutes: 390, lat: 1.36, lon: 103.99,
     icon: '🦁', color: '#d63031', sky: 'linear-gradient(135deg, #ff758c, #ff7eb3)', scene: '🦁🌃🦀',
     item: { emoji: '🦀', name: '칠리크랩' }, souvenir: { emoji: '🍯', name: '카야잼' },
     tips: [
@@ -77,7 +131,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'paris', name: '파리', country: '프랑스', region: '유럽', code: 'CDG', minutes: 830,
+    id: 'paris', name: '파리', country: '프랑스', region: '유럽', code: 'CDG', minutes: 830, lat: 49.01, lon: 2.55,
     icon: '🗼', color: '#6c5ce7', sky: 'linear-gradient(135deg, #a18cd1, #fbc2eb)', scene: '🗼🥐🎨',
     item: { emoji: '🥐', name: '크루아상' }, souvenir: { emoji: '🗼', name: '에펠탑 키링' },
     tips: [
@@ -86,7 +140,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'london', name: '런던', country: '영국', region: '유럽', code: 'LHR', minutes: 860,
+    id: 'london', name: '런던', country: '영국', region: '유럽', code: 'LHR', minutes: 860, lat: 51.47, lon: -0.45,
     icon: '🎡', color: '#0984e3', sky: 'linear-gradient(135deg, #89f7fe, #66a6ff)', scene: '🎡💂🐟',
     item: { emoji: '🐟', name: '피시 앤 칩스' }, souvenir: { emoji: '💂', name: '근위병 인형' },
     tips: [
@@ -95,7 +149,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'rome', name: '로마', country: '이탈리아', region: '유럽', code: 'FCO', minutes: 820,
+    id: 'rome', name: '로마', country: '이탈리아', region: '유럽', code: 'FCO', minutes: 820, lat: 41.8, lon: 12.25,
     icon: '🏛️', color: '#c0392b', sky: 'linear-gradient(135deg, #f6d365, #fda085)', scene: '🏛️🍕⛲',
     item: { emoji: '🍕', name: '피자' }, souvenir: { emoji: '🛵', name: '스쿠터 미니어처' },
     tips: [
@@ -104,7 +158,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'hawaii', name: '하와이', country: '미국', region: '미주·오세아니아', code: 'HNL', minutes: 510,
+    id: 'hawaii', name: '하와이', country: '미국', region: '미주·오세아니아', code: 'HNL', minutes: 510, lat: 21.32, lon: -157.92,
     icon: '🌴', color: '#00cec9', sky: 'linear-gradient(135deg, #43e97b, #38f9d7)', scene: '🌴🌺🍍',
     item: { emoji: '🍍', name: '파인애플' }, souvenir: { emoji: '🌺', name: '레이 꽃목걸이' },
     tips: [
@@ -113,7 +167,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'la', name: '로스앤젤레스', country: '미국', region: '미주·오세아니아', code: 'LAX', minutes: 660,
+    id: 'la', name: '로스앤젤레스', country: '미국', region: '미주·오세아니아', code: 'LAX', minutes: 660, lat: 33.94, lon: -118.41,
     icon: '🌇', color: '#e67e22', sky: 'linear-gradient(135deg, #fa709a, #fee140)', scene: '🌇🎬🌮',
     item: { emoji: '🌮', name: '타코' }, souvenir: { emoji: '🎬', name: '영화 슬레이트' },
     tips: [
@@ -122,7 +176,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'newyork', name: '뉴욕', country: '미국', region: '미주·오세아니아', code: 'JFK', minutes: 840,
+    id: 'newyork', name: '뉴욕', country: '미국', region: '미주·오세아니아', code: 'JFK', minutes: 840, lat: 40.64, lon: -73.78,
     icon: '🗽', color: '#2d3436', sky: 'linear-gradient(135deg, #667eea, #764ba2)', scene: '🗽🥯🍎',
     item: { emoji: '🥯', name: '베이글' }, souvenir: { emoji: '🍎', name: '빅애플 마그넷' },
     tips: [
@@ -131,7 +185,7 @@ const DESTINATIONS = [
     ],
   },
   {
-    id: 'sydney', name: '시드니', country: '호주', region: '미주·오세아니아', code: 'SYD', minutes: 630,
+    id: 'sydney', name: '시드니', country: '호주', region: '미주·오세아니아', code: 'SYD', minutes: 630, lat: -33.94, lon: 151.18,
     icon: '🦘', color: '#16a085', sky: 'linear-gradient(135deg, #4facfe, #00f2fe)', scene: '🦘🐨🌊',
     item: { emoji: '🥧', name: '미트파이' }, souvenir: { emoji: '🐨', name: '코알라 인형' },
     tips: [
@@ -145,6 +199,12 @@ const DESTINATIONS = [
 const SLOT_NAMES = { head: '머리', face: '얼굴', neck: '목', hand: '손' };
 const OUTFITS = {
   jeju: { emoji: '🍊', name: '감귤 모자', slot: 'head' },
+  seoul: { emoji: '📸', name: '여행 카메라', slot: 'neck' },
+  busan: { emoji: '🎣', name: '낚싯대', slot: 'hand' },
+  gyeongju: { emoji: '👑', name: '신라 금관', slot: 'head' },
+  gangneung: { emoji: '☕', name: '커피잔', slot: 'hand' },
+  jeonju: { emoji: '🎋', name: '대나무 장식', slot: 'hand' },
+  yeosu: { emoji: '⚓', name: '닻 목걸이', slot: 'neck' },
   tokyo: { emoji: '🌸', name: '벚꽃 머리핀', slot: 'head' },
   osaka: { emoji: '🏮', name: '초롱', slot: 'hand' },
   fukuoka: { emoji: '🎐', name: '유리 풍경', slot: 'hand' },
@@ -183,6 +243,17 @@ Object.assign(OUTFITS, BASIC_OUTFITS);
 function ownedOutfitIds() {
   return [...Object.keys(BASIC_OUTFITS), ...state.outfits.filter((id) => OUTFITS[id])];
 }
+
+// 집중 모드 누적 시간(시간 단위)에 따라 받는 코스튬. OUTFITS에도 같이 넣어서 옷장에서 입힌다.
+const FOCUS_COSTUMES = [
+  { id: 'focus-1', hours: 1, emoji: '✏️', name: '연필', slot: 'hand' },
+  { id: 'focus-5', hours: 5, emoji: '👓', name: '공부 안경', slot: 'face' },
+  { id: 'focus-10', hours: 10, emoji: '🎗️', name: '필승 머리띠', slot: 'head' },
+  { id: 'focus-30', hours: 30, emoji: '🧣', name: '독서 목도리', slot: 'neck' },
+  { id: 'focus-50', hours: 50, emoji: '🎓', name: '학사모', slot: 'head' },
+  { id: 'focus-100', hours: 100, emoji: '🏅', name: '금메달', slot: 'neck' },
+];
+FOCUS_COSTUMES.forEach((c) => { OUTFITS[c.id] = c; });
 
 function destById(id) {
   return DESTINATIONS.find((d) => d.id === id) || DESTINATIONS[0];

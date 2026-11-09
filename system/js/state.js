@@ -53,9 +53,11 @@ function defaultState() {
     pet: defaultPet(),
     level: 1,
     exp: 0,
-    coins: 20,
+    coins: 0,       // 코인은 게임으로만 번다 (games.js)
+    coinsEarned: 0, // 지금까지 게임으로 번 코인
     lastTick: Date.now(),
-    flight: null,   // { destId, start, duration, flightNo, seat }
+    ticket: null,   // 발권했지만 아직 타지 않은 표 (요금은 발권할 때 낸다)
+    flight: null,   // { mode, transport, from, destId, start, duration, elapsed, flightNo, seat, seatClass, fare }
     arrival: null,  // 도착 화면을 아직 확인하지 않은 여행
     trips: 0,
     gamesPlayed: 0,
@@ -75,20 +77,31 @@ function defaultState() {
     walkHeadset: false,    // 산책할 때 우왕이가 헤드셋을 꼈는지
     walkFriends: [],       // 산책에서 만나 인사한 친구 이름
     walkFriendsDone: false, // 숨은 친구를 다 찾아 보너스를 받았는지
+    focusTotal: 0,  // 집중 모드 누적 시간(초)
+    playedAt: 0,    // 마지막으로 직접 플레이한 시각. 기기끼리 이 값이 큰 쪽 진행을 쓴다 (cloud.js)
+    owner: null,    // 이 진행이 속한 계정 id (로그인 안 했으면 null)
   };
+}
+
+// 저장해 둔 데이터를 지금 버전의 모양으로 맞춘다. 기기 저장소와 클라우드 저장 모두 여기를 거친다.
+function normalizeState(saved) {
+  if (!saved || saved.version !== 2) return null;
+  const merged = Object.assign(defaultState(), saved);
+  merged.pet = Object.assign(defaultPet(), saved.pet);
+  merged.pet.timers = Object.assign(defaultPet().timers, saved.pet && saved.pet.timers);
+  merged.equipped = Object.assign(defaultState().equipped, saved.equipped);
+  if (merged.pet.stage === 'adult' && !merged.pet.form) merged.pet.form = 'sturdy'; // 진화 기능 이전에 어른이 된 경우
+  // 교통수단·집중 모드 기능 이전에 출발한 비행은 인천발 일반 비행기로 본다
+  if (merged.flight && !merged.flight.transport) {
+    Object.assign(merged.flight, { mode: 'normal', transport: 'plane', from: 'ICN', seatClass: 'economy', fare: 0 });
+  }
+  return merged;
 }
 
 function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && saved.version === 2) {
-      const merged = Object.assign(defaultState(), saved);
-      merged.pet = Object.assign(defaultPet(), saved.pet);
-      merged.pet.timers = Object.assign(defaultPet().timers, saved.pet && saved.pet.timers);
-      merged.equipped = Object.assign(defaultState().equipped, saved.equipped);
-      if (merged.pet.stage === 'adult' && !merged.pet.form) merged.pet.form = 'sturdy'; // 진화 기능 이전에 어른이 된 경우
-      return merged;
-    }
+    const merged = normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY)));
+    if (merged) return merged;
   } catch (e) {
     // 저장소를 쓸 수 없으면 새로 시작
   }
@@ -103,11 +116,12 @@ function saveState() {
   } catch (e) {
     // 저장 실패는 무시 (시크릿 모드 등)
   }
+  if (typeof Cloud !== 'undefined') Cloud.onSave();
 }
 
 function resetState() {
-  const { deviceId, likedPosts, nickname, forms, notifyOn } = state;
-  state = Object.assign(defaultState(), { deviceId, likedPosts, nickname, forms, notifyOn });
+  const { deviceId, likedPosts, nickname, forms, notifyOn, owner } = state;
+  state = Object.assign(defaultState(), { deviceId, likedPosts, nickname, forms, notifyOn, owner, playedAt: owner ? Date.now() : 0 });
   saveState();
 }
 

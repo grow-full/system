@@ -1,10 +1,17 @@
-// 게임 탭: 게임 목록과 짝 맞추기, 여행 퀴즈. 특산품 받기는 minigame.js.
+// 게임 탭: 게임 목록과 짝 맞추기, 여행 퀴즈. 특산품 받기는 minigame.js, 나머지 게임은 arcade.js.
+// 코인은 게임으로만 번다: 10점마다 🪙1.
 const Games = (() => {
   const LIST = [
     { id: 'catch', icon: '🧺', title: '특산품 받기', desc: '떨어지는 여행지 먹거리를 받아요. ⚡는 피하세요!' },
     { id: 'memory', icon: '🃏', title: '짝 맞추기', desc: '뒤집힌 카드 16장에서 같은 그림 8쌍을 찾아요.' },
     { id: 'quiz', icon: '❓', title: '여행 퀴즈', desc: '비행시간, 나라, 대표 먹거리를 맞혀요. 5문제!' },
+    { id: 'tiles', icon: '🎁', title: '기념품 타일 매치', desc: '덮이지 않은 타일을 골라 같은 기념품 3개를 모아요. 아래 7칸이 차면 끝!', pane: 'arcade' },
+    { id: 'runner', icon: '🌵', title: '장애물 피하기', desc: '달리는 우왕이! 점프로 선인장을 피하고 ⭐을 모아요. 2단 점프 가능', pane: 'arcade' },
+    { id: 'blocks', icon: '🧳', title: '짐 싸기 블록 퍼즐', desc: '블록을 끌어다 놓고 가로·세로 한 줄을 채워 지워요.', pane: 'arcade' },
+    { id: 'match3', icon: '🍊', title: '특산품 3매치', desc: '이웃한 칸을 바꿔 같은 먹거리 3개 이상을 맞춰요. 20번 이동!', pane: 'arcade' },
   ];
+  const PANES = ['catch', 'memory', 'quiz', 'arcade'];
+  const COIN_PER_POINTS = 10;
   const QUIZ_COUNT = 5;
 
   let current = null;
@@ -21,6 +28,7 @@ const Games = (() => {
     if (current) return;
     $('#games-hub').hidden = false;
     $('#game-view').hidden = true;
+    $('#games-earned').textContent = state.coinsEarned;
     $('#game-list').innerHTML = LIST.map((g) => `
       <button class="game-card" data-game="${g.id}">
         <span class="gi">${g.icon}</span>
@@ -36,15 +44,19 @@ const Games = (() => {
     $('#games-hub').hidden = true;
     $('#game-view').hidden = false;
     $('#game-result').hidden = true;
-    $('#game-title').textContent = LIST.find((g) => g.id === id).title;
-    ['catch', 'memory', 'quiz'].forEach((g) => { $(`#game-${g}`).hidden = g !== id; });
+    const game = LIST.find((g) => g.id === id);
+    const pane = game.pane || id;
+    $('#game-title').textContent = game.title;
+    PANES.forEach((p) => { $(`#game-${p}`).hidden = p !== pane; });
     if (id === 'catch') showCatchIntro();
     if (id === 'memory') startMemory();
     if (id === 'quiz') startQuiz();
+    if (pane === 'arcade') Arcade.start(id, (score, detail) => finish(id, score, detail));
   }
 
   function stopRunning() {
     MiniGame.stop();
+    Arcade.stop();
     clearInterval(memoryTimer);
   }
 
@@ -57,13 +69,14 @@ const Games = (() => {
   }
 
   function finish(id, score, detail = '') {
-    const coins = Math.floor(score / 10);
+    const coins = Math.floor(score / COIN_PER_POINTS);
     const exp = Math.floor(score / 5);
     const isBest = score > (state.bestScores[id] || 0);
     const happy = score >= 50 && state.pet.stage !== 'egg';
     if (isBest) state.bestScores[id] = score;
     state.gamesPlayed++;
     state.coins += coins;
+    state.coinsEarned += coins;
     if (happy) addHearts('happy', 1);
     rewardExp(exp);
     saveState();
@@ -182,10 +195,11 @@ const Games = (() => {
   function makeQuestion(dest, type) {
     const others = DESTINATIONS.filter((d) => d.id !== dest.id);
     let text, answer, pool;
+    if (type === 'time' && !dest.minutes) type = 'food'; // 인천 기준 비행시간이 없는 국내 여행지
     if (type === 'time') {
       text = `인천에서 ${dest.icon} ${dest.name}까지 비행시간은 약 얼마일까요?`;
       answer = flightLabel(dest.minutes);
-      pool = others.map((d) => flightLabel(d.minutes));
+      pool = others.filter((d) => d.minutes).map((d) => flightLabel(d.minutes));
     } else if (type === 'country') {
       text = `${dest.icon} ${josa(dest.name, '은', '는')} 어느 나라에 있을까요?`;
       answer = dest.country;
