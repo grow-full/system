@@ -222,6 +222,28 @@ const OUTFITS = {
 };
 DESTINATIONS.forEach((d) => { d.outfit = OUTFITS[d.id]; });
 
+// 공부할 때 쓰는 갈색 뿔테 안경 (그림 이모지는 파란색이라 직접 그린다)
+// 좌표는 우왕이 그림(200×200)과 같아서 렌즈가 우왕이 눈(72,104 / 128,104)에 맞는다.
+const HORN_GLASSES_SVG = '<svg viewBox="38 86 124 36" xmlns="http://www.w3.org/2000/svg">'
+  + '<g fill="rgba(255,255,255,.28)" stroke="#4a2c17" stroke-width="5.5" stroke-linejoin="round">'
+  + '<rect x="51" y="91" width="42" height="27" rx="9"/><rect x="107" y="91" width="42" height="27" rx="9"/></g>'
+  + '<path d="M51 95 h42 M107 95 h42" stroke="#2e1a0d" stroke-width="7" stroke-linecap="round"/>'
+  + '<path d="M93 99 q7 -6 14 0" stroke="#4a2c17" stroke-width="5" fill="none" stroke-linecap="round"/>'
+  + '<path d="M51 97 l-10 -2 M149 97 l10 -2" stroke="#4a2c17" stroke-width="5" stroke-linecap="round"/>'
+  + '</svg>';
+
+// 처음부터 가지고 있는 기본 옷 (여행을 가지 않아도 언제나 입을 수 있다)
+const BASIC_OUTFITS = {
+  basic_cap: { emoji: '🎓', name: '학사모', slot: 'head' },
+  basic_glasses: { emoji: '👓', name: '뿔테 안경', slot: 'face', art: HORN_GLASSES_SVG },
+};
+Object.assign(OUTFITS, BASIC_OUTFITS);
+
+// 지금 입을 수 있는 옷 id (기본 옷 + 여행에서 받은 옷)
+function ownedOutfitIds() {
+  return [...Object.keys(BASIC_OUTFITS), ...state.outfits.filter((id) => OUTFITS[id])];
+}
+
 // 집중 모드 누적 시간(시간 단위)에 따라 받는 코스튬. OUTFITS에도 같이 넣어서 옷장에서 입힌다.
 const FOCUS_COSTUMES = [
   { id: 'focus-1', hours: 1, emoji: '✏️', name: '연필', slot: 'hand' },
@@ -262,4 +284,9 @@ function flightLabel(minutes) {
   const m = minutes % 60;
   if (!h) return `${m}분`;
   return m ? `${h}시간 ${m}분` : `${h}시간`;
+}
+
+// 버튼에 보여 줄 옷 그림 (직접 그린 그림이 있으면 그것, 없으면 이모지)
+function outfitIcon(o) {
+  return o.art ? `<i class="outfit-art">${o.art}</i>` : o.emoji;
 }

@@ -105,16 +105,17 @@ function setMascot(el, props) {
 }
 
 // 지금 우왕이의 어른 모습과 입은 의상을 그린다
-function dressMascot(el) {
+// 기본 옷(학사모, 뿔테 안경)은 산책 전용이라 walk가 true일 때만 보여 준다
+function dressMascot(el, walk = false) {
   const pet = state.pet;
   el.dataset.form = pet.stage === 'adult' ? pet.form : '';
-  const worn = pet.stage === 'egg' ? [] : Object.entries(state.equipped).filter(([, id]) => id);
+  const worn = pet.stage === 'egg' ? [] : Object.entries(state.equipped).filter(([, id]) => id && OUTFITS[id] && (walk || !BASIC_OUTFITS[id]));   // 없어진 옷, 산책 밖의 기본 옷은 건너뛴다
   const key = worn.map(([slot, id]) => `${slot}:${id}`).join(',');
   if (el.dataset.outfitKey === key) return;
   el.dataset.outfitKey = key;
   el.dataset.head = worn.some(([slot]) => slot === 'head');
   const box = el.querySelector('.outfit');
-  if (box) box.innerHTML = worn.map(([slot, id]) => `<span class="slot-${slot}">${OUTFITS[id].emoji}</span>`).join('');
+  if (box) box.innerHTML = worn.map(([slot, id]) => `<span class="slot-${slot} o-${id}">${OUTFITS[id].art || OUTFITS[id].emoji}</span>`).join('');
 }
 
 // 잠깐 재생하는 동작 (먹기, 고개 젓기 등)
