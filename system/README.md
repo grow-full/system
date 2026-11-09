@@ -107,6 +107,36 @@
 
 > 지금의 삭제 권한은 기기별 임의 ID로만 구분합니다. 실제로 공개하기 전에는 Firebase 로그인과 Firestore 보안 규칙을 꼭 설정해야 합니다.
 
+## 아이디로 로그인해서 여러 기기에서 이어 하기 (Supabase)
+
+상단의 👤 버튼으로 아이디/비밀번호를 만들고 로그인하면 게임 진행(우왕이, 레벨, 코인, 여행 기록, 최고 점수 등)이 계정에 저장됩니다. 다른 기기에서 같은 아이디로 로그인하면 이어서 할 수 있습니다.
+
+1. Supabase 대시보드 → **SQL Editor**에서 아래를 실행합니다.
+
+   ```sql
+   create table public.saves (
+     user_id    uuid primary key references auth.users on delete cascade,
+     data       jsonb  not null,
+     played_at  bigint not null default 0,
+     updated_at timestamptz not null default now()
+   );
+   alter table public.saves enable row level security;
+   create policy "자기 저장만 읽고 쓰기" on public.saves
+     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+   ```
+
+2. **Authentication → Sign In / Providers → Email**에서 **Confirm email을 끕니다.** 아이디는 내부적으로 `아이디@wooang.app` 형태의 이메일로 바뀌어 저장되며 실제 메일은 보내지 않습니다. 이 설정이 켜져 있으면 가입이 되지 않습니다.
+3. **Project Settings → API**의 Project URL과 anon key를 `js/supabase-config.js`의 `SUPABASE_CONFIG`에 넣습니다. anon key는 공개되어도 되는 키이고, 1번의 RLS 정책 덕분에 각자 자기 저장만 볼 수 있습니다.
+
+동작 규칙
+
+- **가장 최근에 플레이한 기기의 진행을 씁니다.** 화면을 직접 누르거나 키를 친 시각(`playedAt`)을 기준으로 비교합니다. 그래서 켜 두기만 한 기기가 다른 기기의 진행을 덮어쓰지 않습니다.
+- 플레이하면 3초 뒤 자동 저장되고, 앱을 내리거나 다른 탭으로 갈 때도 저장됩니다. 앱으로 돌아오면 다른 기기에서 더 최근에 한 진행이 있는지 확인해서 있으면 불러옵니다.
+- 로그인 전에 이 기기에서 하던 진행은 **계정에 저장이 없을 때만** 계정으로 옮깁니다. 이미 저장이 있는 계정이면 계정 진행을 불러옵니다.
+- 로그아웃하면 이 기기에서는 새로 시작하고, 진행은 계정에 그대로 남아 있습니다.
+- 알림 켜기, 기내 방송 음성, 커뮤니티 기기 ID와 좋아요는 기기마다 따로 저장합니다.
+- 비밀번호를 잊어버리면 찾을 수 없습니다(메일이 없으므로). 필요하면 Supabase 대시보드 → Authentication → Users에서 관리자가 비밀번호를 바꿔 줄 수 있습니다.
+
 ## 폴더 구조
 
 ```
@@ -127,6 +157,8 @@ js/arcade.js          기념품 타일 매치, 장애물 피하기, 짐 싸기 �
 js/community.js       커뮤니티 (이 기기 저장 / Firebase 저장)
 js/firebase-config.js Firebase 설정 (비어 있으면 이 기기에만 저장)
 js/notify.js          돌봄 알림 켜기/끄기와 알림 보내기
+js/cloud.js           아이디 로그인과 계정 저장·기기 간 이어 하기 (Supabase)
+js/supabase-config.js Supabase 설정 (비어 있으면 이 기기에만 저장)
 js/audio.js           기내 소음·빗소리·음악·효과음 합성 (음원 파일 없음)
 js/app.js             탭 전환, 1초 시계, 시작
 ```

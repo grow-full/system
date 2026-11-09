@@ -73,24 +73,30 @@ function defaultState() {
     voiceOn: true,  // 기내 방송 음성
     notifyOn: false, // 돌봄 알림 (notify.js)
     focusTotal: 0,  // 집중 모드 누적 시간(초)
+    playedAt: 0,    // 마지막으로 직접 플레이한 시각. 기기끼리 이 값이 큰 쪽 진행을 쓴다 (cloud.js)
+    owner: null,    // 이 진행이 속한 계정 id (로그인 안 했으면 null)
   };
+}
+
+// 저장해 둔 데이터를 지금 버전의 모양으로 맞춘다. 기기 저장소와 클라우드 저장 모두 여기를 거친다.
+function normalizeState(saved) {
+  if (!saved || saved.version !== 2) return null;
+  const merged = Object.assign(defaultState(), saved);
+  merged.pet = Object.assign(defaultPet(), saved.pet);
+  merged.pet.timers = Object.assign(defaultPet().timers, saved.pet && saved.pet.timers);
+  merged.equipped = Object.assign(defaultState().equipped, saved.equipped);
+  if (merged.pet.stage === 'adult' && !merged.pet.form) merged.pet.form = 'sturdy'; // 진화 기능 이전에 어른이 된 경우
+  // 교통수단·집중 모드 기능 이전에 출발한 비행은 인천발 일반 비행기로 본다
+  if (merged.flight && !merged.flight.transport) {
+    Object.assign(merged.flight, { mode: 'normal', transport: 'plane', from: 'ICN', seatClass: 'economy', fare: 0 });
+  }
+  return merged;
 }
 
 function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && saved.version === 2) {
-      const merged = Object.assign(defaultState(), saved);
-      merged.pet = Object.assign(defaultPet(), saved.pet);
-      merged.pet.timers = Object.assign(defaultPet().timers, saved.pet && saved.pet.timers);
-      merged.equipped = Object.assign(defaultState().equipped, saved.equipped);
-      if (merged.pet.stage === 'adult' && !merged.pet.form) merged.pet.form = 'sturdy'; // 진화 기능 이전에 어른이 된 경우
-      // 교통수단·집중 모드 기능 이전에 출발한 비행은 인천발 일반 비행기로 본다
-      if (merged.flight && !merged.flight.transport) {
-        Object.assign(merged.flight, { mode: 'normal', transport: 'plane', from: 'ICN', seatClass: 'economy', fare: 0 });
-      }
-      return merged;
-    }
+    const merged = normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY)));
+    if (merged) return merged;
   } catch (e) {
     // 저장소를 쓸 수 없으면 새로 시작
   }
@@ -105,11 +111,12 @@ function saveState() {
   } catch (e) {
     // 저장 실패는 무시 (시크릿 모드 등)
   }
+  if (typeof Cloud !== 'undefined') Cloud.onSave();
 }
 
 function resetState() {
-  const { deviceId, likedPosts, nickname, forms, notifyOn } = state;
-  state = Object.assign(defaultState(), { deviceId, likedPosts, nickname, forms, notifyOn });
+  const { deviceId, likedPosts, nickname, forms, notifyOn, owner } = state;
+  state = Object.assign(defaultState(), { deviceId, likedPosts, nickname, forms, notifyOn, owner, playedAt: owner ? Date.now() : 0 });
   saveState();
 }
 

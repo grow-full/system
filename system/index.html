@@ -15,6 +15,7 @@
         <div class="exp-bar" title="경험치"><i id="exp-fill"></i></div>
       </div>
       <div class="top-right">
+        <button class="notify-btn" id="btn-account" aria-label="로그인">👤</button>
         <button class="notify-btn" id="btn-notify" aria-label="돌봄 알림" aria-pressed="false">🔕</button>
         <div class="coins">🪙 <b id="coins">0</b></div>
       </div>
@@ -319,6 +320,10 @@
       <button data-tab="community"><span>💬</span>커뮤니티</button>
     </nav>
 
+    <div class="result-modal" id="account-modal" hidden>
+      <div class="card" id="account-card"></div>
+    </div>
+
     <div class="toast" id="toast"></div>
   </div>
 
@@ -338,6 +343,8 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/community.js"></script>
   <script src="js/notify.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/cloud.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

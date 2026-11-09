@@ -81,6 +81,13 @@ h3 { font-size: 16px; margin: 22px 0 10px; }
 }
 .notify-btn.on { opacity: 1; border-color: #f0b44c; background: #fff6e2; }
 
+/* ---------- 계정 (cloud.js) ---------- */
+#account-modal .card { max-width: 320px; }
+.account-form { margin-top: 12px; text-align: left; }
+.account-form .primary { margin-top: 12px; }
+.account-error { min-height: 18px; margin: 8px 0 0 !important; font-size: 12px !important; color: #d9534f !important; }
+.account-status { font-weight: 700; color: var(--ink) !important; }
+
 /* ---------- 공통 버튼 ---------- */
 .primary {
   display: block;

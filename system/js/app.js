@@ -100,6 +100,7 @@ Games.init();
 Community.init();
 Notify.init();
 Focus.init();
+Cloud.init();
 // 집중 모드 중에 앱을 다시 열면 바로 집중 화면으로 간다
 show(state.flight && state.flight.mode === 'focus' ? 'travel' : 'pet');
 
