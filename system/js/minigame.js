@@ -151,7 +151,7 @@ const MiniGame = (() => {
 
     drawPlayer(player.x, player.y, player.r);
 
-    ctx.font = 'bold 18px sans-serif';
+    ctx.font = '16px Galmuri11, sans-serif';
     for (const p of popups) {
       ctx.globalAlpha = Math.max(0, p.life / 0.8);
       ctx.fillStyle = '#3b2a1a';

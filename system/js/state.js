@@ -3,7 +3,11 @@ const STORAGE_KEY = 'wooang-travel-v2';
 
 const MAX_HEARTS = 4;
 const HATCH_SECONDS = 30;
-const SNACK_COST = 3;
+// 돌보기 가격 (코인). 코인은 게임·산책·수업 퀴즈로 번다
+const MEAL_COST = 2;
+const SNACK_COST = 5;
+const MEDICINE_COST = 10;
+const START_COINS = 20; // 처음 시작할 때 받는 코인 (밥값이 없어 굶지 않게)
 const CHILD_LEVEL = 3;
 const ADULT_LEVEL = 5;
 
@@ -19,8 +23,10 @@ const ADULT_FORMS = {
 // 단위: 분. 숫자를 바꾸면 우왕이가 빨리/천천히 배고파진다.
 const CARE = {
   hungerEvery: 40,     // 배고픔 하트 1개가 줄어드는 간격
-  happyEvery: 50,      // 행복 하트 1개가 줄어드는 간격 (아프거나 똥이 많으면 2배 빠름)
-  poopEvery: 90,       // 똥을 싸는 간격
+  happyEvery: 50,      // 행복 하트 1개가 줄어드는 간격 (아프거나 똥이 많거나 더러우면 2배 빠름)
+  dirtyEvery: 120,     // 이만큼 지나면 꼬질꼬질해짐 (놀아주기를 끝내도 바로 더러워짐)
+  poopEvery: 45,       // 똥을 싸는 간격
+  poopAfterMeal: 5,    // 밥·간식을 먹고 이만큼 지나면 반드시 똥을 1번 싼다
   sickFromPoop: 60,    // 똥 2개 이상을 이만큼 두면 병에 걸림
   sickFromStarve: 120, // 배고픔 0으로 이만큼 지나면 병에 걸림
   napLength: 60,       // 낮잠 길이
@@ -70,6 +76,7 @@ function defaultPet() {
     weight: 5,
     poop: 0,
     sick: false,
+    dirty: false, // 꼬질꼬질해서 씻겨 줘야 함
     lightsOff: false,
     nutrition: 0,
     fatigue: 0,
@@ -77,7 +84,8 @@ function defaultPet() {
     fatigueStage: "normal",
     careMistakes: 0,
     wasNight: false,
-    timers: { hunger: 0, happy: 0, poop: 0, sickRisk: 0, starve: 0, nap: 0, nightLight: 0 },
+    digest: [],   // 먹은 것마다 똥을 싸기까지 남은 분
+    timers: { hunger: 0, happy: 0, poop: 0, dirt: 0, sickRisk: 0, starve: 0, nap: 0, nightLight: 0 },
   };
 }
 
@@ -87,16 +95,22 @@ function defaultState() {
     pet: defaultPet(),
     level: 1,
     exp: 0,
-    coins: 0,       // 코인은 게임으로만 번다 (games.js)
+    coins: START_COINS, // 코인은 게임·산책·수업 퀴즈로 벌고, 밥·간식·약·여행표에 쓴다
     coinsEarned: 0, // 지금까지 게임으로 번 코인
     lastTick: Date.now(),
     ticket: null,   // 발권했지만 아직 타지 않은 표 (요금은 발권할 때 낸다)
     flight: null,   // { mode, transport, from, destId, start, duration, elapsed, flightNo, seat, seatClass, fare }
     arrival: null,  // 도착 화면을 아직 확인하지 않은 여행
+    lecture: null,  // 듣고 있는 수업 { courseId, start, duration } (courses.js, pet.js)
+    lectureQuiz: null, // 수업이 끝나고 아직 풀지 않은 복습 퀴즈의 과목 id
+    courses: {},    // 수강 기록: { 과목 id: 출석 횟수 }
+    study: null,    // 방에서 공부하는 중 { courseId, start, duration } (pet.js)
+    studied: {},    // 공부 기록: { 과목 id: 공부 횟수 }
     trips: 0,
     gamesPlayed: 0,
     visited: {},
     souvenirs: [],
+    decor: [],      // 방 꾸미기: 장식 자리마다 놓은 기념품(여행지 id 또는 null) (pet.js DECOR_SLOTS)
     outfits: [],    // 받은 의상 (여행지 id)
     equipped: { head: null, face: null, neck: null, hand: null },
     forms: [],      // 지금까지 키워 본 어른 모습 (다시 키워도 남는다)
@@ -163,6 +177,11 @@ function resetState() {
   visualSessionAt = Date.now();
   visualMinuteCarry = 0;
   saveState();
+}
+
+// 밥·간식을 먹으면 부른다. CARE.poopAfterMeal분 뒤에 똥을 1번 싼다.
+function eatFood() {
+  state.pet.digest.push(CARE.poopAfterMeal);
 }
 
 function addHearts(key, delta) {
@@ -234,7 +253,7 @@ function stepMinute(time) {
     tm.hunger = 0;
     addHearts('hunger', -1);
   }
-  tm.happy += pet.sick || pet.poop >= 2 ? 2 : 1;
+  tm.happy += pet.sick || pet.poop >= 2 || pet.dirty ? 2 : 1;
   if (tm.happy >= CARE.happyEvery) {
     tm.happy = 0;
     addHearts('happy', -1);
@@ -242,6 +261,18 @@ function stepMinute(time) {
   if (++tm.poop >= CARE.poopEvery) {
     tm.poop = 0;
     pet.poop = Math.min(4, pet.poop + 1);
+  }
+  // 먹은 것은 정해진 시간이 지나면 반드시 똥이 된다
+  pet.digest = pet.digest.map((m) => m - 1);
+  const digested = pet.digest.filter((m) => m <= 0).length;
+  if (digested) {
+    pet.digest = pet.digest.filter((m) => m > 0);
+    pet.poop = Math.min(4, pet.poop + digested);
+    tm.poop = 0;
+  }
+  if (!pet.dirty && ++tm.dirt >= CARE.dirtyEvery) {
+    pet.dirty = true;
+    tm.dirt = 0;
   }
 
   tm.sickRisk = pet.poop >= 2 ? tm.sickRisk + 1 : 0;
@@ -311,6 +342,7 @@ function petNeeds() {
   if (pet.sick) needs.push('아파요… 약이 필요해요 💊');
   if (isNight() && !pet.lightsOff) needs.push('졸려요… 불을 꺼 주세요 💡');
   if (pet.poop > 0) needs.push('똥을 치워 주세요 🚽');
+  if (pet.dirty) needs.push('꼬질꼬질해요… 씻겨 주세요 🛁');
   if (pet.hunger === 0) needs.push('배고파요! 밥을 주세요 🍙');
   if (pet.happy === 0) needs.push('심심해요… 놀아 주세요 🎾');
   return needs;

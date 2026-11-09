@@ -917,6 +917,8 @@ const Walk = (() => {
     const pet = state.pet;
     if (pet.stage === 'egg') return '아직 알이에요. 태어나면 같이 산책할 수 있어요 🥚';
     if (state.flight) return '우왕이는 지금 여행 중이에요. 돌아오면 산책해요 ✈️';
+    if (state.lecture) return '우왕이는 지금 수업 중이에요. 끝나면 산책해요 📚';
+    if (state.study) return '우왕이는 지금 공부 중이에요. 끝나면 산책해요 ✏️';
     if (pet.sick) return '아플 때는 쉬어야 해요. 약을 먹고 다시 와요 💊';
     return '';
   }
