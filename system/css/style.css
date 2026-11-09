@@ -242,22 +242,25 @@ main { min-width: 0; height: 100vh; }
 .mascot-wrap[data-look="right"] .m-pupils { transform: translateX(6.25px); }
 .mascot-wrap[data-look="point"] .m-pupils { transform: translate(var(--gx, 0), var(--gy, 0)); } /* 톡 누른 곳 쳐다보기 */
 
-.mascot-wrap[data-anim="eat"] .m-mouth { display: none; }
-.mascot-wrap[data-anim="eat"] .m-open { display: inline; animation: blinkStep .3s steps(1) infinite; }
-.mascot-wrap[data-anim="refuse"] .mascot-inner { animation: shake .25s steps(2) 6; }
-.mascot-wrap[data-anim="joy"] .mascot-inner { animation: bounce .6s steps(4); }
-
-.egg { animation: wobble 2.4s steps(1) infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+.egg { transform-box: fill-box; transform-origin: 50% 100%; animation: wobble 2.4s ease-in-out infinite; }
 .egg .crack { display: none; }
 .mascot-wrap[data-crack="true"] .crack { display: inline; }
 .mascot-wrap[data-anim="tap"] .egg { animation: wobble .4s steps(4); }
 
-@keyframes breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
-@keyframes blinkEyes { 0%, 93%, 100% { opacity: 1; } 95% { opacity: 0; } }
+/* playMascot(el, 'joy'|'refuse'|'eat')로 잠깐 재생하는 동작 (산책·여행 화면 등 몸 동작 엔진이 없는 우왕이용).
+   방 안의 #mascot은 mascot.js의 createUwangMotion이 맡으므로 이 값을 쓰지 않는다. 기준점은 발바닥. */
+.mascot-wrap[data-anim] .mascot-inner { transform-origin: 50% 88%; }
+.mascot-wrap[data-anim="eat"] .mascot-inner { animation: munch .3s ease-in-out infinite alternate; }
+.mascot-wrap[data-anim="refuse"] .mascot-inner { animation: shake .25s 6; }
+.mascot-wrap[data-anim="joy"] .mascot-inner { animation: bounce .6s; }
+
+@keyframes breathe { 50% { transform: scale(1.03, .97); } }
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+@keyframes bounce { 0% { transform: none; } 15% { transform: scale(1.05, .92); } 40% { transform: translateY(-13%) scale(.98, 1.03); } 62% { transform: scale(1.05, .93); } 80% { transform: translateY(-4%); } 100% { transform: none; } }
+@keyframes shake { 25% { transform: rotate(-4deg); } 75% { transform: rotate(4deg); } }
+@keyframes munch { to { transform: translateY(1%) scale(1.03, .96); } }
+@keyframes wobble { 0%, 70%, 100% { transform: rotate(0); } 78% { transform: rotate(-7deg); } 86% { transform: rotate(7deg); } 94% { transform: rotate(-3deg); } }
 @keyframes blinkStep { 50% { opacity: 0; } }
-@keyframes bounce { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-24px); } 60% { transform: translateY(0); } 80% { transform: translateY(-8px); } }
-@keyframes shake { 0%, 100% { transform: translateX(-6px); } 50% { transform: translateX(6px); } }
-@keyframes wobble { 0%, 70%, 100% { transform: rotate(0); } 78% { transform: rotate(-6deg); } 86% { transform: rotate(6deg); } }
 
 /* =========================================================
    우왕이 방
@@ -347,13 +350,10 @@ main { min-width: 0; height: 100vh; }
 }
 .speech:empty { display: none; }
 
-.walker { position: absolute; bottom: 20px; left: 0; z-index: 2; transition: transform 1.6s linear; }
-.walker[data-walking="true"] .mascot-wrap { animation: waddle .3s steps(1) infinite; }
-@keyframes waddle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-
 .poops { position: absolute; right: 18px; bottom: 22px; z-index: 2; display: flex; gap: 2px; }
 .poops span { display: inline-block; animation: stink 1s steps(1) infinite; }
 @keyframes stink { 50% { transform: translateY(-3px); } }
+.walker { position: absolute; bottom: 14px; left: 0; z-index: 2; }
 
 .room-fx { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .fx-food { position: absolute; bottom: 34px; transition: transform .4s steps(3), opacity .4s steps(3); }
@@ -363,11 +363,13 @@ main { min-width: 0; height: 100vh; }
   position: absolute;
   top: 0;
   bottom: 0;
-  right: -64px;
-  width: 64px;
-  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .95) 0 8px, transparent 8px 16px);
-  animation: wipe 1.2s steps(12) forwards;
+  right: -60px;
+  width: 60px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .95), transparent);
+  animation: wipe 1.2s linear forwards; /* 시간을 바꾸면 mascot.js의 MOTION.clean.sweepMs도 같이 */
 }
+.fx-broom { position: absolute; bottom: 10px; left: 50%; font-size: 40px; line-height: 1; transform: translateX(-50%) rotate(-25deg); transform-origin: 50% 90%; animation: broom .3s ease-in-out infinite alternate; }
+@keyframes broom { to { transform: translateX(-50%) rotate(-5deg); } }
 .fx-bubble { position: absolute; animation: bubble 1.4s steps(7) forwards; }
 .fx-drop { position: absolute; top: 0; animation: waterDrop .7s steps(7) forwards; }
 @keyframes rise { to { transform: translateY(-40px); opacity: 0; } }
@@ -1738,3 +1740,88 @@ body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #
   #walk-check, #walk-pick, #walk-dress, #walk-summary { max-width: none; }
   body.focus-mode .tabbar { display: none; }
 }
+
+/* =========================================================
+   실제 우왕이 PNG 그림과 몸 동작 (팀원 기능, main에서 합침)
+   ========================================================= */
+/* 돌보기 상호작용 */
+#mascot { position: relative; cursor: pointer; touch-action: manipulation; }
+#mascot:focus-visible { outline: 3px solid #e69c46; outline-offset: 8px; border-radius: 45%; }
+.interaction-heart { position: absolute; left: 65%; top: 15%; z-index: 6; color: #ee7195; font-size: 26px; pointer-events: none; animation: rise 1s forwards; }
+@media (prefers-reduced-motion: reduce) {
+  #mascot *, #mascot .m-body, #mascot .m-eyes { animation: none !important; transition: none !important; }
+}
+
+/* ---------- 실제 우왕이 이미지와 몸 동작 ----------
+   래퍼마다 transform을 하나씩 맡아 서로 덮어쓰지 않는다 (바깥 → 안쪽):
+   .walker(가로 위치, JS) > .uwang-move(이동 바운스·기울기·도착 눌림, JS)
+   > .uwang-act(먹기·터치·까딱, JS Web Animations) > .uwang-idle(무게중심 이동) > .uwang-breath(호흡)
+   모든 회전·눌림의 기준점은 발바닥(--feet = mascot.js의 MOTION.feetY)이다.
+   그림 프레임(크기·위치)은 mascot.js의 uwangFrame()이 발바닥·몸 중심에 맞춰 넣는다. */
+.walker { will-change: transform; } /* 위치는 JS가 프레임마다 옮긴다 */
+.mascot-wrap { --feet: 88%; }
+.uwang-art, .uwang-move, .uwang-act, .uwang-idle, .uwang-breath { position: absolute; inset: 0; transform-origin: 50% var(--feet); }
+.uwang-move, .uwang-act { will-change: transform; }
+.uwang-idle { animation: uwang-sway 7.2s ease-in-out infinite; }
+.uwang-breath { animation: uwang-breathe 3.4s ease-in-out infinite; }
+.mascot-wrap[data-sick="true"] .uwang-breath { animation-duration: 4.6s; }
+.mascot-wrap[data-sleep="true"] .uwang-breath { animation: uwang-sleep-breathe 4.8s ease-in-out infinite; }
+.mascot-wrap:is([data-sleep="true"], [data-sick="true"]) .uwang-idle { animation: none; }
+@keyframes uwang-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(.994, 1.014); } }
+@keyframes uwang-sleep-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, .985); } }
+@keyframes uwang-sway { 0%, 100% { transform: rotate(-.7deg); } 50% { transform: rotate(.7deg); } }
+
+/* 아래 7%는 잘라서 시트의 다음 줄 그림이 비치지 않게 한다 (발바닥은 88%) */
+.uwang-layer, .uwang-expression { position: absolute; inset: 0 0 7% 0; background-repeat: no-repeat; pointer-events: none; }
+.uwang-layer { opacity: 0; transition: opacity .65s ease; }
+.uwang-expression { display: none; }
+/* 동작 중에는 표정 그림 하나만 보인다 (두 장을 번갈아 깜빡이지 않는다) */
+.mascot-wrap:not([data-face=""])[data-face] .uwang-expression { display: block; }
+.mascot-wrap:not([data-face=""])[data-face] .uwang-layer { visibility: hidden; }
+.mascot-wrap[data-sleep="true"] .uwang-layer { filter: brightness(.87); }
+/* 화난 얼굴: 볼을 부풀린 씹기 그림 위에 안쪽이 내려간 눈썹·볼 홍조·💢를 겹친다.
+   위치는 상자 크기 비율 (씹기 그림에서 측정: 눈 x 43%/57%, y 34%, 원래 눈썹 y 28%) */
+.uwang-angry { display: none; position: absolute; inset: 0; pointer-events: none; }
+.mascot-wrap[data-face="angry"] .uwang-angry { display: block; }
+.uwang-angry .brow { position: absolute; top: 28.2%; width: 10%; height: calc(var(--size) * .02); margin-top: calc(var(--size) * -.01); border-radius: 99px; background: #3b2416; }
+.uwang-angry .brow-l { left: 37.5%; transform: rotate(24deg); }
+.uwang-angry .brow-r { left: 52.5%; transform: rotate(-24deg); }
+.uwang-angry .flush { position: absolute; top: 43%; width: 11%; height: 5.5%; border-radius: 50%; background: radial-gradient(closest-side, rgba(240, 70, 60, .55), rgba(240, 70, 60, 0)); }
+.uwang-angry .flush-l { left: 29.5%; }
+.uwang-angry .flush-r { left: 59.5%; }
+.uwang-angry .vein { position: absolute; left: 62%; top: 14%; font-size: calc(var(--size) * .13); line-height: 1; animation: uwang-vein .5s ease-in-out infinite alternate; }
+@keyframes uwang-vein { from { transform: scale(.9); } to { transform: scale(1.2); } }
+.uwang-food.food-pill { font-size: calc(var(--size) * .16); }
+.uwang-sleep-mark { display: none; position: absolute; top: 8%; right: 8%; color: #8f79bc; font: bold 18px sans-serif; }
+.mascot-wrap[data-sleep="true"] .uwang-sleep-mark { display: block; }
+.uwang-form-mark { position: absolute; top: 4%; right: 7%; font-size: calc(var(--size) * .13); }
+#visual-status { color: #7b654d; font-size: 13px; text-align: center; margin: 8px 0; }
+/* 의상은 몸 래퍼 안에 있어 몸과 함께 움직인다 */
+.mascot-wrap:has(.uwang-art) .outfit .slot-head { top: 17%; }
+.mascot-wrap:has(.uwang-art) .outfit .slot-face { top: 36%; font-size: calc(var(--size) * .25); }
+.mascot-wrap:has(.uwang-art) .outfit .slot-neck { top: 66%; font-size: calc(var(--size) * .2); }
+.mascot-wrap:has(.uwang-art) .outfit .slot-hand { left: 72%; top: 72%; }
+/* 음식: 위치는 JS가 캐릭터 크기에 비례해 입 위치로 옮긴다 */
+.uwang-food { position: absolute; left: 0; top: 0; z-index: 5; line-height: 1; pointer-events: none; opacity: 0; font-size: calc(var(--size) * .2); }
+.uwang-food.food-bowl { font-size: calc(var(--size) * .26); z-index: 4; }
+@media (prefers-reduced-motion: reduce) {
+  .uwang-idle, .uwang-breath, .mascot-wrap[data-sleep="true"] .uwang-breath { animation: none !important; }
+  .uwang-layer { transition: none !important; }
+}
+
+/* 톡 누른 곳 쳐다보기: 실제 우왕이 그림은 눈이 그려져 있어서, 누른 쪽으로 몸(고개)을 기울인다 (pet.js gazeAt) */
+.uwang-art { transition: transform .35s ease; }
+.mascot-wrap[data-gaze="true"] .uwang-art {
+  transform: translate(var(--gaze-x, 0), var(--gaze-y, 0)) rotate(var(--gaze-rot, 0deg)) scaleY(var(--gaze-sy, 1));
+}
+/* 꼬질꼬질 얼룩: 실제 우왕이 그림의 배·볼 위치에 맞춘 도트 얼룩 */
+.mascot-wrap:has(.uwang-art)[data-dirty="true"] .mascot-inner::after {
+  background:
+    linear-gradient(rgba(110, 70, 40, .55), rgba(110, 70, 40, .55)) 42% 66% / 5% 5% no-repeat,
+    linear-gradient(rgba(110, 70, 40, .55), rgba(110, 70, 40, .55)) 46% 71% / 3% 3% no-repeat,
+    linear-gradient(rgba(110, 70, 40, .5), rgba(110, 70, 40, .5)) 58% 76% / 5% 3% no-repeat,
+    linear-gradient(rgba(110, 70, 40, .5), rgba(110, 70, 40, .5)) 60% 40% / 3% 3% no-repeat,
+    linear-gradient(rgba(110, 70, 40, .45), rgba(110, 70, 40, .45)) 38% 44% / 4% 3% no-repeat;
+}
+#visual-status { margin: 0; color: var(--sub); font-size: 12px; text-align: left; }
+@media (prefers-reduced-motion: reduce) { .uwang-art { transition: none; } }
