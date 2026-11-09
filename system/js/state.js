@@ -29,6 +29,36 @@ const CARE = {
 const NIGHT_START = 22;
 const NIGHT_END = 8;
 
+// 외형 규칙: 포만감/몸무게와 별개인 게임용 누적값.
+const VISUAL_RULES = Object.freeze({ nutritionLoss: 2, mealRecovery: 4,
+  thinEnter: -35, thinExit: -25, awakeFatigue: .5, lightSleepFatigue: 3,
+  darkSleepRecovery: 5, tiredEnter: 35, exhaustedEnter: 70,
+  exhaustedExit: 60, tiredExit: 25 });
+function normalizeVisualState(pet) {
+  pet.nutrition = Math.max(-100, Math.min(0, Number(pet.nutrition) || 0));
+  pet.fatigue = Math.max(0, Math.min(100, Number(pet.fatigue) || 0));
+  if (!['thin','normal'].includes(pet.bodyShape)) pet.bodyShape = 'normal';
+  if (pet.nutrition <= VISUAL_RULES.thinEnter) pet.bodyShape = 'thin';
+  else if (pet.nutrition >= VISUAL_RULES.thinExit) pet.bodyShape = 'normal';
+  if (!['normal','tired','exhausted'].includes(pet.fatigueStage)) pet.fatigueStage = 'normal';
+  if (pet.fatigue >= VISUAL_RULES.exhaustedEnter) pet.fatigueStage = 'exhausted';
+  else if (pet.fatigueStage === 'exhausted' && pet.fatigue > VISUAL_RULES.exhaustedExit) return;
+  else if (pet.fatigue >= VISUAL_RULES.tiredEnter) pet.fatigueStage = 'tired';
+  else if (pet.fatigue <= VISUAL_RULES.tiredExit) pet.fatigueStage = 'normal';
+  else if (pet.fatigueStage === 'exhausted') pet.fatigueStage = 'tired';
+}
+function advanceVisualState(minutes, asleep, lightsOff) {
+  const pet = state.pet;
+  if (pet.stage === 'egg' || state.flight) return;
+  if (pet.hunger <= MAX_HEARTS * .25) pet.nutrition -= VISUAL_RULES.nutritionLoss * minutes;
+  pet.fatigue += (asleep ? (lightsOff ? -VISUAL_RULES.darkSleepRecovery : VISUAL_RULES.lightSleepFatigue) : VISUAL_RULES.awakeFatigue) * minutes;
+  normalizeVisualState(pet);
+}
+function recoverNutrition() {
+  state.pet.nutrition += VISUAL_RULES.mealRecovery;
+  normalizeVisualState(state.pet);
+}
+
 function defaultPet() {
   return {
     stage: 'egg', // egg → baby → child → adult
@@ -41,6 +71,10 @@ function defaultPet() {
     poop: 0,
     sick: false,
     lightsOff: false,
+    nutrition: 0,
+    fatigue: 0,
+    bodyShape: "normal",
+    fatigueStage: "normal",
     careMistakes: 0,
     wasNight: false,
     timers: { hunger: 0, happy: 0, poop: 0, sickRisk: 0, starve: 0, nap: 0, nightLight: 0 },
@@ -95,6 +129,7 @@ function normalizeState(saved) {
   if (merged.flight && !merged.flight.transport) {
     Object.assign(merged.flight, { mode: 'normal', transport: 'plane', from: 'ICN', seatClass: 'economy', fare: 0 });
   }
+  normalizeVisualState(merged.pet); // 체형·피로 기능 이전 저장에도 기본값을 채운다
   return merged;
 }
 
@@ -109,6 +144,9 @@ function loadState() {
 }
 
 let state = loadState();
+let visualSessionAt = Date.now();
+let visualMinuteCarry = 0;
+document.addEventListener('visibilitychange', () => { visualSessionAt = Date.now(); visualMinuteCarry = 0; });
 
 function saveState() {
   try {
@@ -122,6 +160,8 @@ function saveState() {
 function resetState() {
   const { deviceId, likedPosts, nickname, forms, notifyOn, owner } = state;
   state = Object.assign(defaultState(), { deviceId, likedPosts, nickname, forms, notifyOn, owner, playedAt: owner ? Date.now() : 0 });
+  visualSessionAt = Date.now();
+  visualMinuteCarry = 0;
   saveState();
 }
 
@@ -141,6 +181,16 @@ function isAsleep() {
 // 앱을 꺼 둔 시간까지 1분 단위로 따라잡는다 (최대 3일).
 function simulate() {
   const now = Date.now();
+  const elapsed = now - visualSessionAt;
+  visualSessionAt = now;
+  if (!document.hidden && elapsed >= 0 && elapsed <= 5000 && state.pet.stage !== 'egg' && !state.flight) {
+    visualMinuteCarry += elapsed / 60000;
+    if (visualMinuteCarry >= 1) {
+      const whole = Math.floor(visualMinuteCarry);
+      advanceVisualState(whole, isNight(now) || state.pet.lightsOff, state.pet.lightsOff);
+      visualMinuteCarry -= whole;
+    }
+  } else visualMinuteCarry = 0;
   if (state.pet.stage === 'egg') {
     state.lastTick = now;
     return;

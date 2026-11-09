@@ -6,12 +6,16 @@ const Pet = (() => {
   const PHRASES = ['오늘은 어디로 여행 갈까? ✈️', '방 안을 산책 중이에요', '콧노래가 나와요 ♪', '창밖 구경 중이에요 ☁️'];
 
   let room, walker, mascot, fx;
+  let motion;            // 우왕이 몸 동작 (mascot.js의 createUwangMotion)
+  let recenter = false;  // 방이 숨겨져 있어 자리를 못 잡았으면 다음에 보일 때 가운데로
   let mountedStage = null;
+  let interactionVersion = 0;
+  let touchTimes = [];
+  let reactingUntil = 0;
   let busy = false;      // 먹기·청소 같은 동작이 진행 중
   let play = null;       // 놀아주기 진행 상태
   let hatching = false;
   let eggTaps = 0;
-  let x = 0;
   let ticks = 0;
   let speech = { text: '', until: 0 };
 
@@ -20,9 +24,16 @@ const Pet = (() => {
     walker = $('#walker');
     mascot = $('#mascot');
     fx = $('#room-fx');
+    motion = createUwangMotion(mascot, walker, room);
     document.querySelectorAll('[data-action]').forEach((b) => b.addEventListener('click', () => act(b.dataset.action)));
     document.querySelectorAll('[data-guess]').forEach((b) => b.addEventListener('click', () => guess(b.dataset.guess)));
     mascot.addEventListener('click', tapMascot);
+    mascot.tabIndex = 0;
+    mascot.setAttribute('role', 'button');
+    mascot.setAttribute('aria-label', '우왕이: 머리를 누르면 쓰다듬기, 몸통을 누르면 톡톡');
+    mascot.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapMascot(); }
+    });
     $('#btn-away').addEventListener('click', () => show('travel'));
     $('#wardrobe').addEventListener('click', (e) => {
       const b = e.target.closest('[data-wear]');
@@ -39,7 +50,9 @@ const Pet = (() => {
     const pet = state.pet;
     if (pet.stage === 'egg' && (eggTaps >= 5 || Date.now() - pet.bornAt >= HATCH_SECONDS * 1000)) hatchNow();
     if ($('#screen-pet').hidden) return;
-    if (++ticks % 3 === 0) walk();
+    if (isAsleep() || state.flight) motion.stopWalk(); // 잠들거나 떠나면 걷던 동작을 바로 정리
+    else if (++ticks % 3 === 0) walk();
+    else if (Math.random() < MOTION.idle.chance) idleTwitch();
     render();
   }
 
@@ -64,24 +77,29 @@ const Pet = (() => {
     return Math.max(0, (room.clientWidth - mascot.offsetWidth) / 2);
   }
 
-  // instant: 처음 자리를 잡을 때처럼 걸어가는 애니메이션 없이 옮긴다
+  // instant: 처음 자리를 잡을 때처럼 걸어가는 동작 없이 옮긴다
   function moveTo(px, instant = false) {
-    x = px;
-    if (instant) walker.style.transition = 'none';
-    walker.style.transform = `translateX(${x}px)`;
-    if (instant) {
-      void walker.offsetWidth;
-      walker.style.transition = '';
-    }
+    if (!room.clientWidth) { recenter = true; return Promise.resolve(false); }
+    if (instant) { motion.place(px); return Promise.resolve(true); }
+    return motion.walkTo(px);
   }
 
   function walk() {
-    if (busy || play || state.flight || state.pet.stage === 'egg' || isAsleep()) return;
-    const maxX = Math.max(10, room.clientWidth - mascot.offsetWidth - 10 - state.pet.poop * 34);
+    if (busy || Date.now() < reactingUntil || play || state.flight || state.pet.stage === 'egg' || isAsleep()) return;
+    // 대기 동작(기지개·꾸벅 등)이 끝나기 전에 걷기 시작해서 동작이 뚝 끊기지 않게 한다
+    if (motion.walking() || motion.acting() || motion.idling() || uwangReducedMotion()) return;
+    const size = mascot.offsetWidth;
+    const maxX = Math.max(10, room.clientWidth - size - 10 - state.pet.poop * 34);
     const next = 10 + Math.random() * (maxX - 10);
-    setMascot(mascot, { look: next < x ? 'left' : 'right' });
-    moveTo(next);
-    setTimeout(() => { if (!play) setMascot(mascot, { look: '' }); }, 1600);
+    if (Math.abs(next - motion.x()) < size * 0.2) return; // 제자리걸음은 하지 않는다
+    setMascot(mascot, { look: next < motion.x() ? 'left' : 'right' });
+    motion.walkTo(next).then(() => { if (!play) setMascot(mascot, { look: '' }); });
+  }
+
+  function idleTwitch() {
+    if (busy || play || state.flight || state.pet.stage === 'egg' || isAsleep() || Date.now() < reactingUntil) return;
+    if (motion.walking() || motion.acting() || motion.idling()) return; // 진행 중인 동작을 끊지 않는다
+    motion.twitch();
   }
 
   // ---------- 화면 ----------
@@ -118,15 +136,17 @@ const Pet = (() => {
     const asleep = isAsleep();
 
     if (mountedStage !== pet.stage) {
-      mountMascot(mascot, pet.stage);
+      mountMascot(mascot, pet.stage); // 남은 동작·타이머·임시 효과도 여기서 정리된다
       setMascot(mascot, { crack: false, look: '', anim: '' });
       mountedStage = pet.stage;
+      if (room.clientWidth) motion.place(motion.x()); // 성장해서 커져도 방 밖으로 잘리지 않게
     }
+    // 잘 때·아플 때 표시를 먼저 정해야 대기 그림(잘 때 졸린 얼굴)이 맞게 골라진다
+    setMascot(mascot, { mood: (play && play.mood) || mood(), sleep: asleep, sick: pet.sick });
     dressMascot(mascot);
     room.dataset.night = isNight();
     room.dataset.lights = pet.lightsOff && !away ? 'off' : 'on';
     room.dataset.asleep = asleep && !away;
-    setMascot(mascot, { mood: (play && play.mood) || mood(), sleep: asleep, sick: pet.sick });
 
     $('#poops').innerHTML = away ? '' : '<span>💩</span>'.repeat(pet.poop);
     $('#room-badges').innerHTML = pet.sick && !away ? '<span title="아파요">🤒</span>' : '';
@@ -150,6 +170,9 @@ const Pet = (() => {
         + (next ? ` · Lv.${next}에 성장` : '');
     }
 
+    const status = $('#visual-status');
+    if (status) status.textContent = pet.stage === 'egg' ? '알을 5번 누르면 태어나요' :
+      `${pet.bodyShape === 'thin' ? '마른 체형' : '보통 체형'} · ${{normal:'피로 없음',tired:'졸림',exhausted:'심한 피로 · 다크서클'}[pet.fatigueStage]}`;
     $('#lights-label').textContent = pet.lightsOff ? '불 켜기' : '불 끄기';
     const locked = pet.stage === 'egg' || away || busy;
     document.querySelectorAll('[data-action]').forEach((b) => { b.disabled = locked; });
@@ -160,6 +183,7 @@ const Pet = (() => {
   // ---------- 돌보기 ----------
   function act(action) {
     const pet = state.pet;
+    if (busy || play || state.flight || pet.stage === 'egg') return;
     if (action === 'lights') return toggleLights();
     if (isAsleep()) {
       return toast(isNight() ? '밤이라 자고 있어요 🌙 아침 8시에 일어나요' : '낮잠 자는 중이에요. 불을 켜면 일어나요 💡');
@@ -167,10 +191,11 @@ const Pet = (() => {
     if (action === 'meal') {
       if (pet.hunger >= MAX_HEARTS) return refuse();
       addHearts('hunger', 1);
+      recoverNutrition();
       pet.weight += 1;
       rewardExp(5);
       saveState();
-      return eat('🍙');
+      return eat('meal');
     }
     if (action === 'snack') {
       if (state.coins < SNACK_COST) return toast(`코인이 부족해요 (간식 🪙${SNACK_COST}). 게임으로 모아 보세요!`);
@@ -179,7 +204,7 @@ const Pet = (() => {
       pet.weight += 2;
       rewardExp(3);
       saveState();
-      return eat('🍰');
+      return eat('snack');
     }
     if (action === 'play') {
       if (pet.sick) return toast('아파서 놀 수 없어요. 먼저 약을 주세요 💊');
@@ -197,92 +222,126 @@ const Pet = (() => {
 
   function toggleLights() {
     const pet = state.pet;
+    const wasAsleep = isAsleep();
     pet.lightsOff = !pet.lightsOff;
     pet.timers.nap = 0;
     saveState();
     if (pet.lightsOff) toast(isNight() ? '불을 껐어요. 잘 자, 우왕아 🌙' : '불을 껐어요. 우왕이가 낮잠을 자요 💤');
     else toast(isNight() ? '불을 켰어요. 밤이라 우왕이는 계속 자요' : '불을 켰어요. 우왕이가 일어났어요!');
     render();
+    // 낮잠 자다 불이 켜져 깨면 잠깐 투덜대며 화낸다
+    if (wasAsleep && !isAsleep() && !busy && !play && pet.stage !== 'egg') {
+      say('으으… 왜 깨워! 💢', 1800);
+      reactingUntil = Date.now() + 2500;
+      motion.angry();
+    }
   }
 
   async function refuse() {
     busy = true;
     say('배불러요! 🙅');
     render();
-    await playMascot(mascot, 'refuse', 1500);
+    stopWalking();
+    await motion.refuse();
     busy = false;
     render();
   }
 
-  async function eat(emoji) {
+  // 걷던 중이면 지금 자리에서 바로 멈추고 바른 자세로 돌아온다
+  function stopWalking() {
+    motion.stopWalk();
+    setMascot(mascot, { look: '' });
+  }
+
+  // 밥과 간식은 동작 순서와 리듬이 다르다 (mascot.js의 MOTION.meal / MOTION.snack)
+  async function eat(kind) {
+    const version = ++interactionVersion;
     busy = true;
-    say('냠냠 😋', 1800);
+    stopWalking();
+    say(kind === 'meal' ? '밥 먹을 시간! 냠냠 🍚' : '달콤한 간식이다! 🍰', 3500);
     render();
-    const food = document.createElement('span');
-    food.className = 'fx-food';
-    food.textContent = emoji;
-    food.style.left = `${Math.min(room.clientWidth - 50, x + mascot.offsetWidth - 16)}px`;
-    fx.appendChild(food);
     Sound.sfx('beep');
-    setTimeout(() => { food.style.transform = 'scale(.65)'; Sound.sfx('beep'); }, 500);
-    setTimeout(() => { food.style.transform = 'scale(.35)'; Sound.sfx('beep'); }, 1000);
-    setTimeout(() => { food.style.opacity = '0'; }, 1400);
-    await playMascot(mascot, 'eat', 1600);
-    food.remove();
+    await motion.feed(kind, {
+      onBite: () => Sound.sfx('beep'),
+      onHappy: () => {
+        if (version !== interactionVersion) return;
+        say(kind === 'meal' ? '잘 먹었습니다! 😊' : '달콤해서 행복해요! 💕');
+        touchEffect(kind === 'meal' ? '✨' : '💕');
+      },
+    });
+    if (version !== interactionVersion) return;
     busy = false;
     render();
   }
 
-  function clean() {
+  // 효과는 하나만 띄운다 (연속 터치로 쌓이지 않게)
+  function touchEffect(symbol) {
+    mascot.querySelectorAll('.interaction-heart').forEach((n) => n.remove());
+    const effect = document.createElement('span');
+    effect.className = 'interaction-heart';
+    effect.textContent = symbol;
+    effect.setAttribute('aria-hidden', 'true');
+    mascot.appendChild(effect);
+    setTimeout(() => effect.remove(), 1000);
+  }
+
+  // 빗자루가 방을 쓸고 지나가는 동안 우왕이는 지켜보다 뛰어 넘고, 몸을 털고 개운해한다 (MOTION.clean)
+  async function clean() {
+    const version = ++interactionVersion;
     busy = true;
+    stopWalking();
+    say('청소해요! 🧹', 2500);
     render();
     const wipe = document.createElement('div');
     wipe.className = 'fx-wipe';
+    wipe.innerHTML = '<span class="fx-broom">🧹</span>';
     fx.appendChild(wipe);
     Sound.sfx('tear');
-    setTimeout(() => {
-      state.pet.poop = 0;
-      state.pet.timers.sickRisk = 0;
-      rewardExp(5);
-      saveState();
+    const swept = new Promise((resolve) => setTimeout(() => {
       wipe.remove();
-      busy = false;
-      say('깨끗해졌어요! ✨');
-      render();
-    }, 1200);
+      if (version === interactionVersion) {
+        state.pet.poop = 0;
+        state.pet.timers.sickRisk = 0;
+        rewardExp(5);
+        saveState();
+        say('깨끗해졌어요! ✨');
+        render();
+      }
+      resolve();
+    }, MOTION.clean.sweepMs));
+    await Promise.all([swept, motion.clean()]);
+    if (version !== interactionVersion) return;
+    busy = false;
+    render();
   }
 
-  function cure() {
+  // 약을 보고 움찔 → 꿀꺽 → 쓴맛에 부르르 → 다 나으면 기뻐서 뛴다 (MOTION.medicine)
+  async function cure() {
+    const version = ++interactionVersion;
     busy = true;
+    stopWalking();
+    say('으… 약 먹기 싫은데… 💊', 2500);
     render();
-    const pill = document.createElement('span');
-    pill.className = 'fx-pill';
-    pill.textContent = '💊';
-    fx.appendChild(pill);
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      pill.style.right = `${room.clientWidth - x - mascot.offsetWidth / 2}px`;
-    }));
-    setTimeout(() => {
-      pill.remove();
-      state.pet.sick = false;
-      rewardExp(5);
-      saveState();
-      busy = false;
-      const sparkle = document.createElement('span');
-      sparkle.className = 'fx-sparkle';
-      sparkle.textContent = '✨';
-      sparkle.style.left = `${x + mascot.offsetWidth / 2 - 16}px`;
-      fx.appendChild(sparkle);
-      setTimeout(() => sparkle.remove(), 1000);
-      Sound.sfx('levelup');
-      say('다 나았어요! 💪');
-      render();
-      playMascot(mascot, 'joy', 600);
-    }, 1000);
+    await motion.medicine({ onSwallow: () => { Sound.sfx('beep'); say('꿀꺽! 써요… 😖', 1500); } });
+    if (version !== interactionVersion) return;
+    state.pet.sick = false;
+    rewardExp(5);
+    saveState();
+    busy = false;
+    const sparkle = document.createElement('span');
+    sparkle.className = 'fx-sparkle';
+    sparkle.textContent = '✨';
+    sparkle.style.left = `${motion.x() + mascot.offsetWidth / 2 - 16}px`;
+    fx.appendChild(sparkle);
+    setTimeout(() => sparkle.remove(), 1000);
+    Sound.sfx('levelup');
+    say('다 나았어요! 💪');
+    render(); // 아픈 표시를 먼저 풀어야 기쁨 점프가 허용된다
+    motion.joy();
   }
 
   // 알을 톡톡 두드리거나, 우왕이를 쓰다듬는다
-  function tapMascot() {
+  function tapMascot(event) {
     const pet = state.pet;
     if (pet.stage === 'egg') {
       if (hatching) return;
@@ -293,13 +352,30 @@ const Pet = (() => {
       return;
     }
     if (busy || play || state.flight || isAsleep()) return;
-    say(pet.sick ? '으으… 아파요' : '헤헤, 간지러워요 😊', 1500);
-    playMascot(mascot, 'joy', 600);
+    const c = MOTION.touch;
+    const now = Date.now();
+    touchTimes = touchTimes.filter(t => now - t < c.spamWindowMs);
+    touchTimes.push(now);
+    // 마우스 클릭과 모바일 탭 모두 click으로 들어온다. 키보드(detail 0)는 머리 쓰다듬기로 본다.
+    const rect = mascot.getBoundingClientRect();
+    const keyboard = !event || event.detail === 0;
+    const head = keyboard || (event.clientY - rect.top) / rect.height < c.headLine;
+    const side = keyboard ? 1 : (event.clientX < rect.left + rect.width / 2 ? -1 : 1);
+    // 너무 빨리 계속 만지면 화낸다 (아플 때는 화내지 않고 살살 반응)
+    const kind = pet.sick ? 'comfort' : touchTimes.length >= c.spamCount ? 'angry' : head ? 'head' : 'body';
+    const reaction = motion.touch(kind, side); // 걷던 중이면 그 자리에서 멈추고 반응한다
+    if (!reaction) return; // 반응 중 짧은 간격의 터치는 쌓지 않는다
+    if (kind === 'angry') touchTimes = [];
+    setMascot(mascot, { look: '' });
+    say({ comfort: '살살 만져 주세요…', angry: '그만 좀 만져! 💢', head: '헤헤, 기분 좋아요 😊', body: '앗, 간지러워! 😆' }[kind], 1800);
+    reactingUntil = now + reaction.ms + 400;
+    if (kind === 'head') touchEffect('♥');
   }
 
   // ---------- 놀아주기: 우왕이가 볼 방향 맞히기 ----------
   function startPlay() {
     play = { round: 0, wins: 0, waiting: false, mood: '' };
+    motion.reset();
     moveTo(centerX());
     setMascot(mascot, { look: '' });
     updatePlay();
@@ -341,7 +417,7 @@ const Pet = (() => {
       pet.weight = Math.max(1, pet.weight - 1);
       rewardExp(15);
       say(`${wins}번 맞혔어요! 신나요 🎉`);
-      playMascot(mascot, 'joy', 600);
+      motion.joy();
     } else {
       rewardExp(5);
       say(`${wins}번 맞혔어요. 다음엔 더 잘할래요!`);
@@ -357,7 +433,7 @@ const Pet = (() => {
     saveState();
     render();
     renderCollections();
-    if (state.equipped[slot] && !busy && !play && !isAsleep()) playMascot(mascot, 'joy', 600);
+    if (state.equipped[slot] && !busy && !play && !isAsleep() && state.pet.stage !== 'egg') motion.joy();
   }
 
   function renderCollections() {
@@ -392,9 +468,18 @@ const Pet = (() => {
   function refresh() {
     render();
     renderCollections();
+    if (recenter && room.clientWidth) {
+      recenter = false;
+      moveTo(centerX(), true);
+    } else if (room.clientWidth && !motion.walking()) motion.place(motion.x());
   }
 
   function resetView() {
+    interactionVersion++;
+    mascot._animationToken = (mascot._animationToken || 0) + 1;
+    motion.reset(); // 이동·동작·타이머·음식·하트 효과 정리
+    touchTimes = [];
+    reactingUntil = 0;
     play = null;
     busy = false;
     hatching = false;
