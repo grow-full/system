@@ -2,3 +2,6 @@
 Thumbs.db
 .vscode/
 .idea/
+
+# 개인 Google Maps API 키 (산책 탭)
+system/js/maps-key.js

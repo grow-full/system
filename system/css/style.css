@@ -369,11 +369,12 @@ main { min-width: 0; height: 100vh; }
   animation: wipe 1.2s steps(12) forwards;
 }
 .fx-bubble { position: absolute; animation: bubble 1.4s steps(7) forwards; }
-.fx-drop { position: absolute; top: 0; animation: drop .7s steps(7) forwards; }
+.fx-drop { position: absolute; top: 0; animation: waterDrop .7s steps(7) forwards; }
 @keyframes rise { to { transform: translateY(-40px); opacity: 0; } }
 @keyframes wipe { to { right: calc(100% + 64px); } }
 @keyframes bubble { 0% { transform: scale(.4); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-60px); opacity: 0; } }
-@keyframes drop { to { transform: translateY(340px); opacity: .3; } }
+@keyframes waterDrop { to { transform: translateY(340px); opacity: .3; } }
+@keyframes pulse { 50% { opacity: .4; } }
 
 /* 꼬질꼬질: 몸의 도트 얼룩과 맴도는 파리 */
 .mascot-wrap[data-dirty="true"] .mascot-inner::after {
@@ -725,6 +726,903 @@ main { min-width: 0; height: 100vh; }
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+
+/* =========================================================
+   팀원 기능 CSS (main에서 합침: 계정, 기본 옷, 창밖 하늘, 새 게임, 댓글, 산책, 여행 확장, 집중 모드)
+   ========================================================= */
+/* ---------- 계정 (cloud.js) ---------- */
+#account-modal .card { max-width: 320px; }
+.account-form { margin-top: 12px; text-align: left; }
+.account-form .primary { margin-top: 12px; }
+.account-error { min-height: 18px; margin: 8px 0 0 !important; font-size: 12px !important; color: #d9534f !important; }
+.account-status { font-weight: 700; color: var(--ink) !important; }
+
+/* 기본 옷: 학사모는 크게 머리에 딱 붙이고, 뿔테 안경은 렌즈가 눈에 오게 그림 크기를 우왕이에 맞춘다 */
+.outfit .o-basic_cap { top: 19.5%; font-size: calc(var(--size) * .42); }
+.outfit .o-basic_glasses { top: 52%; width: calc(var(--size) * .62); }
+.outfit .o-basic_glasses svg { display: block; width: 100%; height: auto; }
+.outfit-art { display: inline-block; width: 1.5em; font-style: normal; line-height: 1; vertical-align: middle; }
+.outfit-art svg { display: block; width: 100%; height: auto; }
+.window.rail { width: 100%; max-width: 320px; height: 200px; border-radius: 22px; border-color: #dfe4ea; }
+.window.porthole { width: 240px; height: 240px; border-radius: 50%; border-color: #c8a46e; box-shadow: inset 0 0 0 4px #9c7a45, 0 8px 20px rgba(0, 0, 0, .12); }
+
+/* 창밖 하늘: 지금 시각에 따라 바뀐다 (sky.js) */
+.sky { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(#5aa9ff, #bfe3ff 70%, #fff3d6); transition: background 2s; }
+.sky.dawn { background: linear-gradient(#4b3f84, #d97fb0 60%, #ffd3a1); }
+.sky.day { background: linear-gradient(#5aa9ff, #bfe3ff 70%, #fff3d6); }
+.sky.sunset { background: linear-gradient(#3f4c8f, #f07b52 58%, #ffc46b); }
+.sky.night { background: linear-gradient(#070b24, #172150 70%, #2c3566); }
+.drift { position: absolute; left: 110%; animation: drift linear infinite; line-height: 1; }
+.sky.night .drift, .sky.night .sea { filter: brightness(.4) saturate(.6); }
+.sky.sunset .drift, .sky.dawn .drift { filter: brightness(.85) sepia(.25); }
+.stars { position: absolute; inset: 0; opacity: 0; transition: opacity 2s; }
+.stars i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px #fff; animation: twinkle 3s ease-in-out infinite; }
+@keyframes twinkle { 50% { opacity: .25; } }
+.sky.night .stars { opacity: 1; }
+.sky.dawn .stars { opacity: .35; }
+.sky .moon, .sky .sun { position: absolute; font-size: 34px; opacity: 0; transition: opacity 2s; }
+.sky .moon { right: 14%; top: 8%; }
+.sky .sun { left: 12%; bottom: 38%; }
+.sky.night .moon { opacity: 1; }
+.sky.sunset .sun { opacity: .9; }
+.ground { position: absolute; left: 0; right: 0; bottom: 0; height: 24%; background: linear-gradient(#8fce7a, #5da14d); }
+.sky.night .ground { background: linear-gradient(#1f3a2a, #12251a); }
+.sky.sunset .ground, .sky.dawn .ground { background: linear-gradient(#7a9a5a, #4e6e3c); }
+.scenery.far { opacity: .8; }
+.sea { position: absolute; left: 0; right: 0; bottom: 0; height: 38%; background: linear-gradient(#3d8fd8, #1d5fa3); }
+.sky.night .sea { background: linear-gradient(#0e2347, #08152c); }
+.waves { position: absolute; left: -10%; width: 120%; font-size: 26px; white-space: nowrap; letter-spacing: -6px; animation: bob 2.4s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translate(14px, -4px); } }
+.earned { margin: -4px 0 14px; font-size: 13px; color: var(--sub); }
+.earned b { color: var(--primary-dark); }
+
+/* 장애물 피하기 */
+.runner-box { overflow: hidden; border-radius: 20px; }
+#a-runner { display: block; width: 100%; height: 360px; touch-action: none; user-select: none; }
+
+/* 퍼즐 게임 공통 */
+.puzzle-msg { min-height: 2.8em; margin: 2px 0 10px; font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--sub); text-align: center; }
+.puzzle-tools { display: flex; justify-content: center; gap: 8px; margin-top: 10px; }
+.puzzle-tools button { padding: 8px 14px; border: 1px solid var(--line); border-radius: 99px; background: #fff; font-size: 13px; font-weight: 600; }
+.puzzle-tools button:disabled { opacity: .4; }
+
+/* 기념품 타일 매치 */
+.tile-board { position: relative; margin: 0 auto; padding-bottom: 8px; box-sizing: content-box; }
+.tile {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 1px solid #e6cfae;
+  border-radius: 10px;
+  background: #fffaf2;
+  box-shadow: 0 4px 0 #d9b98c;
+  font-size: 26px;
+  line-height: 1;
+  touch-action: manipulation;
+}
+.tile.covered { background: #e9dccb; box-shadow: 0 4px 0 #c8b192; filter: brightness(.75) saturate(.6); pointer-events: none; }
+.tile-tray {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 14px;
+  padding: 8px;
+  border-radius: 16px;
+  background: #7a4b2a;
+}
+.tile-tray .slot { display: grid; place-items: center; aspect-ratio: 1; border-radius: 8px; background: #a8754a; font-size: 24px; }
+.tile-tray .slot:not(:empty) { background: #fffaf2; }
+.tile-tray .slot.clearing { animation: vanish .26s ease-in forwards; }
+@keyframes vanish { to { transform: scale(0); opacity: 0; } }
+
+/* 짐 싸기 블록 퍼즐 */
+.blk-board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  padding: 6px;
+  border-radius: 16px;
+  background: #7a4b2a;
+  touch-action: none;
+}
+.blk-board span { aspect-ratio: 1; border-radius: 5px; background: #a8754a; }
+.blk-board span.on { box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .18); }
+.blk-board span.clear { animation: vanish .3s ease-in forwards; }
+.blk-tray { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; touch-action: none; user-select: none; }
+.blk-slot { display: grid; place-items: center; height: 104px; border: 1px solid var(--line); border-radius: 14px; background: #fff; cursor: grab; }
+.blk-slot.lifted { opacity: .25; }
+.blk-slot.stuck { filter: grayscale(1); opacity: .5; }
+.blk-mini { display: grid; gap: 2px; }
+.blk-mini i { border-radius: 4px; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .18); }
+.blk-ghost { position: fixed; z-index: 30; pointer-events: none; opacity: .9; }
+
+/* 특산품 3매치 */
+.m3-board {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  padding: 6px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #4fa3ff, #7cc8ff);
+  touch-action: none;
+  user-select: none;
+}
+.m3 { aspect-ratio: 1; padding: 0; border: 0; border-radius: 10px; background: rgba(255, 255, 255, .85); font-size: 28px; line-height: 1; }
+.m3.sel { background: #fff3b0; box-shadow: 0 0 0 3px #ffb347 inset; transform: scale(1.06); }
+.m3.pop { animation: vanish .26s ease-in forwards; }
+.m3.drop { animation: drop .24s ease-out; }
+@keyframes drop { from { transform: translateY(-40%); opacity: .3; } to { transform: none; opacity: 1; } }
+
+.post-actions .on { border-color: var(--ink); }
+
+.comments { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.comments ul { margin: 0 0 10px; padding: 0; list-style: none; }
+.comment { padding: 6px 0; font-size: 13px; }
+.comment + .comment { border-top: 1px solid #f7efe4; }
+.comment-head { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sub); }
+.comment-head b { color: var(--ink); }
+.comment-head button { margin-left: auto; padding: 2px 8px; border: 1px solid var(--line); border-radius: 99px; background: #fff; font-size: 11px; color: var(--sub); }
+.comment p { margin: 3px 0 0; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.comment-empty { margin: 0 0 10px; font-size: 12px; color: var(--sub); }
+.comment-form { display: flex; gap: 6px; }
+.comment-form input { flex: 1; min-width: 0; padding: 8px 10px; font-size: 13px; }
+.comment-form button { flex: none; padding: 0 14px; border: 0; border-radius: 12px; background: var(--primary); color: #fff; font-size: 13px; font-weight: 700; }
+.comment-form button:disabled { opacity: .5; }
+/* ---------- 산책 ---------- */
+/* 산책 전 체크 */
+.walk-check-card { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+.walk-check-pet { display: flex; justify-content: center; padding: 6px 0 2px; }
+.walk-check-pet .mascot-wrap { --size: 120px; }
+.walk-check-pet .mascot-wrap[data-stage="egg"] { --size: 100px; }
+.hearts.bored .on { filter: none; }
+.walk-check-verdict {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--tint);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  word-break: keep-all;
+}
+.walk-check-verdict[data-level="stop"] { background: #ffe3e3; color: #b23a3a; }
+.walk-check-verdict[data-level="ok"] { background: #e7f6e9; color: #2f7a3d; }
+
+/* 출발 장소 고르기 */
+.walk-pick-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+.walk-pick-list button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 10px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+  text-align: left;
+}
+.walk-pick-list .pin { flex: none; font-size: 20px; line-height: 1; filter: grayscale(1); opacity: .5; }
+.walk-pick-list b { overflow: hidden; font-size: 13px; white-space: nowrap; text-overflow: ellipsis; }
+.walk-pick-list .visited { position: absolute; top: -7px; right: -4px; font-size: 13px; font-style: normal; }
+.walk-pick-list button[aria-checked="true"] { border-color: var(--primary); background: var(--tint); }
+.walk-pick-list button[aria-checked="true"] .pin { filter: none; opacity: 1; }
+.walk-pick-list button:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+/* 고른 장소와 다음 버튼: 하단 탭 바 바로 위에 붙어 있다 */
+.walk-pick-bar {
+  position: sticky;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));   /* 하단 탭 바 높이 */
+  z-index: 5;
+  margin: 0 -6px;
+  padding: 10px 6px 6px;
+  border-radius: 18px 18px 0 0;
+  background: linear-gradient(to bottom, rgba(244, 234, 214, 0), var(--lcd) 22%);
+}
+.walk-pick-bar .primary { width: 100%; margin: 0; }
+.walk-pick-line { margin: 0 0 8px; overflow: hidden; font-size: 12px; color: var(--sub); white-space: nowrap; text-overflow: ellipsis; text-align: center; }
+.walk-stats { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 10px; padding: 10px 14px; text-align: center; }
+.walk-stats div { display: flex; flex: 1; flex-direction: column; align-items: center; gap: 2px; }
+.walk-stats small { font-size: 12px; color: var(--sub); }
+.walk-stats b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.walk-stats .hearts { font-size: 15px; letter-spacing: 0; line-height: 27px; }
+.walk-stats .hearts.up { animation: bounce .6s; }
+.walk-stage {
+  position: relative;
+  /* 걸음 수 칸과 하단 탭 바를 빼고 한 화면에 들어오게 해서 방향 버튼이 가려지지 않게 한다 */
+  height: calc(100vh - 330px);
+  height: calc(100dvh - 330px);
+  min-height: 300px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #dfeee0;
+}
+.walk-view { position: absolute; inset: 0; }
+/* 겹친 층은 터치를 지도로 넘기고, 우왕이만 누를 수 있다 */
+.walk-overlay { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; }
+.walk-walker { --size: 150px; position: absolute; z-index: 2; top: 0; left: 0; display: flex; flex-direction: column; align-items: center; will-change: transform; }
+.walk-walker .mascot-wrap { --size: inherit; width: var(--size); height: var(--size); pointer-events: auto; cursor: pointer; }
+/* 발밑 그림자를 진하게 해서 바닥에 서 있는 느낌을 준다 */
+.walk-walker .mascot-wrap svg > ellipse:first-child { fill: rgba(0, 0, 0, .35); }
+/* 걸을 때는 통통 튀면서 좌우로 흔들린다 */
+.walk-walker[data-walking="true"] .mascot-inner { animation: walk-bob .35s ease-in-out infinite alternate; }
+@keyframes walk-bob { from { transform: translateY(0) rotate(-3deg); } to { transform: translateY(-8px) rotate(3deg); } }
+.walk-speech {
+  position: absolute;
+  bottom: 100%;
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.walk-speech:empty { display: none; }
+/* 장소를 옮길 때 화면이 하얗게 부드럽게 넘어간다 */
+.walk-fade { position: absolute; inset: 0; background: #fff; opacity: 0; transition: opacity .35s; pointer-events: none; }
+.walk-fade.on { opacity: 1; }
+.walk-music {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: #fff;
+  color: var(--sub);
+  font-size: 13px;
+  font-weight: 600;
+}
+.walk-music[aria-pressed="true"] { border-color: var(--primary); background: var(--tint); color: var(--primary-dark); }
+.walk-toggles { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.walk-toggles .walk-music { margin: 0; }
+/* 물 마시기: 목마르면 파랗게 콩콩 뛰며 알려 준다 */
+.walk-drink.thirsty { border-color: #4a9fd8; background: #e8f4fc; color: #1f6fa8; animation: thirsty-hop 1.2s ease-in-out infinite; }
+@keyframes thirsty-hop { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-3px); } }
+/* 텀블러: 우왕이 그림 안에 들어가서, 뚜껑의 마시는 구멍이 입(가로 50%, 세로 70%)에 딱 닿은 채 기울어진다 */
+.walk-cup { position: absolute; left: 48%; top: 69.5%; z-index: 3; width: 15%; opacity: 0; pointer-events: none; transform-origin: 12% 2%; }
+.walk-cup svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .15)); }
+.walk-cup.show { animation: cup-drink 1.7s ease-in-out; }
+@keyframes cup-drink {
+  0% { opacity: 0; transform: translate(18px, 14px) rotate(0); }
+  15% { opacity: 1; transform: translate(0, 0) rotate(-5deg); }
+  30%, 75% { opacity: 1; transform: rotate(-25deg); }
+  90% { opacity: 1; transform: rotate(-5deg); }
+  100% { opacity: 0; transform: translate(12px, 10px) rotate(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .walk-drink.thirsty { animation: none; }
+  .walk-cup.show { animation: drink-fade 1.7s; transform: rotate(-25deg); }
+}
+@keyframes drink-fade { 0%, 100% { opacity: 0; } 20%, 80% { opacity: 1; } }
+
+/* 우왕이 친구: 장소 안에 서 있고, 누르면 인사한다 */
+.walk-friend {
+  --fsize: 100px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: var(--fsize);
+  height: var(--fsize);
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: auto;
+  cursor: pointer;
+  will-change: transform;
+}
+.friend-body { font-size: calc(var(--fsize) * .62); line-height: 1; filter: drop-shadow(0 6px 4px rgba(0, 0, 0, .3)); }
+.friend-body svg, .friend-body img { display: block; width: calc(var(--fsize) * .82); height: calc(var(--fsize) * .82); object-fit: contain; }
+.friend-name {
+  margin-top: 2px;
+  padding: 1px 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, .9);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.walk-friend .friend-speech { bottom: 100%; margin-bottom: 4px; }
+.walk-friend.hop .friend-body { animation: bounce .6s; }
+.walk-friend:focus-visible { outline: 3px solid #fff; outline-offset: 2px; border-radius: 12px; }
+
+/* 산책 헤드셋: 게이머 우왕이의 헤드폰 그림을 같이 쓴다 */
+.mascot-wrap[data-headset="true"] .acc-gamer { display: inline; }
+/* 헤드셋을 끼고 서 있을 때는 음악에 맞춰 고개를 까딱까딱 */
+.walk-walker:not([data-walking="true"]) .mascot-wrap[data-headset="true"]:not([data-anim="joy"]) .mascot-inner { animation: head-bob .9s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes head-bob { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@media (prefers-reduced-motion: reduce) { .walk-walker .mascot-wrap[data-headset="true"] .mascot-inner { animation: none; } }
+/* 산책 도장 */
+.walk-stamps-card { margin-top: 12px; }
+.walk-stamps { display: grid; grid-template-columns: repeat(auto-fill, 60px); justify-content: space-between; gap: 8px 6px; }
+.walk-stamp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  aspect-ratio: 1;
+  padding: 4px;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  background: var(--tint);
+  color: var(--primary-dark);
+  transform: rotate(-8deg);
+}
+.walk-stamp span { font-size: 18px; line-height: 1; }
+.walk-stamp small { max-width: 100%; overflow: hidden; font-size: 8px; font-weight: 800; white-space: nowrap; text-overflow: ellipsis; }
+.walk-stamp.locked { border: 2px dashed #d8ccbc; background: none; color: #c9bba8; transform: none; }
+.walk-stamp.locked span { font-size: 15px; font-weight: 800; }
+
+/* 도장을 받을 때 화면 가운데에 쾅 찍힌다 */
+.walk-stamp-pop {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 150px;
+  height: 150px;
+  border: 5px solid var(--primary);
+  border-radius: 50%;
+  background: rgba(255, 246, 238, .94);
+  box-shadow: 0 8px 24px rgba(59, 42, 26, .3);
+  color: var(--primary-dark);
+  text-align: center;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-10deg);
+}
+.walk-stamp-pop span { font-size: 44px; line-height: 1.1; }
+.walk-stamp-pop b { max-width: 120px; font-size: 15px; word-break: keep-all; }
+.walk-stamp-pop small { font-size: 12px; font-weight: 700; }
+.walk-stamp-pop.show { animation: stamp-in .45s cubic-bezier(.2, 1.6, .4, 1), stamp-out .4s ease-in 1.8s forwards; }
+@keyframes stamp-in { from { opacity: 0; transform: translate(-50%, -50%) rotate(-10deg) scale(2.2); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-10deg) scale(1); } }
+@keyframes stamp-out { to { opacity: 0; transform: translate(-50%, -50%) rotate(-10deg) scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .walk-stamp-pop.show { animation: none; } }
+
+/* 우왕이 위치 지도 */
+.walk-nav { margin-top: 12px; }
+.walk-nav-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.walk-nav-tabs { display: flex; padding: 3px; border-radius: 999px; background: var(--lcd); }
+.walk-nav-tabs button { padding: 6px 12px; border: 0; border-radius: 999px; background: none; font-size: 12px; font-weight: 700; color: var(--sub); }
+.walk-nav-tabs button[aria-selected="true"] { background: #fff; color: var(--primary-dark); box-shadow: 0 1px 3px rgba(90, 58, 30, .15); }
+.walk-nav-tabs button:disabled { opacity: .45; cursor: default; }
+.walk-nav-tabs button:focus-visible { outline: 3px solid var(--primary); outline-offset: 1px; }
+.walk-nav-help { margin: 8px 0 10px; font-size: 12px; color: var(--sub); }
+.walk-nav .walk-places { margin-top: 0; }
+.walk-minimap { height: 220px; overflow: hidden; border-radius: 14px; background: #e8efe4; }
+.map-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.map-pin span { font-size: 18px; line-height: 1; }
+.map-pin b {
+  margin-top: 1px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
+  color: var(--ink);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.map-pin:hover b, .map-pin:focus-visible b { background: var(--primary); color: #fff; }
+.map-me {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 4px rgba(255, 138, 61, .35), 0 2px 6px rgba(0, 0, 0, .3);
+  font-size: 18px;
+}
+.walk-rules { margin: 12px 0 0; font-size: 14px; }
+.walk-rules summary { font-size: 15px; }
+.walk-rules-title { margin: 14px 0 8px; font-size: 13px; font-weight: 700; color: var(--sub); }
+
+/* 다음 보상까지: 한 줄에 아이콘 · 보상 · 남은 양, 아래에 진행 막대 */
+.walk-next { display: grid; gap: 8px; }
+.walk-next-row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--tint);
+}
+.wn-icon { font-size: 18px; line-height: 1; text-align: center; }
+.wn-label { font-weight: 700; color: var(--ink); word-break: keep-all; }
+.wn-left { color: var(--primary-dark); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wn-bar { grid-column: 2 / -1; height: 8px; border-radius: 99px; background: #f3e2cc; overflow: hidden; }
+.wn-bar i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--primary); transition: width .4s ease; }
+.walk-next-row.is-heart .wn-bar i { background: #f26b8a; }
+.walk-next-row.is-heart .wn-left { color: #c94566; }
+.walk-next-row.is-heart.full .wn-left { color: #c94566; }
+.walk-next-row.is-stamp .wn-bar i { background: #e0a526; }
+.walk-next-row.is-stamp .wn-left { color: #a8740c; }
+
+/* 보상 받는 방법: 왼쪽에 하는 일, 오른쪽에 받는 것 */
+.walk-rule-list { margin: 0; padding: 0; list-style: none; }
+.walk-rules .walk-rule-list { margin: 0; padding-left: 0; line-height: 1.4; color: var(--ink); }
+.walk-rule-list li {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 2px;
+  border-top: 1px solid var(--line);
+}
+.walk-rule-list li:first-child { border-top: 0; }
+.wr-icon { font-size: 17px; text-align: center; }
+.wr-what { font-weight: 600; word-break: keep-all; }
+.wr-what small { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--sub); }
+.wr-gift {
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: var(--tint);
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+  word-break: keep-all;
+  max-width: 9.5em;
+}
+.walk-rules-note { margin: 10px 0 0; font-size: 12px; color: var(--sub); }
+@media (prefers-reduced-motion: reduce) { .wn-bar i { transition: none; } }
+.walk-places { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.walk-places button {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: #fff;
+  font-size: 13px;
+  color: var(--ink);
+}
+.walk-places button small { font-size: 11px; color: var(--sub); }
+.walk-places button .ico { align-self: center; font-size: 16px; line-height: 1; }
+.walk-places button:disabled:not(.here) .ico { filter: grayscale(1); opacity: .5; }
+.walk-places button:not(:disabled):active { transform: scale(.96); }
+.walk-places button.here { border-color: var(--primary); background: var(--tint); }
+.walk-places button.here small { color: var(--primary-dark); font-weight: 700; }
+.walk-place {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  max-width: calc(100% - 20px);
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, .9);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.walk-hint {
+  position: absolute;
+  top: 50%;
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: rgba(59, 42, 26, .8);
+  color: #fff;
+  font-size: 13px;
+  transform: translateY(-50%);
+}
+.walk-hint[data-side="left"] { left: 10px; }
+.walk-hint[data-side="right"] { right: 10px; }
+.walk-pad {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  display: grid;
+  grid-template: repeat(2, 44px) / repeat(3, 44px);
+  gap: 4px;
+}
+.walk-pad button {
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .85);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .2);
+  font-size: 16px;
+  color: var(--ink);
+}
+.walk-pad button:active { background: #fff; transform: scale(.94); }
+.walk-pad .up { grid-area: 1 / 2; }
+.walk-pad .left { grid-area: 2 / 1; }
+.walk-pad .down { grid-area: 2 / 2; }
+.walk-pad .right { grid-area: 2 / 3; }
+.walk-notice {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 24px;
+  color: var(--sub);
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+  word-break: keep-all;
+}
+
+
+/* 산책 전 옷 입기 */
+.walk-dress-card { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+.walk-dress-worn { margin: 0; font-size: 13px; text-align: center; color: var(--sub); word-break: keep-all; }
+.walk-dress-list { grid-template-columns: repeat(4, 1fr); }
+.walk-dress-list .wear { font-size: 11px; }
+.walk-dress-list .wear:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+/* 숨은 친구 안내 */
+.walk-friend-hint {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--primary);
+  border-radius: 12px;
+  background: var(--tint);
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+/* 찾은 친구 모음 (도장처럼) */
+.walk-friends { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.walk-friend-badge { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.walk-friend-badge .face {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 4px;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  background: var(--tint);
+  overflow: hidden;
+}
+.walk-friend-badge .face svg,
+.walk-friend-badge .face img { width: 100%; height: 100%; object-fit: contain; }
+.walk-friend-badge .face .emoji { font-size: 28px; }
+.walk-friend-badge small { max-width: 100%; overflow: hidden; font-size: 11px; font-weight: 800; color: var(--primary-dark); white-space: nowrap; text-overflow: ellipsis; }
+.walk-friend-badge.locked .face { border: 2px dashed #d8ccbc; background: none; }
+.walk-friend-badge.locked .face > :not(b) { filter: brightness(0); opacity: .12; }
+.walk-friend-badge.locked .face b { position: absolute; font-size: 20px; color: #c9bba8; }
+.walk-friend-badge.locked small { color: #c9bba8; }
+
+/* 시간대: 실제 시계에 맞춰 스트리트 뷰 위에 색을 얹는다 (우왕이와 친구는 그 위에 있어서 그대로 보인다) */
+.walk-tint { position: absolute; inset: 0; z-index: 1; pointer-events: none; transition: background 2s; }
+.walk-tint[data-time="morning"] { background: linear-gradient(to bottom, rgba(255, 228, 170, .22), rgba(255, 255, 255, 0) 65%); }
+.walk-tint[data-time="evening"] { background: linear-gradient(to bottom, rgba(255, 128, 64, .32), rgba(140, 60, 100, .18)); }
+
+/* 산책 끝 요약 */
+.walk-summary-card { display: flex; flex-direction: column; gap: 14px; margin-bottom: 4px; }
+.walk-summary-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
+.walk-summary-stats div { display: flex; flex-direction: column; gap: 2px; padding: 8px 2px; border-radius: 12px; background: var(--tint); }
+.walk-summary-stats small { font-size: 11px; color: var(--sub); }
+.walk-summary-stats b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.walk-summary-row > b { display: block; margin-bottom: 8px; font-size: 14px; }
+.walk-summary-icons { display: flex; flex-wrap: wrap; gap: 8px; }
+.walk-summary-icons .walk-stamp { width: 60px; }
+.walk-summary-icons .walk-friend-badge { width: 60px; }
+
+/* 옷 입기: 우왕이 말풍선과 오늘의 코디 버튼 */
+.walk-dress-pet { flex-direction: column; align-items: center; gap: 6px; }
+.walk-dress-say {
+  position: relative;
+  min-height: 1.4em;
+  margin: 0;
+  padding: 8px 14px;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  word-break: keep-all;
+}
+.walk-dress-say::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
+  background: #fff;
+  transform: translateX(-50%) rotate(45deg);
+}
+.walk-dress-say.pop { animation: say-pop .35s ease-out; }
+@keyframes say-pop { 0% { transform: scale(.85); opacity: .4; } 70% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
+.walk-dress-random {
+  align-self: center;
+  padding: 8px 18px;
+  border: 2px dashed var(--primary);
+  border-radius: 999px;
+  background: var(--tint);
+  color: var(--primary-dark);
+  font-size: 14px;
+  font-weight: 800;
+}
+.walk-dress-random:active { transform: scale(.96); }
+.walk-dress-random:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .walk-dress-say.pop { animation: none; } }
+
+/* ---------- 옷 갈아입는 방 ---------- */
+.dress-room {
+  position: relative;
+  height: 250px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  /* 줄무늬 벽지 */
+  background: repeating-linear-gradient(90deg, #fdf1e2 0 18px, #f9e6d0 18px 36px);
+}
+/* 나무 바닥 */
+.dress-room::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 46px;
+  border-top: 4px solid #c48b55;
+  background: repeating-linear-gradient(90deg, #dcae78 0 58px, #d39f68 58px 60px);
+}
+/* 창문: 바깥이 실제 시간대를 따라간다 */
+.dress-window {
+  position: absolute;
+  top: 24px;
+  left: 18px;
+  width: 64px;
+  height: 64px;
+  border: 5px solid #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 0 #e4cdb2;
+  background: #9fd6ff;
+}
+.dress-window::before,
+.dress-window::after { content: ""; position: absolute; background: #fff; }
+.dress-window::before { top: 0; bottom: 0; left: 50%; width: 4px; transform: translateX(-50%); }
+.dress-window::after { left: 0; right: 0; top: 50%; height: 4px; transform: translateY(-50%); }
+.dress-room[data-time="morning"] .dress-window { background: linear-gradient(#bfe3ff, #ffe7b8); }
+.dress-room[data-time="evening"] .dress-window { background: linear-gradient(#ff9a5a, #8a5a9a); }
+.dress-room[data-time="night"] .dress-window {
+  background:
+    radial-gradient(2px 2px at 25% 30%, #fff 60%, transparent),
+    radial-gradient(1.5px 1.5px at 72% 22%, #fff 60%, transparent),
+    radial-gradient(6px 6px at 70% 70%, #fff6c8 70%, transparent),
+    #1d2a5c;
+}
+/* 전신 거울 */
+.dress-mirror {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  width: 132px;
+  height: 196px;
+  border: 7px solid #e0b27a;
+  border-radius: 70px 70px 12px 12px;
+  background: linear-gradient(125deg, #eef8fc 0 30%, #d6ebf4 30% 38%, #eef8fc 38% 70%, #dcedf5);
+  box-shadow: inset 0 0 0 2px #f6d9b3;
+  transform: translateX(-50%);
+}
+.dress-plant { position: absolute; right: 16px; bottom: 38px; z-index: 1; font-size: 38px; line-height: 1; }
+.dress-stand {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+}
+.dress-stand .mascot-wrap { --size: 118px; position: relative; z-index: 1; }
+.dress-stand .mascot-wrap[data-stage="egg"] { --size: 96px; }
+.dress-rug {
+  width: 150px;
+  height: 26px;
+  margin-top: -16px;
+  border: 3px dashed #f6c9a0;
+  border-radius: 50%;
+  background: #f4a96a;
+}
+.dress-room .walk-dress-say {
+  position: absolute;
+  top: 10px;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  width: fit-content;
+  max-width: 78%;
+  margin: 0 auto;
+}
+
+.dress-tools { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 12px 0; }
+
+/* 옷 고르기 상자 (방 아래에 따로) */
+.walk-dress-box { margin-bottom: 4px; }
+.walk-dress-box .collection-note { text-align: center; }
+.walk-dress-random-help { margin-top: -2px; font-size: 11px; color: var(--sub); }
+
+/* ---------- 여행 계획: 모드·수단·좌석 ---------- */
+.segmented { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.segmented button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fffaf0;
+  font-size: 13px;
+  word-break: keep-all;
+}
+.segmented button span { font-size: 20px; }
+.segmented button small { font-size: 11px; color: var(--sub); }
+.segmented button.on { border-color: var(--primary); background: var(--tint); font-weight: 700; color: var(--primary-dark); }
+.mode-pick button { padding: 12px 4px; font-size: 14px; }
+.mode-note { margin: 8px 0 12px; }
+
+.class-pick { margin-bottom: 12px; }
+.seatmap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.seat-front { font-size: 12px; color: var(--sub); }
+.seat-car { font-size: 12px; font-weight: 700; color: var(--primary-dark); }
+.seat-grid { display: flex; flex-direction: column; gap: 5px; padding: 12px 10px; border: 2px solid var(--line); border-radius: 26px 26px 12px 12px; background: #fffaf0; }
+.seat-row { display: flex; justify-content: center; gap: 5px; }
+.seat-row .aisle { width: 16px; }
+.seat {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #d9c8b2;
+  border-radius: 8px 8px 5px 5px;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.seat.cabin { width: 46px; border-radius: 6px; }
+.seat.win { border-color: #7fb6e6; background: #eef6ff; }
+.seat.taken { border-color: #e6ddd2; background: #ece6de; color: #c4b8a8; cursor: not-allowed; }
+.seat.picked { border-color: var(--primary-dark); background: var(--primary); color: #fff; }
+.seat:not(.taken):not(.picked):hover { border-color: var(--primary); }
+.seat-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 10px; margin-top: 4px; font-size: 11px; color: var(--sub); }
+.seat-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.seat-legend .seat { width: 14px; height: 14px; border-radius: 4px; }
+
+.fare-box { display: flex; justify-content: space-between; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.fare-box small { display: block; font-size: 11px; color: var(--sub); }
+.fare-box b { font-size: 15px; }
+.fare-box .price { text-align: right; }
+.fare-box s { color: var(--sub); font-size: 13px; }
+.fare-box .free { color: #e84393; }
+.issue-note { margin-top: 8px; }
+.focus-summary { margin-top: 4px; font-weight: 600; color: var(--primary-dark); }
+.primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+/* ---------- 집중 모드 화면: 탈것과 시간만 ---------- */
+.focus-panel { margin-top: 14px; text-align: center; }
+.focus-panel p { margin: 8px 0 0; font-size: 14px; color: var(--sub); }
+.focus-badge { display: inline-block; padding: 6px 14px; border-radius: 99px; background: #e7f8ee; color: #1e8a4c; font-size: 13px; font-weight: 700; }
+.focus-badge.paused { background: #fff0e6; color: var(--primary-dark); animation: pulse 1.4s infinite; }
+body.focus-mode .topbar, body.focus-mode .tabbar { display: none; }
+body.focus-mode, body.focus-mode #app { background: #10142c; color: #f4f1ea; }
+body.focus-mode main { padding-top: 24px; }
+body.focus-mode .countdown { font-size: 54px; }
+body.focus-mode .track { background: #2e365c; }
+body.focus-mode .route b, body.focus-mode .focus-panel b { color: #fff; }
+body.focus-mode .focus-panel p, body.focus-mode .sub { color: #aab0cc; }
+body.focus-mode .ghost { background: transparent; border-color: #3a4270; color: #aab0cc; }
+.sound-panel em { font-style: normal; }
+
+/* =========================================================
+   팀원 화면 도트 맞춤 (산책, 새 게임, 여행 확장, 댓글, 계정, 집중 모드)
+   위의 팀원 CSS는 그대로 두고, 모양만 도트 규칙에 맞춘다
+   ========================================================= */
+/* 둥근 모서리 없애기 (도트는 모두 각지게) */
+#screen-walk *, #screen-travel *, #game-arcade *, .comments *, #account-modal *,
+.segmented button, .seat, .seat-grid, .walk-stamp, .walk-stamp-pop, .map-me, .stars i {
+  border-radius: 0 !important;
+}
+
+/* 선 1px 테두리 → 2px 도트 테두리 */
+.segmented button, .walk-pick-list button, .walk-music, .walk-places button, .puzzle-tools button,
+.comment-head button, .blk-slot, .walk-dress-random, .walk-nav-tabs button {
+  border: 0;
+  box-shadow: var(--px-border);
+}
+.segmented button { background: #fffaf0; }
+.segmented button.on, .walk-pick-list button[aria-checked="true"], .walk-places button.here,
+.walk-music[aria-pressed="true"], .walk-nav-tabs button[aria-selected="true"] {
+  background: var(--tint);
+  color: var(--primary-dark);
+  box-shadow: 0 -2px 0 0 var(--primary), 0 2px 0 0 var(--primary), -2px 0 0 0 var(--primary), 2px 0 0 0 var(--primary);
+}
+.mode-pick { max-width: 420px; margin-bottom: 4px; }
+.transport-pick { margin-bottom: 4px; }
+
+/* 여행: 창밖 하늘은 도트 창틀 안쪽(12px)에, 구름이 창틀 밖으로 나가지 않게 */
+.sky { inset: 12px; overflow: hidden; }
+.window.rail { width: 100%; max-width: 360px; height: 220px; }
+.window.porthole { width: 260px; height: 260px; box-shadow: none; }
+.seat-card { max-width: 620px; }
+.seat-grid { box-shadow: var(--px-border); border: 0; background: #fffaf0; }
+.seat { border: 0; box-shadow: 0 0 0 2px var(--lcd-dark); }
+.seat.win { box-shadow: 0 0 0 2px var(--sky); background: #eef7fb; }
+.seat.taken { box-shadow: 0 0 0 2px #e0d4d0; background: #ece2dc; }
+.seat.picked { box-shadow: 0 0 0 2px var(--primary-dark); background: var(--primary); }
+.fare-box { border-top: 2px dashed var(--ink); }
+.focus-badge { box-shadow: var(--px-border); }
+
+/* 집중 모드: 왼쪽 메뉴를 숨기고 가운데만 크게 (어두운 LCD) */
+body.focus-mode .sidebar { display: none; }
+body.focus-mode #app { grid-template-columns: 1fr; background-image: none; }
+body.focus-mode #screen-travel { grid-template-columns: 1fr; }
+body.focus-mode #screen-travel .col-side { display: none; }
+body.focus-mode .countdown { color: var(--pink); }
+body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #f4f1ea; }
+
+/* 게임: 새 게임 판도 도트 상자 */
+.earned { margin: -4px 0 14px; color: var(--sub); }
+.runner-box, .tile-tray, .blk-board, .m3-board { box-shadow: var(--px-border); }
+.tile { border: 0; box-shadow: var(--px-border), 0 4px 0 0 var(--ink); }
+.blk-board span, .blk-mini i, .m3, .tile-tray .slot { border-radius: 0; }
+.m3-board { background: var(--sky); }
+#a-runner { image-rendering: pixelated; }
+
+/* 커뮤니티 댓글 */
+.comments { border-top: 2px dashed var(--ink); }
+.comment-form button { border-radius: 0; box-shadow: var(--px-border); }
+
+/* 계정 창 */
+#account-modal .card { max-width: 340px; }
+
+/* 산책: 가로 화면에서는 산책 중일 때만 오른쪽 패널, 다른 단계는 가운데 한 칸 */
+#screen-walk:has(#walk-main[hidden]) { grid-template-columns: minmax(0, 1fr); }
+#screen-walk:has(#walk-main[hidden]) .col-side { display: none; }
+#walk-check, #walk-pick, #walk-dress, #walk-summary { max-width: 720px; margin: 0 auto; }
+.walk-side .walk-stats, .walk-side .walk-nav, .walk-side .walk-rules, .walk-side .walk-stamps-card { margin-top: 0; margin-bottom: 18px; }
+.walk-stage { height: calc(100vh - 150px); min-height: 360px; box-shadow: var(--px-border); }
+.walk-pick-bar { bottom: 0; background: linear-gradient(to bottom, rgba(244, 234, 214, 0), var(--lcd) 22%); }
+.walk-check-verdict, .walk-next-row, .walk-summary-stats div, .wr-gift, .walk-friend-hint { box-shadow: 0 0 0 2px var(--lcd-dark); }
+.walk-speech, .walk-place, .walk-dress-say { box-shadow: var(--px-border); border: 0; }
+.walk-dress-say::after { display: none; }
+.walk-stamp, .walk-friend-badge .face { border-width: 2px; }
+.walk-pad button { box-shadow: var(--px-border); background: #fffaf0; }
+.dress-room { border: 0; box-shadow: var(--px-border); }
+.walk-minimap { box-shadow: var(--px-border); }
+.wn-bar { box-shadow: var(--px-border); background: var(--lcd-dark); }
+
 /* =========================================================
    좁은 PC 창 (900~1199px): 가운데 칸이 좁으니 안쪽 2칸 배치를 한 줄로
    ========================================================= */
@@ -829,4 +1727,14 @@ main { min-width: 0; height: 100vh; }
   /* 손가락으로 누르기 쉽게 */
   .primary, .ghost { min-height: 44px; }
   .talk-buttons button, .presets button, .seg button, .post-actions button { min-height: 36px; }
+
+  /* 팀원 화면 (휴대폰) */
+  .mode-pick { max-width: none; }
+  .seat-card { max-width: none; }
+  .seat { width: 30px; height: 30px; }
+  .walk-stage { height: calc(100vh - 330px); height: calc(100dvh - 330px); min-height: 300px; }
+  .walk-pick-bar { bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); }
+  #screen-walk .col-side { padding-top: 0; }
+  #walk-check, #walk-pick, #walk-dress, #walk-summary { max-width: none; }
+  body.focus-mode .tabbar { display: none; }
 }

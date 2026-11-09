@@ -1,7 +1,7 @@
 // 탭 전환, 공통 도구, 1초마다 도는 시계.
 const $ = (selector) => document.querySelector(selector);
 
-const TABS = ['pet', 'travel', 'games', 'community'];
+const TABS = ['pet', 'travel', 'games', 'community', 'walk'];
 let currentTab = 'pet';
 
 // ---------- 공통 ----------
@@ -16,6 +16,7 @@ function toast(message) {
 
 function show(tab) {
   if (currentTab === 'games' && tab !== 'games') Games.stop();
+  if (currentTab === 'walk' && tab !== 'walk') Walk.stop();   // 산책 배경음 끄기
   currentTab = tab;
   TABS.forEach((t) => { $(`#screen-${t}`).hidden = t !== tab; });
   document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
@@ -26,6 +27,7 @@ function show(tab) {
   if (tab === 'travel') Travel.render();
   if (tab === 'games') Games.render();
   if (tab === 'community') Community.render();
+  if (tab === 'walk') Walk.render();
   renderTop();
 }
 
@@ -83,7 +85,8 @@ document.querySelectorAll('.tabbar button').forEach((b) => {
 let saveCounter = 0;
 setInterval(() => {
   simulate();
-  if (state.flight && Date.now() - state.flight.start >= state.flight.duration) Travel.completeFlight();
+  Focus.tick();
+  if (Travel.isDone()) Travel.completeFlight();
   Travel.tick();
   Notify.tick();
   if (++saveCounter % 10 === 0) saveState();
@@ -100,9 +103,13 @@ Travel.init();
 Games.init();
 Community.init();
 Notify.init();
-// 주소 끝에 #travel 처럼 붙이면 그 탭으로 시작한다
+Walk.init();
+Focus.init();
+Cloud.init();
+// 집중 모드 중에 앱을 다시 열면 바로 집중 화면으로 간다.
+// 아니면 주소 끝에 #travel 처럼 붙인 탭으로, 없으면 우왕이 탭으로 시작한다
 const startTab = location.hash.slice(1);
-show(TABS.includes(startTab) ? startTab : 'pet');
+show(state.flight && state.flight.mode === 'focus' ? 'travel' : TABS.includes(startTab) ? startTab : 'pet');
 
 // 앱을 꺼 둔 사이에 도착했으면 바로 처리한다
-if (state.flight && Date.now() - state.flight.start >= state.flight.duration) Travel.completeFlight();
+if (Travel.isDone()) Travel.completeFlight();

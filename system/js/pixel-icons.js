@@ -346,6 +346,21 @@ const PIXEL_ICONS = {
     '..KKK......KKK..',
   ],
 };
+PIXEL_ICONS.tabWalk = [ // 발바닥
+  '...KK......KK...',
+  '..KPPK....KPPK..',
+  '..KPPK....KPPK..',
+  'KK.KK..KK..KK.KK',
+  'KPK...KPPK...KPK',
+  'KPK...KPPK...KPK',
+  '.K.....KK.....K.',
+  '.....KKKKKK.....',
+  '....KPPPPPPK....',
+  '...KPPPPPPPPK...',
+  '...KPPPPPPPPK...',
+  '....KPPKKPPK....',
+  '.....KK..KK.....',
+];
 PIXEL_ICONS.tabCommunity = PIXEL_ICONS.talk;
 PIXEL_ICONS.food = PIXEL_ICONS.meal;
 PIXEL_ICONS.pill = PIXEL_ICONS.medicine;
