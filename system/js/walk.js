@@ -398,7 +398,7 @@ const Walk = (() => {
   function loadMaps() {
     if (pano || loading) return;
     if (typeof MAPS_API_KEY === 'undefined' || !MAPS_API_KEY) {
-      showNotice('Google Maps API 키가 없어요. js/maps-key.example.js를 js/maps-key.js로 복사하고 키를 넣어 주세요.');
+      showNotice('Google Maps API 키가 없어요. js/maps-key.js에 키가 들어 있는지 확인해 주세요.');
       return;
     }
     if (location.protocol === 'file:') {
