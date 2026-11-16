@@ -398,7 +398,7 @@ const Walk = (() => {
   function loadMaps() {
     if (pano || loading) return;
     if (typeof MAPS_API_KEY === 'undefined' || !MAPS_API_KEY) {
-      showNotice('Google Maps API 키가 없어요. js/maps-key.example.js를 js/maps-key.js로 복사하고 키를 넣어 주세요.');
+      showNotice('Google Maps API 키가 없어요. js/maps-key.js에 키가 들어 있는지 확인해 주세요.');
       return;
     }
     if (location.protocol === 'file:') {
@@ -917,6 +917,8 @@ const Walk = (() => {
     const pet = state.pet;
     if (pet.stage === 'egg') return '아직 알이에요. 태어나면 같이 산책할 수 있어요 🥚';
     if (state.flight) return '우왕이는 지금 여행 중이에요. 돌아오면 산책해요 ✈️';
+    if (state.lecture) return '우왕이는 지금 수업 중이에요. 끝나면 산책해요 📚';
+    if (state.study) return '우왕이는 지금 공부 중이에요. 끝나면 산책해요 ✏️';
     if (pet.sick) return '아플 때는 쉬어야 해요. 약을 먹고 다시 와요 💊';
     return '';
   }

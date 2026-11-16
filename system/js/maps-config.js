@@ -1,5 +1,5 @@
 // 산책 탭 설정: 시작 장소, 장소 이름표, 우왕이 감상, 배경음, 아이콘.
-// API 키는 여기가 아니라 js/maps-key.js에 넣어요 (maps-key.example.js 참고).
+// API 키는 여기가 아니라 js/maps-key.js에 있어요.
 
 // 우왕이가 산책할 장소 (스트리트 뷰 파노라마 ID)
 const WALK_PANO_ID = 'CAoSFkNJSE0wb2dLRUlDQWdJRDZ5cExGUmc.';

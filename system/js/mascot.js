@@ -208,6 +208,9 @@ function playMascot(el, anim, ms) {
 }
 
 // 체형·피로(잘 때는 졸린 얼굴)에 맞는 대기 그림. 바뀔 때는 두 레이어로 크로스페이드한다.
+// 어른 모습마다 머리 위에 붙는 표시 (방과 도감에서 같이 쓴다)
+const FORM_MARKS = { shiny: '✨', traveler: '🧭', gamer: '🎧', messy: '💧', sturdy: '💪' };
+
 function updateUwangVisual(el) {
   if (el.dataset.stage === 'egg' || !el.querySelector('.uwang-art')) return;
   const pet = state.pet;
@@ -228,7 +231,7 @@ function updateUwangVisual(el) {
   applyUwangFace(el);
   const marker = el.querySelector('.uwang-form-mark');
   if (marker) marker.textContent = pet.stage === 'adult' ?
-    ({ shiny: '✨', traveler: '🧭', gamer: '🎧', messy: '💧', sturdy: '💪' }[pet.form] || '') : '';
+    (FORM_MARKS[pet.form] || '') : '';
 }
 
 // 동작 중 표정 하나를 유지한다. '' 이면 대기 그림으로 돌아간다.

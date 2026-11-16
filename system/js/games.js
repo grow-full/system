@@ -20,19 +20,24 @@ const Games = (() => {
   let quiz = null;
   let memoryBuddy = null;
   let quizBuddy = null;
+  let pending = []; // 게임 안에서 걸어 둔 타이머 (게임을 바꾸거나 멈추면 모두 취소)
+
+  function later(fn, ms) {
+    pending.push(setTimeout(fn, ms));
+  }
 
   function init() {
     MiniGame.init($('#game-canvas'));
     $('#btn-game-back').addEventListener('click', stop);
   }
 
+  // 게임 목록은 오른쪽 패널에 늘 보인다. 가운데는 고른 게임, 안 골랐으면 안내 화면
   function render() {
-    if (current) return;
-    $('#games-hub').hidden = false;
-    $('#game-view').hidden = true;
+    $('#game-view').hidden = !current;
+    $('#game-empty').hidden = Boolean(current);
     $('#games-earned').textContent = state.coinsEarned;
     $('#game-list').innerHTML = LIST.map((g) => `
-      <button class="game-card" data-game="${g.id}">
+      <button class="game-card${g.id === current ? ' on' : ''}" data-game="${g.id}">
         <span class="gi">${g.icon}</span>
         <span class="info"><b>${g.title}</b><small>${g.desc}</small></span>
         <span class="best">최고 ${state.bestScores[g.id] || 0}점</span>
@@ -43,8 +48,7 @@ const Games = (() => {
   function open(id) {
     stopRunning();
     current = id;
-    $('#games-hub').hidden = true;
-    $('#game-view').hidden = false;
+    render();
     $('#game-result').hidden = true;
     const game = LIST.find((g) => g.id === id);
     const pane = game.pane || id;
@@ -60,6 +64,8 @@ const Games = (() => {
     MiniGame.stop();
     Arcade.stop();
     clearInterval(memoryTimer);
+    pending.forEach(clearTimeout);
+    pending = [];
   }
 
   // 다른 탭으로 가거나 목록으로 돌아갈 때
@@ -207,7 +213,7 @@ const Games = (() => {
     memory.lock = true;
     GameBuddy.act(memoryBuddy, ponder, { pose: 'scratch', face: 'delight', prop: '💦', spot: 'head', ms: 900 }); // 짝 불일치: 머리 긁적이며 머쓱
     renderMemory();
-    setTimeout(() => {
+    later(() => {
       first.open = card.open = false;
       memory.lock = false;
       renderMemory();
@@ -277,12 +283,12 @@ const Games = (() => {
     const run = quiz;
     const last = quiz.index === QUIZ_COUNT - 1;
     const perfect = last && quiz.score === QUIZ_COUNT * 20;
-    setTimeout(() => {
+    later(() => {
       if (quiz !== run || current !== 'quiz') return;
       // 전부 정답: 가슴을 펴고 양손으로 브이 + 자랑스러운 표정
       if (perfect) GameBuddy.act(quizBuddy, { pose: 'proud', face: 'delight', prop: '✌️✌️', spot: 'up', ms: 1200 });
     }, 900);
-    setTimeout(() => {
+    later(() => {
       if (quiz !== run || current !== 'quiz') return;
       quiz.index++;
       if (quiz.index < QUIZ_COUNT) renderQuiz();

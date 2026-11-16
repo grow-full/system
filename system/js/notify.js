@@ -10,7 +10,7 @@ const Notify = (() => {
 
   function render() {
     const btn = $('#btn-notify');
-    btn.textContent = state.notifyOn ? '🔔' : '🔕';
+    btn.innerHTML = icon(state.notifyOn ? 'bellOn' : 'bellOff', 24);
     btn.classList.toggle('on', state.notifyOn);
     btn.setAttribute('aria-pressed', String(state.notifyOn));
     btn.title = state.notifyOn ? '돌봄 알림 켜짐 (누르면 꺼요)' : '돌봄 알림 꺼짐 (누르면 켜요)';

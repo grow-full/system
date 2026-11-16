@@ -21,6 +21,7 @@ function show(tab) {
   TABS.forEach((t) => { $(`#screen-${t}`).hidden = t !== tab; });
   document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   window.scrollTo(0, 0);
+  document.querySelectorAll(`#screen-${tab} .col-main, #screen-${tab} .col-side`).forEach((el) => { el.scrollTop = 0; });
 
   if (tab === 'pet') Pet.refresh();
   if (tab === 'travel') Travel.render();
@@ -95,6 +96,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) saveState();
 });
 
+hydrateIcons();
 simulate();
 Pet.init();
 Travel.init();
@@ -104,8 +106,10 @@ Notify.init();
 Walk.init();
 Focus.init();
 Cloud.init();
-// 집중 모드 중에 앱을 다시 열면 바로 집중 화면으로 간다
-show(state.flight && state.flight.mode === 'focus' ? 'travel' : 'pet');
+// 집중 모드 중에 앱을 다시 열면 바로 집중 화면으로 간다.
+// 아니면 주소 끝에 #travel 처럼 붙인 탭으로, 없으면 우왕이 탭으로 시작한다
+const startTab = location.hash.slice(1);
+show(state.flight && state.flight.mode === 'focus' ? 'travel' : TABS.includes(startTab) ? startTab : 'pet');
 
 // 앱을 꺼 둔 사이에 도착했으면 바로 처리한다
 if (Travel.isDone()) Travel.completeFlight();
