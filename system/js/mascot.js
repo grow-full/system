@@ -106,7 +106,7 @@ const UWANG_SHEETS = {
   actions: { url: 'assets/uwang-actions.png', w: 1024, h: 1536, cx: [287, 730], feet: [484, 969, 1458], ref: 435 },
 };
 const UWANG_ART_HEIGHT = 0.83; // 보통 상태 그림의 키 (상자 크기 비율)
-// angry: 화난 그림은 시트에 없어서, 볼을 부풀린 씹기 그림 위에 CSS로 화난 눈썹·💢·홍조를 겹친다 (.uwang-angry)
+// angry: 화난 그림은 시트에 없어서, 볼을 부풀린 씹기 그림 위에 CSS로 💢·홍조를 겹친다 (.uwang-angry)
 const UWANG_FACES = { chew: ['actions', 0], delight: ['actions', 1], surprise: ['actions', 2], pout: ['states', 1], angry: ['actions', 0] };
 
 // ---------- 움직임 수치 (여기만 고치면 속도·진폭·시간이 바뀐다) ----------
@@ -158,7 +158,7 @@ function uwangFrame(sheet, col, row) {
 //   > .uwang-idle(무게중심 이동) > .uwang-breath(호흡) > 상태/표정 이미지 레이어와 의상
 const UWANG_HTML = `<div class="uwang-art" aria-hidden="true"><div class="uwang-move"><div class="uwang-act"><div class="uwang-idle"><div class="uwang-breath">
  <div class="uwang-layer"></div><div class="uwang-layer"></div><div class="uwang-expression"></div>
- <div class="uwang-angry"><i class="brow brow-l"></i><i class="brow brow-r"></i><i class="flush flush-l"></i><i class="flush flush-r"></i><span class="vein">💢</span></div>
+ <div class="uwang-angry"><i class="flush flush-l"></i><i class="flush flush-r"></i><span class="vein">💢</span></div>
  <div class="uwang-sleep-mark">Zzz</div><span class="uwang-form-mark"></span><div class="outfit"></div>
 </div></div></div></div></div>`;
 

@@ -91,7 +91,7 @@
               <li>밥(코인 2)으로 배고픔을, 놀아주기(우왕이가 볼 방향 맞히기)와 간식(코인 5)으로 행복을 채워요. 약은 코인 10이에요. 코인은 게임·산책·수업 퀴즈로 모아요.</li>
               <li>똥을 오래 두거나 오래 굶기면 병에 걸려요. 아프면 약을 주세요.</li>
               <li>놀고 나거나 시간이 지나면 꼬질꼬질해져요. 씻겨 주세요.</li>
-              <li>밤 10시부터 아침 8시까지는 잠을 자요. 불을 꺼 주지 않으면 돌봄 실수가 돼요. 낮에 불을 끄면 낮잠을 자요.</li>
+              <li>밤 12시부터 아침 8시까지는 잠을 자요. 불을 꺼 주지 않으면 돌봄 실수가 돼요. 낮에 불을 끄면 낮잠을 자요.</li>
               <li>말풍선으로 우왕이가 지금 필요한 것을 알려 줘요. 오래 내버려 두면 돌봄 실수가 쌓여요.</li>
               <li>여행 중에는 기내에서 돌봐 줘서 배가 고프지 않아요.</li>
               <li>"수업 듣기"로 경영정보학과 과목을 골라 수업에 보낼 수 있어요. 2분 뒤 돌아와 배운 것을 말해 주고, 복습 퀴즈를 맞히면 코인을 받아요. 아프거나 너무 배고프면 수업에 못 가요.</li>
@@ -345,6 +345,7 @@
                 <span>짝 <b id="m-pairs">0</b>/8</span>
                 <span>시간 <b id="m-time">0</b>초</span>
               </div>
+              <div class="game-buddy" id="memory-buddy" aria-hidden="true"></div>
               <div class="memory-grid" id="memory-grid"></div>
             </div>
 
@@ -353,6 +354,7 @@
                 <span id="q-progress"></span>
                 <span>점수 <b id="q-score">0</b></span>
               </div>
+              <div class="game-buddy" id="quiz-buddy" aria-hidden="true"></div>
               <div class="card">
                 <p class="quiz-q" id="q-text"></p>
                 <div class="quiz-options" id="q-options"></div>
@@ -634,6 +636,7 @@
   <script src="js/audio.js"></script>
   <script src="js/pixel-icons.js"></script>
   <script src="js/mascot.js"></script>
+  <script src="js/buddy.js"></script>
   <script src="js/courses.js"></script>
   <script src="js/pet.js"></script>
   <script src="js/travel.js"></script>
