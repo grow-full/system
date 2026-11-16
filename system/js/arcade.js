@@ -112,7 +112,12 @@ const Arcade = (() => {
     // 밤하늘 별 자리 (한 번만 정한다)
     const skyStars = Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random() * 0.6, phase: Math.random() * 6 }));
 
-    const player = { x: 72, y: GROUND, vy: 0, r: 22, jumps: 0 }; // y는 발끝
+    const player = { x: 72, y: GROUND, vy: 0, r: 22, jumps: 0, land: 0, flip: 0, happy: 0 }; // y는 발끝
+    // 우왕이 그림: 키는 새(BIRD_BOTTOM)보다 낮게 해서 서 있으면 새가 머리 위로 지나간다. 부딪힘 판정(hit)은 그대로.
+    const ART_HEIGHT = 58;
+    const LAND_TIME = 0.16;   // 착지할 때 눌리는 시간
+    const FLIP_TIME = 0.45;   // 2단 점프 공중제비 시간
+    const HAPPY_TIME = 0.35;  // 별을 먹고 웃는 시간
     let obstacles = [];
     let stars = [];
     let popups = [];
@@ -139,6 +144,7 @@ const Arcade = (() => {
       if (player.jumps >= 2) return;
       player.vy = player.jumps === 0 ? -JUMP : -DOUBLE_JUMP;
       player.jumps++;
+      if (player.jumps === 2) player.flip = FLIP_TIME; // 2단 점프는 앞으로 한 바퀴
       Sound.sfx('beep');
     }
 
@@ -202,10 +208,14 @@ const Arcade = (() => {
       player.vy += GRAVITY * dt;
       player.y += player.vy * dt;
       if (player.y >= GROUND) {
+        if (player.jumps) player.land = LAND_TIME; // 공중에서 막 내려왔다
         player.y = GROUND;
         player.vy = 0;
         player.jumps = 0;
       }
+      player.land = Math.max(0, player.land - dt);
+      player.flip = Math.max(0, player.flip - dt);
+      player.happy = Math.max(0, player.happy - dt);
 
       nextGap -= dx;
       if (nextGap <= 0) {
@@ -243,6 +253,7 @@ const Arcade = (() => {
         if (Math.hypot(s.x - player.x, s.y - (player.y - player.r)) < player.r + 12) {
           s.got = true;
           starCount++;
+          player.happy = HAPPY_TIME;
           Sound.sfx('coin');
           popups.push({ x: s.x, y: s.y, text: '+5', life: 0.7 });
         }
@@ -324,8 +335,62 @@ const Arcade = (() => {
       ctx.beginPath(); ctx.arc(cx - 15.6, cy - 6, 1.3, 0, Math.PI * 2); ctx.fill();
     }
 
+    // 실제 우왕이 그림으로 달린다. 발끝(player.y)을 기준으로 몸을 기울이고 눌렀다 늘인다.
+    //   땅: 앞으로 살짝 기울여 통통 달리기 / 오를 때: 세로로 늘어남 / 내려올 때: 앞으로 숙임
+    //   2단 점프: 앞으로 한 바퀴 / 착지: 납작 눌림 / 부딪힘: 놀란 얼굴로 뒤로 젖힘 + 깜빡임 / 별: 눈 감고 웃기
     function drawPlayer() {
       if (hurt && Math.floor(hurt * 10) % 2) return; // 깜빡깜빡
+      const face = hurt > 0.6 ? 'surprise' : player.happy ? 'delight' : '';
+      const art = uwangCanvasArt(face);
+      if (!art.img.complete || !art.img.naturalWidth) return drawSimplePlayer();
+      const air = player.y < GROUND;
+      let dy = 0;
+      let rot = 7;   // 달릴 때 앞으로 기울기 (오른쪽이 앞)
+      let sx = 1;
+      let sy = 1;
+      if (air) {
+        const v = player.vy / JUMP; // 오를 때 −, 내려올 때 +
+        sy = 1 + Math.max(-0.06, Math.min(0.08, -v * 0.08));
+        sx = 2 - sy;
+        rot = 4 + Math.max(0, v) * 10;
+      } else {
+        const bob = Math.abs(Math.sin(traveled / 18));
+        dy = -bob * 4;
+        sy = 1 + (bob - 0.5) * 0.04;
+        sx = 2 - sy;
+      }
+      if (player.flip) rot += 360 * (1 - player.flip / FLIP_TIME);
+      if (player.land) {
+        const k = Math.sin(Math.PI * (player.land / LAND_TIME));
+        sx += 0.12 * k;
+        sy -= 0.14 * k;
+      }
+      if (hurt > 0.6) rot -= 14 * Math.sin(Math.PI * ((1.2 - hurt) / 0.6)); // 뒤로 젖혔다가 돌아온다
+      const k = ART_HEIGHT / art.ref;
+      const w = art.sw * k;
+      const h = art.sh * k;
+      // 그림자 (공중에 높이 뜰수록 작아진다)
+      const lift = Math.max(0, GROUND - player.y);
+      ctx.fillStyle = 'rgba(0,0,0,.15)';
+      ctx.beginPath(); ctx.ellipse(player.x, GROUND + 2, Math.max(6, w * 0.3 - lift * 0.05), 4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.translate(player.x, player.y + dy);
+      if (player.flip) {
+        // 공중제비는 몸 가운데를 축으로 돈다
+        ctx.translate(0, -h / 2);
+        ctx.rotate((rot * Math.PI) / 180);
+        ctx.scale(sx, sy);
+        ctx.drawImage(art.img, art.sx, art.sy, art.sw, art.sh, -w / 2, -h / 2, w, h);
+      } else {
+        ctx.rotate((rot * Math.PI) / 180);
+        ctx.scale(sx, sy);
+        ctx.drawImage(art.img, art.sx, art.sy, art.sw, art.sh, -w / 2, -h, w, h);
+      }
+      ctx.restore();
+    }
+
+    // 그림을 불러오지 못했을 때 쓰는 단순한 우왕이
+    function drawSimplePlayer() {
       const { x, r } = player;
       const cy = player.y - r - 6;
       // 다리: 땅에서는 번갈아 움직이고, 공중에서는 모은다
@@ -466,6 +531,25 @@ const Arcade = (() => {
     });
   }
 
+  // 퍼즐 게임 위쪽: 왼쪽에 작은 우왕이, 오른쪽에 안내 문구. 우왕이 반응은 buddy.js의 GameBuddy.
+  function puzzleHead(msgId, text) {
+    return `<div class="puzzle-head"><div class="game-buddy mini" id="a-buddy" aria-hidden="true"></div>
+      <p class="puzzle-msg" id="${msgId}">${text}</p></div>`;
+  }
+  // 반응 모음 (몸짓 · 표정 · 손 이모지). 같은 이름을 세 퍼즐 게임이 함께 쓴다.
+  const REACT = {
+    pick: { pose: 'bob', ms: 320 },                                                   // 하나 골랐다: 까딱
+    clap: { pose: 'clap', face: 'delight', prop: '👏', ms: 760 },                    // 맞췄다: 박수 + 뿌듯
+    combo: { pose: 'cheer', face: 'delight', prop: '🔥', spot: 'up', ms: 1000 },      // 연쇄·여러 줄: 만세
+    wow: { pose: 'flinch', face: 'surprise', prop: '✨', spot: 'up', ms: 300 },       // 크게 터졌다·끝났다: 깜짝
+    nervous: { pose: 'nervous', face: 'surprise', prop: '💦', spot: 'head', ms: 0 },  // 위험: 덜덜 + 식은땀 (나아질 때까지)
+    oops: { pose: 'scratch', face: 'delight', prop: '💦', spot: 'head', ms: 800 },    // 되돌리기: 머쓱
+    nope: { pose: 'nope', face: 'pout', ms: 520 },                                    // 안 맞는 자리: 도리도리
+    spin: { pose: 'spin', face: 'surprise', ms: 600 },                                // 섞기: 빙글
+    slump: { pose: 'slump', face: 'pout', ms: 0 },                                    // 실패로 끝: 털썩 (결과 창까지)
+    cheer: { pose: 'cheer', face: 'delight', prop: '🙌', spot: 'up', ms: 0 },         // 다 깼다: 만세 (결과 창까지)
+  };
+
   // 퍼즐 게임에서 쓰는 잠깐 기다리기 (게임을 멈추면 그대로 버려진다)
   const sleep = (ms) => new Promise((resolve) => later(resolve, ms));
 
@@ -519,7 +603,7 @@ const Arcade = (() => {
     let lastId = null;    // 되돌리기용: 마지막으로 아래 칸에 넣은 타일
 
     board().innerHTML = `
-      <p class="puzzle-msg" id="t-msg">위에 덮이지 않은 타일을 눌러 같은 그림 3개를 모아요</p>
+      ${puzzleHead('t-msg', '위에 덮이지 않은 타일을 눌러 같은 그림 3개를 모아요')}
       <div class="tile-board" id="t-board" style="width:${6 * T}px;height:${5 * T}px"></div>
       <div class="tile-tray" id="t-tray"></div>
       <div class="puzzle-tools">
@@ -528,6 +612,17 @@ const Arcade = (() => {
       </div>`;
     const msg = (text) => { $('#t-msg').textContent = text; };
     const left = () => tiles.filter((t) => !t.gone).length;
+    const buddy = GameBuddy.mount($('#a-buddy'));
+    const react = (...steps) => GameBuddy.act(buddy, ...steps);
+    // 아래 칸이 거의 찼으면(2칸 남음) 식은땀, 아니면 평소 표정
+    let worried = false;
+    function checkWorry() {
+      if (locked) return;
+      const now = tray.length >= TRAY - 2;
+      if (now && !worried) react(REACT.nervous);
+      if (!now && worried) GameBuddy.rest(buddy);
+      worried = now;
+    }
 
     const covered = (t) => isCovered(t, tiles.filter((o) => !o.gone));
 
@@ -556,6 +651,7 @@ const Arcade = (() => {
       const at = tray.map((s) => s.kind).lastIndexOf(tile.kind);
       tray.splice(at < 0 ? tray.length : at + 1, 0, { kind: tile.kind, id: tile.id });
       lastId = tile.id;
+      if (!worried) react(REACT.pick);
 
       const same = tray.filter((s) => s.kind === tile.kind);
       if (same.length >= 3) {
@@ -569,19 +665,25 @@ const Arcade = (() => {
         lastId = null; // 맞춘 뒤에는 되돌릴 수 없다
         locked = false;
         Sound.sfx('coin');
+        worried = false;
         if (!left() && !tray.length) {
           render();
+          react(REACT.clap, REACT.cheer);
           msg('모든 타일을 치웠어요! 🎉 보너스 +50');
           await sleep(900);
           return end(score + 50, `${sets}세트 모두 맞췄어요 · 보너스 +50`);
         }
+        react(REACT.clap).then(checkWorry);
       } else if (tray.length >= TRAY) {
         locked = true;
         render();
+        react(REACT.wow, REACT.slump);
         Sound.sfx('bad');
         msg('아래 칸이 가득 찼어요! 😵');
         await sleep(1100);
         return end(score, `${sets}세트 맞췄어요`);
+      } else {
+        checkWorry();
       }
       render();
     }
@@ -597,6 +699,8 @@ const Arcade = (() => {
       lastId = null;
       undoLeft--;
       msg('한 장 되돌렸어요');
+      worried = false;
+      react(REACT.oops).then(checkWorry);
       render();
     });
     $('#t-shuffle').addEventListener('click', () => {
@@ -607,6 +711,8 @@ const Arcade = (() => {
       shuffleLeft--;
       lastId = null;
       msg('남은 타일을 섞었어요');
+      worried = false;
+      react(REACT.spin).then(checkWorry);
       render();
     });
 
@@ -644,13 +750,15 @@ const Arcade = (() => {
     let over = false;
 
     board().innerHTML = `
-      <p class="puzzle-msg" id="b-msg">블록을 끌어다 놓아요. 가로·세로 한 줄을 채우면 사라져요</p>
+      ${puzzleHead('b-msg', '블록을 끌어다 놓아요. 가로·세로 한 줄을 채우면 사라져요')}
       <div class="blk-board" id="b-board">${grid.map((_, i) => `<span data-cell="${i}"></span>`).join('')}</div>
       <div class="blk-tray" id="b-tray"></div>`;
     const boardEl = $('#b-board');
     const trayEl = $('#b-tray');
     const cells = [...boardEl.children];
     const msg = (text) => { $('#b-msg').textContent = text; };
+    const buddy = GameBuddy.mount($('#a-buddy'));
+    const react = (...steps) => GameBuddy.act(buddy, ...steps);
 
     const size = (shape) => ({ w: Math.max(...shape.map((p) => p[0])) + 1, h: Math.max(...shape.map((p) => p[1])) + 1 });
 
@@ -735,11 +843,20 @@ const Arcade = (() => {
       renderBoard();
       renderTray();
 
+      const stuck = pieces.some((p) => p && !canPlaceAnywhere(p.shape));
       if (pieces.every((p) => !p || !canPlaceAnywhere(p.shape))) {
         over = true;
+        react(REACT.wow, REACT.slump);
         Sound.sfx('bad');
         msg('더 놓을 자리가 없어요! 📦');
         later(() => end(score, `${lines}줄 지웠어요`), 1200);
+      } else if (full.length > 1) {
+        react(REACT.wow, { ...REACT.combo, prop: '🎉' }); // 여러 줄 한꺼번에: 깜짝 → 만세
+      } else if (full.length) {
+        react(REACT.clap);
+      } else {
+        // 못 놓는 블록이 생기면 식은땀, 아니면 놓을 때마다 까딱
+        react(stuck ? REACT.nervous : REACT.pick);
       }
     }
 
@@ -774,12 +891,16 @@ const Arcade = (() => {
     function drop(cancel) {
       if (!drag) return;
       const { index, piece, ghost, slot, col, row } = drag;
+      const onBoard = col > -2 && col < N && row > -2 && row < N;
       ghost.remove();
       slot.classList.remove('lifted');
       drag = null;
       preview = [];
       if (!cancel && fits(piece.shape, col, row)) place(index, col, row);
-      else renderBoard();
+      else {
+        if (!cancel && onBoard) react(REACT.nope); // 판 위에 놓았는데 자리가 안 맞았다
+        renderBoard();
+      }
     }
     trayEl.addEventListener('pointerup', () => drop(false));
     trayEl.addEventListener('pointercancel', () => drop(true));
@@ -805,10 +926,12 @@ const Arcade = (() => {
     let touch = null;     // 누르기 시작한 칸과 위치
 
     board().innerHTML = `
-      <p class="puzzle-msg" id="m-msg">이웃한 두 칸을 바꿔서 같은 먹거리 3개를 맞춰요. 4개 이상이면 한 줄이 통째로 사라져요!</p>
+      ${puzzleHead('m-msg', '이웃한 두 칸을 바꿔서 같은 먹거리 3개를 맞춰요. 4개 이상이면 한 줄이 통째로 사라져요!')}
       <div class="m3-board" id="m3-board"></div>`;
     const boardEl = $('#m3-board');
     const msg = (text) => { $('#m-msg').textContent = text; };
+    const buddy = GameBuddy.mount($('#a-buddy'));
+    const react = (...steps) => GameBuddy.act(buddy, ...steps);
 
     // 처음부터 맞춰진 줄이 없게 채운다
     for (let r = 0; r < N; r++) {
@@ -893,6 +1016,9 @@ const Arcade = (() => {
         const gained = hit.size * Math.min(combo, 3); // 연쇄 배율은 3배까지
         score += gained;
         msg(combo > 1 ? `연쇄 ${combo}번! +${gained} 🔥` : `+${gained}`);
+        // 첫 터짐은 박수(한 줄이 통째로 사라지면 깜짝 놀라며), 연쇄가 이어지면 만세
+        if (combo === 2) react(REACT.combo);
+        else if (combo === 1) react(...(hit.size >= N ? [REACT.wow, REACT.clap] : [REACT.clap]));
         await sleep(260);
         hit.forEach((key) => { const [r, c] = key.split(',').map(Number); grid[r][c] = null; });
         // 아래로 떨어뜨리고 위에서 새로 채운다
@@ -921,6 +1047,7 @@ const Arcade = (() => {
       swap(a, b);
       render();
       if (!findMatches().size) {
+        react(REACT.nope);
         Sound.sfx('bad');
         await sleep(200);
         swap(a, b); // 맞는 게 없으면 되돌린다
@@ -931,6 +1058,7 @@ const Arcade = (() => {
       movesLeft--;
       await resolve();
       if (movesLeft <= 0) {
+        react({ pose: 'hop', face: 'delight', prop: '🏁', ms: 0 });
         msg('이동을 모두 썼어요! 🏁');
         await sleep(900);
         return end(score, `${MOVES}번 움직여서 ${score}점`);
@@ -942,6 +1070,7 @@ const Arcade = (() => {
           for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) grid[r][c] = all[r * N + c];
         } while (findMatches().size || !hasMove());
         msg('바꿀 곳이 없어서 섞었어요 🔀');
+        react(REACT.spin);
       }
       render();
       busy = false;

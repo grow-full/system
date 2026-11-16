@@ -954,6 +954,17 @@ const Pet = (() => {
     setMascot(mascot, { look: '' });
     updatePlay();
     render();
+    const p = play;
+    // 시작: 신나서 콩 → 고를 때까지 좌우로 살랑살랑 뜸 들이기
+    setTimeout(() => { if (play === p) motion.play('start').then(() => teasePlay(p)); }, 350);
+  }
+
+  // 방향을 고르는 동안 뜸 들이는 몸짓을 되풀이한다 (고르거나 놀이가 끝나면 멈춘다)
+  function teasePlay(p) {
+    if (play !== p || p.waiting) return;
+    motion.play('tease').then(() => {
+      if (play === p && !p.waiting) p.teaseTimer = setTimeout(() => teasePlay(p), 700);
+    });
   }
 
   function updatePlay(message) {
@@ -970,15 +981,19 @@ const Pet = (() => {
     play.waiting = true;
     play.mood = win ? 'happy' : 'sad';
     setMascot(mascot, { look: dir, mood: play.mood });
+    clearTimeout(play.teaseTimer);
+    motion.play('look', dir, win); // 그쪽으로 휙 → 맞히면 깡충, 틀리면 약 올리기
     Sound.sfx(win ? 'coin' : 'bad');
     updatePlay(win ? '⭕ 맞았어요!' : '❌ 아쉬워요!');
+    const p = play;
     setTimeout(() => {
+      if (play !== p) return;
       play.round++;
       play.waiting = false;
       play.mood = '';
       setMascot(mascot, { look: '' });
       if (play.round >= PLAY_ROUNDS) finishPlay();
-      else updatePlay();
+      else { updatePlay(); teasePlay(p); }
     }, 1000);
   }
 
@@ -997,6 +1012,7 @@ const Pet = (() => {
     } else {
       rewardExp(5);
       say(`${wins}번 맞혔어요. 다음엔 더 잘할래요!`);
+      motion.play('lose'); // 아쉬워서 축 처졌다가 다시 바로 선다
     }
     saveState();
     render();
