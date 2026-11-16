@@ -32,7 +32,7 @@ const CARE = {
   napLength: 60,       // 낮잠 길이
   lightsGrace: 15,     // 밤에 불을 켜 둔 채 이만큼 지나면 돌봄 실수
 };
-const NIGHT_START = 22;
+const NIGHT_START = 0;
 const NIGHT_END = 8;
 
 // 외형 규칙: 포만감/몸무게와 별개인 게임용 누적값.
@@ -190,7 +190,9 @@ function addHearts(key, delta) {
 
 function isNight(time = Date.now()) {
   const hour = new Date(time).getHours();
-  return hour >= NIGHT_START || hour < NIGHT_END;
+  return NIGHT_START < NIGHT_END
+    ? hour >= NIGHT_START && hour < NIGHT_END
+    : hour >= NIGHT_START || hour < NIGHT_END;
 }
 
 function isAsleep() {

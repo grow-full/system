@@ -18,6 +18,8 @@ const Games = (() => {
   let memory = null;
   let memoryTimer = 0;
   let quiz = null;
+  let memoryBuddy = null;
+  let quizBuddy = null;
   let pending = []; // 게임 안에서 걸어 둔 타이머 (게임을 바꾸거나 멈추면 모두 취소)
 
   function later(fn, ms) {
@@ -91,7 +93,7 @@ const Games = (() => {
     const modal = $('#game-result');
     modal.innerHTML = `
       <div class="card">
-        <div class="big">${score >= 150 ? '🏆' : score >= 50 ? '🎉' : '😊'}</div>
+        <div class="game-buddy result-buddy" id="result-buddy"></div>
         <h3>${score}점${isBest ? ' · 최고 기록!' : ''}</h3>
         ${detail ? `<p>${detail}</p>` : ''}
         <p>🪙 +${coins} · ✨ 경험치 +${exp}${happy ? ' · 💗 우왕이 행복 +1' : ''}</p>
@@ -99,7 +101,18 @@ const Games = (() => {
         <button class="ghost" id="res-hub">게임 목록</button>
       </div>`;
     modal.hidden = false;
-    $('#res-retry').addEventListener('click', () => open(id));
+    const buddy = GameBuddy.mount($('#result-buddy'));
+    const cup = score >= 150 ? '🏆' : score >= 50 ? '🎉' : '';
+    // 최고 기록: 뛰어오르며 두 팔 펼치기 + 가장 크게 기뻐하기
+    if (isBest && score > 0) GameBuddy.act(buddy, { pose: 'best', prop: '🙌', spot: 'up', ms: 1300 }, { pose: 'hop', face: 'delight', prop: cup || '🎉', spot: 'hand', ms: 0 });
+    else if (cup) GameBuddy.act(buddy, { pose: 'hop', face: 'delight', prop: cup, ms: 0 });
+    let retrying = false;
+    $('#res-retry').addEventListener('click', () => {
+      if (retrying) return;
+      retrying = true;
+      // 재도전: 주먹을 쥐고 준비 자세 + 의욕적인 표정
+      GameBuddy.act(buddy, { pose: 'ready', face: 'chew', prop: '✊', ms: 650 }).then(() => open(id));
+    });
     $('#res-hub').addEventListener('click', stop);
   }
 
@@ -143,6 +156,7 @@ const Games = (() => {
     };
     clearInterval(memoryTimer);
     memoryTimer = setInterval(updateMemoryHud, 500);
+    memoryBuddy = GameBuddy.mount($('#memory-buddy'));
     renderMemory();
   }
 
@@ -169,9 +183,11 @@ const Games = (() => {
     Sound.sfx('beep');
     if (!memory.first) {
       memory.first = card;
+      GameBuddy.act(memoryBuddy, { pose: 'lean', face: 'chew', ms: 0 }); // 첫 카드: 몸을 앞으로 내밀고 집중
       renderMemory();
       return;
     }
+    const ponder = { pose: 'tilt', face: 'surprise', prop: '❔', spot: 'head', ms: 420 }; // 두 번째 카드: 갸웃하며 고민
     const first = memory.first;
     memory.first = null;
     memory.moves++;
@@ -180,15 +196,22 @@ const Games = (() => {
       memory.pairs++;
       Sound.sfx('coin');
       renderMemory();
+      const clap = { pose: 'clap', face: 'delight', prop: '👏', ms: 760 }; // 짝 일치: 박수 두 번 + 뿌듯한 미소
       if (memory.pairs === 8) {
         clearInterval(memoryTimer);
         const seconds = Math.floor((Date.now() - memory.start) / 1000);
         const score = Math.max(10, 200 - memory.moves * 4 - seconds);
-        later(() => finish('memory', score, `${memory.moves}번 시도 · ${seconds}초`), 400);
+        const run = memory;
+        // 모든 짝 완성: 두 팔을 들고 만세 + 눈을 감고 크게 웃음
+        GameBuddy.act(memoryBuddy, ponder, clap, { pose: 'cheer', face: 'delight', prop: '🙌', spot: 'up', ms: 1100 })
+          .then(() => { if (memory === run && current === 'memory') finish('memory', score, `${memory.moves}번 시도 · ${seconds}초`); });
+      } else {
+        GameBuddy.act(memoryBuddy, ponder, clap);
       }
       return;
     }
     memory.lock = true;
+    GameBuddy.act(memoryBuddy, ponder, { pose: 'scratch', face: 'delight', prop: '💦', spot: 'head', ms: 900 }); // 짝 불일치: 머리 긁적이며 머쓱
     renderMemory();
     later(() => {
       first.open = card.open = false;
@@ -223,6 +246,7 @@ const Games = (() => {
     const types = ['time', 'country', 'food'];
     const picks = shuffle(DESTINATIONS.slice()).slice(0, QUIZ_COUNT);
     quiz = { questions: picks.map((d, i) => makeQuestion(d, types[i % types.length])), index: 0, score: 0 };
+    quizBuddy = GameBuddy.mount($('#quiz-buddy'));
     renderQuiz();
   }
 
@@ -234,6 +258,7 @@ const Games = (() => {
     const box = $('#q-options');
     box.innerHTML = q.options.map((o, i) => `<button data-option="${i}">${o}</button>`).join('');
     box.querySelectorAll('[data-option]').forEach((b) => b.addEventListener('click', () => answer(b)));
+    GameBuddy.act(quizBuddy, { pose: 'think', face: 'surprise', prop: '💭', spot: 'chin', ms: 0 }); // 문제 등장: 턱에 손 대고 생각
   }
 
   function answer(button) {
@@ -243,19 +268,32 @@ const Games = (() => {
       b.disabled = true;
       if (b.textContent === q.answer) b.classList.add('correct');
     });
-    if (button.textContent === q.answer) {
+    const right = button.textContent === q.answer;
+    if (right) {
       quiz.score += 20;
       Sound.sfx('coin');
+      GameBuddy.act(quizBuddy, { pose: 'nod', prop: '☝️', spot: 'up', ms: 900 }); // 정답: 끄덕이며 한 손 번쩍 + 자신 있는 미소
     } else {
       button.classList.add('wrong');
       Sound.sfx('bad');
+      // 오답: 움찔(놀람) → 머리 긁적이기(머쓱)
+      GameBuddy.act(quizBuddy, { pose: 'flinch', face: 'surprise', ms: 340 }, { pose: 'scratch', face: 'delight', prop: '💦', spot: 'head', ms: 600 });
     }
     $('#q-score').textContent = quiz.score;
+    const run = quiz;
+    const last = quiz.index === QUIZ_COUNT - 1;
+    const perfect = last && quiz.score === QUIZ_COUNT * 20;
     later(() => {
+      if (quiz !== run || current !== 'quiz') return;
+      // 전부 정답: 가슴을 펴고 양손으로 브이 + 자랑스러운 표정
+      if (perfect) GameBuddy.act(quizBuddy, { pose: 'proud', face: 'delight', prop: '✌️✌️', spot: 'up', ms: 1200 });
+    }, 900);
+    later(() => {
+      if (quiz !== run || current !== 'quiz') return;
       quiz.index++;
       if (quiz.index < QUIZ_COUNT) renderQuiz();
       else finish('quiz', quiz.score, `${QUIZ_COUNT}문제 중 ${quiz.score / 20}개 정답`);
-    }, 1000);
+    }, perfect ? 2200 : 1000);
   }
 
   return { init, render, stop };
