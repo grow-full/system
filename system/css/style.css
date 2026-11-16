@@ -1548,9 +1548,6 @@ body.focus-mode .ghost { background: transparent; border-color: #3a4270; color: 
    위치는 상자 크기 비율 (씹기 그림에서 측정: 눈 x 43%/57%, y 34%, 원래 눈썹 y 28%) */
 .uwang-angry { display: none; position: absolute; inset: 0; pointer-events: none; }
 .mascot-wrap[data-face="angry"] .uwang-angry { display: block; }
-.uwang-angry .brow { position: absolute; top: 28.2%; width: 10%; height: calc(var(--size) * .02); margin-top: calc(var(--size) * -.01); border-radius: 99px; background: #3b2416; }
-.uwang-angry .brow-l { left: 37.5%; transform: rotate(24deg); }
-.uwang-angry .brow-r { left: 52.5%; transform: rotate(-24deg); }
 .uwang-angry .flush { position: absolute; top: 43%; width: 11%; height: 5.5%; border-radius: 50%; background: radial-gradient(closest-side, rgba(240, 70, 60, .55), rgba(240, 70, 60, 0)); }
 .uwang-angry .flush-l { left: 29.5%; }
 .uwang-angry .flush-r { left: 59.5%; }
@@ -1572,4 +1569,58 @@ body.focus-mode .ghost { background: transparent; border-color: #3a4270; color: 
 @media (prefers-reduced-motion: reduce) {
   .uwang-idle, .uwang-breath, .mascot-wrap[data-sleep="true"] .uwang-breath { animation: none !important; }
   .uwang-layer { transition: none !important; }
+}
+
+/* ---------- 게임 속 우왕이 반응 (js/buddy.js) ----------
+   몸짓은 data-pose, 손동작은 .buddy-prop 이모지. 기준점은 발바닥(88%). */
+.game-buddy { position: relative; width: 96px; height: 96px; margin: 0 auto 6px; }
+.game-buddy .mascot-wrap[data-stage] { --size: 96px; transform-origin: 50% 88%; }
+.result-buddy { width: 110px; height: 110px; margin-bottom: 0; }
+.result-buddy .mascot-wrap[data-stage] { --size: 110px; }
+.buddy-prop { position: absolute; z-index: 6; opacity: 0; font-size: 22px; line-height: 1; pointer-events: none; transform: translate(-50%, -50%); white-space: nowrap; }
+.buddy-prop.on { opacity: 1; animation: buddy-prop-pop .3s ease-out; }
+@keyframes buddy-prop-pop { from { opacity: 0; transform: translate(-50%, -30%) scale(.5); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+
+/* 짝 맞추기 */
+.mascot-wrap[data-pose="lean"] { animation: buddy-lean .35s ease-out forwards; }
+@keyframes buddy-lean { to { transform: translateY(2%) scale(1.07, 1.04); } }
+.mascot-wrap[data-pose="tilt"] { animation: buddy-tilt .42s ease-in-out; }
+@keyframes buddy-tilt { 0% { transform: rotate(0); } 30% { transform: rotate(-8deg); } 70% { transform: rotate(7deg); } 100% { transform: rotate(0); } }
+.mascot-wrap[data-pose="clap"] { animation: buddy-clap .38s ease-out 2; }
+@keyframes buddy-clap { 0%, 100% { transform: translateY(0) scale(1); } 35% { transform: translateY(-5%) scale(.98, 1.03); } 70% { transform: translateY(0) scale(1.04, .96); } }
+.buddy-prop.prop-clap { animation: buddy-prop-clap .38s ease-out 2; }
+@keyframes buddy-prop-clap { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 40% { transform: translate(-50%, -50%) scale(1.45) rotate(-10deg); } }
+.mascot-wrap[data-pose="scratch"] { animation: buddy-scratch .9s ease-in-out forwards; }
+@keyframes buddy-scratch { 0% { transform: rotate(0); } 25% { transform: translateY(2%) rotate(5deg); } 45% { transform: translateY(2%) rotate(3deg); } 65% { transform: translateY(2%) rotate(5deg); } 100% { transform: translateY(1.5%) rotate(3deg); } }
+.buddy-prop.prop-scratch { animation: buddy-prop-drip .9s ease-in forwards; }
+@keyframes buddy-prop-drip { 0% { opacity: 0; transform: translate(-50%, -70%); } 25% { opacity: 1; } 100% { opacity: .9; transform: translate(-50%, -20%); } }
+.mascot-wrap[data-pose="cheer"] { animation: buddy-cheer 1.1s ease-out; }
+@keyframes buddy-cheer { 0% { transform: translateY(0); } 15% { transform: scale(1.06, .92); } 35% { transform: translateY(-14%) scale(.96, 1.06); } 55% { transform: translateY(0) scale(1.05, .95); } 70% { transform: translateY(-6%); } 85%, 100% { transform: translateY(0); } }
+.buddy-prop.prop-cheer, .buddy-prop.prop-best { animation: buddy-prop-raise 1.1s ease-out; }
+@keyframes buddy-prop-raise { 0% { opacity: 0; transform: translate(-50%, 0) scale(.6); } 35% { opacity: 1; transform: translate(-50%, -80%) scale(1.25); } 100% { transform: translate(-50%, -50%) scale(1); } }
+
+/* 여행 퀴즈 */
+.mascot-wrap[data-pose="think"] { animation: buddy-think .5s ease-out forwards; }
+@keyframes buddy-think { to { transform: rotate(-7deg); } }
+.buddy-prop.prop-think { animation: buddy-prop-float 1.6s ease-in-out infinite alternate; }
+@keyframes buddy-prop-float { from { transform: translate(-50%, -50%); } to { transform: translate(-50%, -75%); } }
+.mascot-wrap[data-pose="nod"] { animation: buddy-nod .3s ease-in-out 2; }
+@keyframes buddy-nod { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3%) scale(1.02, .97); } }
+.mascot-wrap[data-pose="flinch"] { animation: buddy-flinch .34s ease-out forwards; }
+@keyframes buddy-flinch { 0% { transform: none; } 30% { transform: translateY(-3%) scale(.94, 1.04) rotate(-3deg); } 100% { transform: scale(.97, 1.02); } }
+.mascot-wrap[data-pose="proud"] { animation: buddy-proud 1.2s ease-out forwards; }
+@keyframes buddy-proud { 0% { transform: none; } 30% { transform: translateY(-4%) scale(1.1, 1.06); } 100% { transform: scale(1.08, 1.05); } }
+
+/* 공통 결과 */
+.mascot-wrap[data-pose="best"] { animation: buddy-best 1.3s ease-out; }
+@keyframes buddy-best { 0% { transform: none; } 12% { transform: scale(1.1, .86); } 34% { transform: translateY(-22%) scale(1.08, 1.05) rotate(-4deg); } 52% { transform: translateY(0) scale(1.1, .9); } 66% { transform: translateY(-9%) rotate(4deg); } 80%, 100% { transform: none; } }
+.mascot-wrap[data-pose="hop"] { animation: buddy-hop 1.6s ease-in-out infinite; }
+@keyframes buddy-hop { 0%, 60%, 100% { transform: none; } 75% { transform: translateY(-5%); } 88% { transform: scale(1.03, .97); } }
+.mascot-wrap[data-pose="ready"] { animation: buddy-ready .4s ease-out forwards; }
+@keyframes buddy-ready { 0% { transform: none; } 60% { transform: translateY(3%) scale(1.08, .9); } 100% { transform: translateY(2%) scale(1.05, .93); } }
+.buddy-prop.prop-ready { animation: buddy-prop-pump .2s ease-in-out 3 alternate; }
+@keyframes buddy-prop-pump { from { transform: translate(-50%, -50%); } to { transform: translate(-50%, -80%) scale(1.15); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .game-buddy .mascot-wrap, .buddy-prop { animation: none !important; }
 }

@@ -86,7 +86,7 @@
             <li>레벨 3에 어린이, 레벨 5에 어른이 돼요. 어른 모습은 그동안 어떻게 키웠는지(돌봄 실수, 여행 횟수, 게임 횟수)에 따라 5가지로 갈라져요.</li>
             <li>🍙 밥으로 배고픔을, 🎾 놀아주기(우왕이가 볼 방향 맞히기)와 🍰 간식으로 행복을 채워요.</li>
             <li>🚽 똥을 오래 두거나 오래 굶기면 병에 걸려요. 아프면 💊 약을 주세요.</li>
-            <li>💡 밤 10시부터 아침 8시까지는 잠을 자요. 불을 꺼 주지 않으면 돌봄 실수가 돼요. 낮에 불을 끄면 낮잠을 자요.</li>
+            <li>💡 밤 12시부터 아침 8시까지는 잠을 자요. 불을 꺼 주지 않으면 돌봄 실수가 돼요. 낮에 불을 끄면 낮잠을 자요.</li>
             <li>말풍선으로 우왕이가 지금 필요한 것을 알려 줘요. 오래 내버려 두면 돌봄 실수가 쌓여요.</li>
             <li>여행 중에는 기내에서 돌봐 줘서 배가 고프지 않아요.</li>
           </ul>
@@ -250,6 +250,7 @@
               <span>짝 <b id="m-pairs">0</b>/8</span>
               <span>⏱ <b id="m-time">0</b>초</span>
             </div>
+            <div class="game-buddy" id="memory-buddy" aria-hidden="true"></div>
             <div class="memory-grid" id="memory-grid"></div>
           </div>
 
@@ -258,6 +259,7 @@
               <span id="q-progress"></span>
               <span>점수 <b id="q-score">0</b></span>
             </div>
+            <div class="game-buddy" id="quiz-buddy" aria-hidden="true"></div>
             <div class="card">
               <p class="quiz-q" id="q-text"></p>
               <div class="quiz-options" id="q-options"></div>
@@ -527,6 +529,7 @@
   <script src="js/focus.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/mascot.js"></script>
+  <script src="js/buddy.js"></script>
   <script src="js/pet.js"></script>
   <script src="js/travel.js"></script>
   <script src="js/minigame.js"></script>
