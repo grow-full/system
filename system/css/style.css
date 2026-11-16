@@ -153,7 +153,9 @@ main { min-width: 0; height: 100vh; }
 .tabbar button.active .ico { opacity: 1; }
 .tabbar button.active::after { content: '◀'; margin-left: auto; font-size: 12px; animation: blinkStep 1s steps(1) infinite; }
 
-.side-foot { display: flex; align-items: center; gap: 8px; margin-top: auto; }
+.side-foot { display: flex; align-items: center; gap: 8px; margin-top: auto; flex-wrap: wrap; }
+.visitor-stat { flex: 0 0 100%; font-size: 11px; }
+.visitor-stat b { white-space: nowrap; }
 .coins {
   display: flex;
   flex: 1;

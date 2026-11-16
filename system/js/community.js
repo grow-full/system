@@ -1,6 +1,5 @@
 // 커뮤니티 탭: 여행 꿀팁 쓰기, 보기, 좋아요(누르기/취소), 댓글.
-// FIREBASE_CONFIG가 있으면 Firestore에 저장해서 모두와 공유하고,
-// 없으면 이 브라우저(localStorage)에만 저장한다.
+// Supabase 설정 시 기존 로그인 계정으로 공유한다. 설정이 없으면 로컬/Firebase를 사용한다.
 const Community = (() => {
   const CATEGORIES = ['교통', '맛집', '숙소', '관광', '쇼핑', '기타'];
   const LOCAL_KEY = 'wooang-community-v1';
@@ -14,6 +13,51 @@ const Community = (() => {
   let deleteArmed = null;          // 글 id 또는 'c:댓글 id'
   const openComments = new Set();  // 댓글 창을 펼친 글
   const drafts = {};               // 쓰던 댓글 (목록을 다시 그려도 남도록)
+  const pendingLikes = new Set();
+  let accountLikes = new Set();
+  const authorKey = () => store === supabaseStore ? Cloud.userId() : state.deviceId;
+  const isLiked = (id) => store === supabaseStore ? accountLikes.has(id) : state.likedPosts.includes(id);
+  function canWrite() {
+    if (store !== supabaseStore || Cloud.userId()) return true;
+    toast('로그인하면 글·댓글·좋아요를 남길 수 있어요');
+    Cloud.openAccount();
+    return false;
+  }
+
+  function checked(result) {
+    if (result.error) throw result.error;
+    return result.data || [];
+  }
+
+  const supabaseStore = {
+    shared: true,
+    async list() {
+      await Cloud.ready;
+      const client = Cloud.getClient();
+      if (!client) throw new Error('Supabase 연결 실패');
+      const rows = checked(await client.from('community_posts').select('*, community_comments(*), community_likes(user_id)').order('created_at', { ascending: false }).limit(200));
+      accountLikes = new Set(rows.filter((p) => p.community_likes.some((l) => l.user_id === Cloud.userId())).map((p) => p.id));
+      return rows.map((p) => ({ id: p.id, author: p.author, authorKey: p.user_id, destId: p.dest_id, category: p.category, text: p.text,
+        createdAt: Date.parse(p.created_at), likes: p.community_likes.length,
+        comments: p.community_comments.map((c) => ({ id: c.id, author: c.author, authorKey: c.user_id, text: c.text, createdAt: Date.parse(c.created_at) })) }));
+    },
+    async add(post) {
+      checked(await Cloud.getClient().from('community_posts').insert({ user_id: Cloud.userId(), author: post.author, dest_id: post.destId, category: post.category, text: post.text }));
+    },
+    async like(id, delta) {
+      const table = Cloud.getClient().from('community_likes');
+      checked(await (delta > 0 ? table.upsert({ post_id: id, user_id: Cloud.userId() }, { onConflict: 'post_id,user_id' }) : table.delete().eq('post_id', id).eq('user_id', Cloud.userId())));
+    },
+    async remove(id) {
+      checked(await Cloud.getClient().from('community_posts').delete().eq('id', id).eq('user_id', Cloud.userId()));
+    },
+    async addComment(id, comment) {
+      checked(await Cloud.getClient().from('community_comments').insert({ post_id: id, user_id: Cloud.userId(), author: comment.author, text: comment.text }));
+    },
+    async removeComment(id, comment) {
+      checked(await Cloud.getClient().from('community_comments').delete().eq('id', comment.id).eq('post_id', id).eq('user_id', Cloud.userId()));
+    },
+  };
 
   // ---------- 저장소: 이 기기 ----------
   const localStore = {
@@ -162,7 +206,9 @@ const Community = (() => {
     });
 
     store = localStore;
-    if (typeof FIREBASE_CONFIG !== 'undefined' && FIREBASE_CONFIG) {
+    if (Cloud.enabled()) {
+      store = supabaseStore;
+    } else if (typeof FIREBASE_CONFIG !== 'undefined' && FIREBASE_CONFIG) {
       try {
         await firebaseStore.init();
         store = firebaseStore;
@@ -173,15 +219,20 @@ const Community = (() => {
     }
     $('#community-mode').textContent = store.shared
       ? '🌐 모두와 공유되는 게시판이에요. 다른 사람을 배려해서 써 주세요.'
-      : '📱 지금은 글이 이 기기에만 저장돼요. js/firebase-config.js에 Firebase 설정을 넣으면 모두와 공유돼요.';
+      : '📱 지금은 글이 이 기기에만 저장돼요.';
+    if (store === supabaseStore) $('#community-mode').textContent = '🌐 계정으로 공유하는 게시판이에요. 글·댓글·좋아요는 로그인 후 이용해 주세요.';
+    document.addEventListener('wooang-auth-change', () => { closeForm(); refresh(); });
     await refresh();
   }
 
   async function refresh() {
+    if (!store) return;
     try {
       posts = await store.list();
+      if (store === supabaseStore) $('#community-mode').textContent = '🌐 계정으로 공유하는 게시판이에요. 글·댓글·좋아요는 로그인 후 이용해 주세요.';
     } catch (e) {
       console.error(e);
+      $('#community-mode').textContent = '게시판을 불러오지 못했어요. 연결 상태를 확인한 뒤 커뮤니티 탭을 다시 열어 주세요.';
       toast('글을 불러오지 못했어요. 잠시 후 다시 시도해 주세요');
     }
     renderList();
@@ -203,9 +254,9 @@ const Community = (() => {
     }
 
     $('#post-list').innerHTML = list.map((p) => {
-      const d = destById(p.destId);
-      const mine = p.authorKey === state.deviceId;
-      const liked = state.likedPosts.includes(p.id);
+      const d = destById(p.destId) || { icon: '🌏', name: '기타 여행지' };
+      const mine = !!authorKey() && p.authorKey === authorKey();
+      const liked = isLiked(p.id);
       const comments = p.comments || [];
       const open = openComments.has(p.id);
       return `
@@ -230,7 +281,7 @@ const Community = (() => {
 
   function commentsHtml(postId, comments) {
     const list = comments.slice().sort((a, b) => a.createdAt - b.createdAt).map((c) => {
-      const mine = c.authorKey === state.deviceId;
+      const mine = !!authorKey() && c.authorKey === authorKey();
       const armed = deleteArmed === `c:${c.id}`;
       return `
         <li class="comment">
@@ -269,22 +320,28 @@ const Community = (() => {
       return deleteComment(postId, commentId);
     }
     if (likeBtn) {
+      if (!canWrite()) return;
       const id = likeBtn.dataset.like;
-      const liked = state.likedPosts.includes(id);
+      if (pendingLikes.has(id)) return;
+      pendingLikes.add(id);
+      const liked = isLiked(id);
       const delta = liked ? -1 : 1; // 이미 눌렀으면 취소
-      state.likedPosts = liked ? state.likedPosts.filter((x) => x !== id) : [...state.likedPosts, id];
-      saveState();
-      const post = posts.find((p) => p.id === id);
-      if (post) post.likes = Math.max(0, post.likes + delta);
-      renderList();
       try {
         await store.like(id, delta);
+        if (store !== supabaseStore) {
+          state.likedPosts = liked ? state.likedPosts.filter((x) => x !== id) : [...state.likedPosts, id];
+          saveState();
+        }
+        await refresh();
       } catch (err) {
         console.error(err);
         toast(liked ? '좋아요 취소를 저장하지 못했어요' : '좋아요를 저장하지 못했어요');
+      } finally {
+        pendingLikes.delete(id);
       }
     }
     if (deleteBtn) {
+      if (!canWrite()) return;
       const id = deleteBtn.dataset.delete;
       if (deleteArmed !== id) {
         deleteArmed = id;
@@ -307,6 +364,7 @@ const Community = (() => {
     const form = e.target.closest('[data-comment-form]');
     if (!form) return;
     e.preventDefault();
+    if (!canWrite()) return;
     const postId = form.dataset.commentForm;
     const text = form.querySelector('input').value.trim();
     if (text.length < 2) return toast('댓글을 2글자 이상 적어 주세요');
@@ -314,7 +372,7 @@ const Community = (() => {
       id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       author: state.nickname || '익명 여행자',
       text: text.slice(0, MAX_COMMENT),
-      authorKey: state.deviceId,
+      authorKey: authorKey(),
       createdAt: Date.now(),
     };
     const button = form.querySelector('button');
@@ -332,6 +390,7 @@ const Community = (() => {
   }
 
   async function deleteComment(postId, commentId) {
+    if (!canWrite()) return;
     const key = `c:${commentId}`;
     if (deleteArmed !== key) {
       deleteArmed = key;
@@ -353,6 +412,7 @@ const Community = (() => {
   }
 
   function openForm() {
+    if (!canWrite()) return;
     $('#write-form').hidden = false;
     $('#btn-write').hidden = true;
     $('#w-name').value = state.nickname;
@@ -369,6 +429,7 @@ const Community = (() => {
 
   async function submit(e) {
     e.preventDefault();
+    if (!canWrite()) return;
     const text = $('#w-text').value.trim();
     if (text.length < 5) return toast('꿀팁을 5글자 이상 적어 주세요');
     const author = $('#w-name').value.trim() || '익명 여행자';
@@ -380,7 +441,7 @@ const Community = (() => {
         destId: $('#w-dest').value,
         category: $('#w-cat').value,
         text: text.slice(0, MAX_LENGTH),
-        authorKey: state.deviceId,
+        authorKey: authorKey(),
       });
     } catch (err) {
       console.error(err);

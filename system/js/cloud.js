@@ -19,6 +19,8 @@ const Cloud = (() => {
   let pushedAt = 0;    // 서버에 올라가 있는 진행의 playedAt
   let lastSync = 0;
   let reloading = false;
+  let resolveReady;
+  const ready = new Promise((resolve) => { resolveReady = resolve; });
 
   const enabled = () => typeof SUPABASE_CONFIG !== 'undefined' && !!SUPABASE_CONFIG;
   const toEmail = (id) => `${id}@${ID_DOMAIN}`;
@@ -171,6 +173,7 @@ const Cloud = (() => {
     if (!data.session) throw new Error(friendlyError({ code: 'email_not_confirmed' }));
     user = data.user;
     await reconcile();
+    document.dispatchEvent(new Event('wooang-auth-change'));
   }
 
   async function logout() {
@@ -296,6 +299,14 @@ const Cloud = (() => {
 
   // ---------- 시작 ----------
   async function init() {
+    try {
+      await initialize();
+    } finally {
+      resolveReady();
+    }
+  }
+
+  async function initialize() {
     bindModal();
     const pending = sessionStorage.getItem(TOAST_KEY);
     if (pending) {
@@ -338,5 +349,5 @@ const Cloud = (() => {
     }
   }
 
-  return { init, onSave, push };
+  return { init, onSave, push, ready, enabled, getClient: () => client, userId: () => user && user.id, openAccount: openModal };
 })();
