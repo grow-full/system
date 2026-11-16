@@ -127,6 +127,8 @@ const MOTION = {
   // 대기 중 가끔 하는 짧은 동작 (매초 chance 확률). 같은 동작은 연달아 나오지 않는다.
   idle: { chance: 0.24, deg: 3.2, nodMs: 560, lookMs: 1500, look: 3, hop: 0.05, hopMs: 640, stretch: 0.045, stretchMs: 1200, wiggleMs: 860, wiggle: 3, droopMs: 1700, droop: 4 },
   joy: { jump: 0.06, double: [0.05, 0.03] },
+  // 놀아주기: lean = 보는 쪽으로 기울이는 각도, revealMs = 방향 공개 몸짓 길이(pet.js의 다음 판 대기 1000ms 안)
+  play: { hop: 0.06, lean: 10, revealMs: 980, taunt: 3, teaseMs: 1400, tease: 3, droop: 4, droopDy: 0.012 },
   meal: { reactMs: 380, perk: 0.025, leanMs: 420, lean: 7, dip: 0.012, chews: 3, chewMs: 400, chewDip: 0.012, chewSquash: 0.965, happyMs: 820, happyRise: 0.02, happySway: 2.5 },
   snack: { hops: 2, hopMs: 240, hop: 0.045, reachMs: 220, lean: 5, dip: 0.01, chompMs: 110, crouchMs: 170, crouch: 0.9, takeoffMs: 90, riseMs: 200, jump: 0.16, fallMs: 170, landMs: 80, recoverMs: 260 },
   touch: { headLine: 0.6, headLean: 7, headInMs: 260, nuzzleMs: 520, headOutMs: 700, pokeJump: 0.08, minGapMs: 380, spamCount: 4, spamWindowMs: 1600 },
@@ -254,7 +256,7 @@ function applyUwangFace(el) {
 // ---------- 우왕이 몸 동작 ----------
 // 우선순위: 먹기·거절(4) > 터치·기쁨(3) > 이동(2) > 가끔 까딱(1). 높은 동작이 시작되면 낮은 동작은 바로 정리된다.
 function createUwangMotion(el, walker, room) {
-  const PRIORITY = { twitch: 1, walk: 2, touch: 3, joy: 3, feed: 4, refuse: 4 };
+  const PRIORITY = { twitch: 1, walk: 2, play: 3, touch: 3, joy: 3, feed: 4, refuse: 4 };
   let x = 0;
   let walkRun = null;
   let landAnim = null;
@@ -769,6 +771,50 @@ function createUwangMotion(el, walker, room) {
     return wait(run, ms).then(() => finish(run));
   }
 
+  // 놀아주기(볼 방향 맞히기) 몸짓. 그림의 눈동자는 움직이지 않아서, 보는 방향은 몸을 그쪽으로 확 기울여 보여 준다.
+  //   start: 신나서 콩 뛰기 + 웃음
+  //   tease: 정답을 숨기고 좌우로 살랑살랑 뜸 들이기 + 볼 빵빵 (고를 때까지 pet.js가 되풀이한다)
+  //   look : dir 쪽으로 휙 기울이기 → 맞히면 그쪽으로 기운 채 깡충 + 웃음, 틀리면 몸을 흔들며 약 올리기 + 볼 빵빵
+  //   lose : 판이 끝났는데 3번을 못 맞히면 아쉬워서 축 처지기 + 처진 눈 (이겼을 때는 joy)
+  function play(phase, dir = 'right', win = false) {
+    const run = beginAct('play');
+    if (!run) return Promise.resolve(false);
+    const P = MOTION.play;
+    const up = 'cubic-bezier(.15,.7,.35,1)';
+    const down = 'cubic-bezier(.6,0,.85,.4)';
+    const d = dir === 'left' ? -1 : 1;
+    const L = P.lean * d;
+    let steps;
+    if (phase === 'start') {
+      steps = [[0, 0, 0, 1, 1, 'ease-out'], [110, 0.004, 0, 1.05, 0.92, up], [290, -P.hop, 0, 0.98, 1.03, down],
+        [420, 0, 0, 1.05, 0.93, 'ease-out'], [540, 0, 0, 0.99, 1.01], [640]];
+      setUwangFace(el, 'delight');
+    } else if (phase === 'tease') {
+      const t = P.teaseMs;
+      const a = P.tease;
+      steps = [[0], [t * 0.2, 0.003, -a, 1.01, 0.99], [t * 0.45, 0, a], [t * 0.7, 0.003, -a * 0.8, 1.01, 0.99], [t * 0.88, 0, a * 0.4], [t]];
+      setUwangFace(el, 'chew');
+    } else if (phase === 'look' && win) {
+      steps = [[0, 0, 0, 1, 1, 'ease-out'], [160, 0, L, 1, 1], [380, 0, L], [470, 0.004, L, 1.05, 0.92, up],
+        [620, -P.hop, L * 0.7, 0.98, 1.03, down], [750, 0, L * 0.8, 1.04, 0.94, 'ease-out'], [900, 0, L * 0.8], [P.revealMs]];
+      setUwangFace(el, 'surprise');
+      at(run, 380, () => setUwangFace(el, 'delight'));
+    } else if (phase === 'look') {
+      const w = P.taunt;
+      steps = [[0, 0, 0, 1, 1, 'ease-out'], [160, 0, L, 1, 1], [380, 0, L], [480, 0, L - w * d], [580, 0, L + w * d],
+        [680, 0, L - w * d], [780, 0, L + w * d], [900, 0, L], [P.revealMs]];
+      setUwangFace(el, 'surprise');
+      at(run, 380, () => setUwangFace(el, 'chew'));
+    } else {
+      steps = [[0], [520, P.droopDy, P.droop * d, 1.015, 0.975, 'cubic-bezier(.2,.8,.3,1)'], [1200, P.droopDy, P.droop * d * 0.8],
+        [1500, 0, 0]];
+      setUwangFace(el, 'pout');
+    }
+    const ms = body(run, steps);
+    run.variant = phase;
+    return wait(run, ms).then(() => finish(run));
+  }
+
   // 배불러서 고개를 젓는다
   function refuse() {
     const run = beginAct('refuse');
@@ -845,7 +891,7 @@ function createUwangMotion(el, walker, room) {
   }
 
   const api = {
-    place, walkTo, stopWalk, feed, medicine, clean, angry, touch, joy, refuse, twitch, reset,
+    place, walkTo, stopWalk, feed, medicine, clean, angry, touch, joy, refuse, twitch, play, reset,
     x: () => x,
     walking: () => Boolean(walkRun),
     acting: () => Boolean(actRun && actRun.priority > PRIORITY.walk),

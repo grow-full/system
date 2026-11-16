@@ -2075,3 +2075,23 @@ body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #
 @keyframes dexHop { 50% { transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .form-item.current .dex-fig, .dex-mark { animation: none; } }
 .decor-items .collection-note { grid-column: 1 / -1; margin: 0; }
+
+/* 퍼즐 게임(타일·블록·3매치) 위쪽: 작은 우왕이 + 안내 문구 */
+.puzzle-head { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; }
+.puzzle-head .puzzle-msg { flex: 1; margin: 0; text-align: left; }
+.game-buddy.mini { flex: none; width: 64px; height: 64px; margin: 0; }
+.game-buddy.mini .mascot-wrap[data-stage] { --size: 64px; }
+.game-buddy.mini .buddy-prop { font-size: 16px; }
+
+/* 퍼즐 게임 몸짓 */
+.mascot-wrap[data-pose="bob"] { animation: buddy-bob .32s ease-out; }
+@keyframes buddy-bob { 0%, 100% { transform: none; } 45% { transform: translateY(3%) scale(1.04, .95); } }
+.mascot-wrap[data-pose="nervous"] { animation: buddy-nervous .18s linear infinite alternate; }
+@keyframes buddy-nervous { from { transform: translateX(-1.5%) scale(.97, 1.02); } to { transform: translateX(1.5%) scale(.97, 1.02); } }
+.buddy-prop.prop-nervous { animation: buddy-prop-drip 1.2s ease-in infinite; }
+.mascot-wrap[data-pose="nope"] { animation: buddy-nope .52s ease-in-out; }
+@keyframes buddy-nope { 0%, 100% { transform: none; } 20% { transform: rotate(-6deg); } 45% { transform: rotate(6deg); } 70% { transform: rotate(-4deg); } 88% { transform: rotate(2deg); } }
+.mascot-wrap[data-pose="spin"] { animation: buddy-spin .6s cubic-bezier(.4, 0, .3, 1); }
+@keyframes buddy-spin { 0% { transform: none; } 20% { transform: scale(1.06, .92); } 70% { transform: translateY(-8%) rotate(360deg); } 100% { transform: rotate(360deg); } }
+.mascot-wrap[data-pose="slump"] { animation: buddy-slump .7s ease-out forwards; }
+@keyframes buddy-slump { 0% { transform: none; } 45% { transform: translateY(6%) scale(1.1, .8); } 100% { transform: translateY(3%) rotate(4deg) scale(1.05, .9); } }
