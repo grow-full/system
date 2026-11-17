@@ -448,6 +448,11 @@
             <div class="card walk-log-card">
               <div class="collection-head"><b>📔 산책 기록</b><small id="walk-log-total"></small></div>
               <ul class="walk-log" id="walk-log"></ul>
+              <div class="walk-log-pager" id="walk-log-pager" hidden>
+                <button class="ghost" id="walk-log-prev" type="button">‹ 이전</button>
+                <span class="walk-log-page" id="walk-log-page"></span>
+                <button class="ghost" id="walk-log-next" type="button">다음 ›</button>
+              </div>
             </div>
           </div>
   
@@ -519,6 +524,8 @@
                 <div class="walk-summary-icons" id="ws-friends"></div>
               </div>
             </div>
+            <p class="booth-help" id="booth-help" hidden>오늘 만난 친구들과 함께 인생네컷을 찍을 수 있어요 📸</p>
+            <button class="ghost" id="btn-summary-booth" hidden>📸 우왕이 인생네컷 찍기</button>
             <div class="card walk-note-card" id="walk-note-card" hidden>
               <label class="walk-note-label" for="walk-note-input">📝 오늘 산책은 어땠나요? 한 줄 소감</label>
               <p class="walk-note-help">저장하면 이 소감이 날짜와 함께 산책 기록에 남아요. 산책 첫 페이지의 📔 산책 기록에서 볼 수 있어요.</p>
@@ -527,6 +534,18 @@
                 <button class="primary walk-note-save" id="walk-note-save" type="button">저장</button>
               </div>
               <p class="walk-note-msg" id="walk-note-msg" aria-live="polite"></p>
+            </div>
+            <!-- 인생네컷: 이번 산책에서 만난 친구와 함께 찍는다 (화면에만 보이고 저장하지 않는다) -->
+            <div class="booth" id="booth" hidden>
+              <div class="booth-card">
+                <p class="booth-title">📸 우왕이 인생네컷</p>
+                <p class="booth-status" id="booth-status" aria-live="polite"></p>
+                <canvas id="booth-canvas" width="240" height="760"></canvas>
+                <div class="booth-foot">
+                  <button class="ghost" id="booth-again" type="button">다시 찍기</button>
+                  <button class="primary" id="booth-close" type="button">닫기</button>
+                </div>
+              </div>
             </div>
             <button class="primary" id="btn-summary-again">🐾 다시 산책 가기</button>
             <button class="ghost" id="btn-summary-pet">🐣 우왕이 보러 가기</button>
@@ -611,7 +630,7 @@
           <button class="walk-music" id="btn-walk-music" aria-pressed="true"><span id="walk-music-icon">🎵</span> <span id="walk-music-label">배경음 켜짐</span></button>
           <button class="walk-music" id="btn-walk-headset" aria-pressed="false">🎧 <span id="walk-headset-label">헤드셋 끼기</span></button>
           <button class="walk-music walk-drink" id="btn-walk-drink">💧 <span id="walk-drink-label">물 마시기</span></button>
-          <button class="walk-music walk-photo" id="btn-walk-photo">📸 사진 찍기</button>        </div>
+        </div>
         <!-- 어디로 갈까요?: 지도와 목록을 한 칸에서 바꿔 본다 -->
         <div class="card walk-nav" id="walk-nav" hidden>
           <div class="walk-nav-head">

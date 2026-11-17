@@ -1132,6 +1132,22 @@ main { min-width: 0; height: 100vh; }
 .walk-talk-btn[hidden] { display: none; }
 .walk-talk-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 
+/* 인생네컷: 화면 가운데 띄우는 도트 창 */
+#btn-summary-booth { width: 100%; margin-bottom: 10px; }
+.booth-help { margin: 0 0 6px; font-size: 13px; color: var(--primary-dark); text-align: center; }
+.booth-help[hidden] { display: none; }
+.booth { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(74, 13, 34, .45); }
+.booth[hidden] { display: none; }
+.booth-card {
+  width: min(280px, 100%); max-height: 100%; overflow: auto; padding: 14px; text-align: center;
+  background: #fffaf0; color: var(--ink); box-shadow: var(--px-border); animation: guide-pop .32s steps(4, end);
+}
+.booth-title { margin: 0 0 6px; font-size: 16px; font-weight: 700; color: var(--primary-dark); }
+.booth-status { min-height: 1.3em; margin: 0 0 8px; font-size: 14px; color: var(--sub); }
+#booth-canvas { display: block; width: 200px; height: auto; margin: 0 auto; box-shadow: var(--px-border); }
+.booth-foot { display: flex; gap: 6px; margin-top: 12px; }
+.booth-foot button { flex: 1; margin: 0; }
+
 /* 산책 소감 한 줄 */
 .walk-note-card { margin: 12px 0; }
 .walk-note-card[hidden] { display: none; }
@@ -1144,6 +1160,11 @@ main { min-width: 0; height: 100vh; }
 .walk-note-save { width: auto; margin: 0; padding: 8px 14px; }
 .walk-note-msg { min-height: 1em; margin: 6px 0 0; font-size: 12px; color: var(--sub); }
 .walk-note-help { margin: 0 0 8px; font-size: 12px; line-height: 1.5; color: var(--sub); word-break: keep-all; }
+.walk-log-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.walk-log-pager[hidden] { display: none; }
+.walk-log-pager button { width: auto; margin: 0; padding: 6px 10px; font-size: 13px; }
+.walk-log-pager button:disabled { opacity: .4; cursor: default; }
+.walk-log-page { font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
 .walk-log .log-note { flex-basis: 100%; font-size: 12px; color: var(--primary-dark); word-break: keep-all; }
 .walk-log .log-friends { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--sub); }
 .walk-log .log-face { display: inline-block; width: 26px; height: 26px; }

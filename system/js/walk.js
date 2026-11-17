@@ -62,11 +62,15 @@ const Walk = (() => {
     $('#btn-walk-music').addEventListener('click', toggleMusic);
     $('#btn-walk-headset').addEventListener('click', toggleHeadset);
     $('#btn-walk-drink').addEventListener('click', drink);
-    $('#btn-walk-photo').addEventListener('click', takePhoto);
     $('#walk-gift').addEventListener('click', openGift);
     $('#gift-reveal-ok').addEventListener('click', closeReveal);
     $('#btn-friend-claim').addEventListener('click', claimFriendReward);
     $('#walk-note-save').addEventListener('click', saveNote);
+    $('#walk-log-prev').addEventListener('click', () => { logPage--; renderWalkLog(); });
+    $('#walk-log-next').addEventListener('click', () => { logPage++; renderWalkLog(); });
+    $('#btn-summary-booth').addEventListener('click', takeBooth);
+    $('#booth-again').addEventListener('click', takeBooth);
+    $('#booth-close').addEventListener('click', () => { $('#booth').hidden = true; });
     $('#walk-note-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveNote(); });
     $('#walk-talk-btn').addEventListener('click', talkFriend);
     $('#guide-next').addEventListener('click', nextGuide);
@@ -684,6 +688,7 @@ const Walk = (() => {
   let friend = null;
   let friendHeading = 0;
   let friendMet = false;       // 이번 방문에서 인사를 나눴는지
+  let talkedHere = false;      // 이번 방문에서 이 친구에게 말을 걸었는지 (다음 방문 때 다시 뜬다)
   let greeting = false;
 
   // 장소에 도착했을 때 그 장소의 친구를 세운다
@@ -691,6 +696,7 @@ const Walk = (() => {
     const all = typeof WALK_FRIENDS === 'undefined' ? {} : WALK_FRIENDS;
     friend = (name && all[name]) || null;
     friendMet = false;
+    talkedHere = false;
     $('#walk-friend-speech').textContent = '';
     if (!friend) { $('#walk-friend').hidden = true; return; }
     friendHeading = wrap(pano.getPov().heading + (friend.offset || 25));
@@ -821,7 +827,7 @@ const Walk = (() => {
     const btn = $('#walk-talk-btn');
     if (!btn) return;
     const fEl = $('#walk-friend');
-    const show = Boolean(friend) && inWalk && canWalk() && !fEl.hidden && !talkedToday(friend.name);
+    const show = Boolean(friend) && inWalk && canWalk() && !fEl.hidden && !talkedHere;
     btn.hidden = !show;
     if (!show) return;
     btn.textContent = `💬 말걸기 (+${TALK_COINS})`;
@@ -832,10 +838,10 @@ const Walk = (() => {
   }
 
   function talkFriend() {
-    if (!friend || !canWalk() || talkedToday(friend.name)) return;
-    const day = todayKey();
-    if (!state.walkTalked || state.walkTalked.day !== day) state.walkTalked = { day, names: [] };
-    state.walkTalked.names.push(friend.name);
+    if (!friend || !canWalk() || talkedHere) return;
+    talkedHere = true;   // 누르면 버튼이 사라지고, 다음 방문 때 다시 뜬다
+    // 말을 건 친구도 이번 산책에서 만난 친구로 기록한다 (인생네컷·산책 기록에 함께 나온다)
+    if (session && !session.friends.includes(friend.name)) session.friends.push(friend.name);
     state.coins += TALK_COINS;
     if (session) session.coins += TALK_COINS;
     saveState();
@@ -1429,7 +1435,9 @@ const Walk = (() => {
 
   // ---------- 산책 기록 ----------
   // 산책을 끝낼 때마다 한 줄씩 남는다 (아무것도 안 한 산책은 남기지 않는다). 최근 50개까지 보관한다.
-  const WALK_LOG_MAX = 50;
+  const WALK_LOG_MAX = 300;   // 이만큼까지 남긴다 (넘으면 가장 오래된 것부터 지운다)
+  const LOG_PAGE_SIZE = 6;    // 한 페이지에 보여 줄 기록 수
+  let logPage = 0;            // 지금 보고 있는 페이지 (0부터, 0이 가장 최근)
 
   let lastLogAt = 0;   // 방금 끝낸 산책의 기록 시각 (소감을 이 기록에 붙인다, 0이면 기록이 없다)
 
@@ -1445,6 +1453,7 @@ const Walk = (() => {
     };
     state.walkLog = [entry, ...(state.walkLog || [])].slice(0, WALK_LOG_MAX);
     lastLogAt = entry.at;
+    logPage = 0;   // 새 산책 기록은 1페이지(가장 최근)에서 보인다
     saveState();
   }
 
@@ -1483,7 +1492,18 @@ const Walk = (() => {
     $('#walk-log-total').textContent = list.length
       ? `${list.length}번 · ${totalSteps.toLocaleString()}걸음 · ${fmtTime(totalSec)} · ${cards}`
       : cards;
-    box.innerHTML = list.length ? list.slice(0, 6).map((e) => {
+    // 페이지 나누기: 가장 최근 기록이 1페이지에 온다
+    const pages = Math.max(1, Math.ceil(list.length / LOG_PAGE_SIZE));
+    logPage = Math.min(Math.max(0, logPage), pages - 1);
+    const shown = list.slice(logPage * LOG_PAGE_SIZE, logPage * LOG_PAGE_SIZE + LOG_PAGE_SIZE);
+    const pager = $('#walk-log-pager');
+    if (pager) {
+      pager.hidden = list.length <= LOG_PAGE_SIZE;
+      $('#walk-log-page').textContent = `${logPage + 1} / ${pages}`;
+      $('#walk-log-prev').disabled = logPage === 0;
+      $('#walk-log-next').disabled = logPage >= pages - 1;
+    }
+    box.innerHTML = list.length ? shown.map((e) => {
       const d = new Date(e.at);
       const when = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
       const t = TIMES[e.time] || { label: '산책', icon: '🐾' };
@@ -1683,6 +1703,13 @@ const Walk = (() => {
     dressMascot(box, true);
     setMascot(box, { mood: 'happy', sleep: false, sick: pet.sick, headset: Boolean(state.walkHeadset) });
     if (steps > 0) setTimeout(() => playMascot(box, 'joy', 600), 300);
+    // 이번 산책에서 친구를 만났을 때만 인생네컷 버튼을 보여 준다
+    // 인생네컷은 항상 찍을 수 있다 (친구가 있으면 함께, 없으면 우왕이 혼자)
+    $('#btn-summary-booth').hidden = false;
+    $('#booth-help').hidden = false;
+    $('#booth-help').textContent = s.friends.length
+      ? '오늘 만난 친구들과 함께 인생네컷을 찍을 수 있어요 📸'
+      : '우왕이 혼자서도 인생네컷을 찍을 수 있어요 📸';
   }
 
   function startWalk() {
@@ -1875,6 +1902,7 @@ const Walk = (() => {
     { icon: '📍', text: '📍 목록에서 장소를 고르면 우왕이가 그곳까지 걸어가요. 🗺️ 지도로 바꿔 볼 수도 있어요.' },
     { icon: '💧', text: '목이 마르면 💧 물을 마셔요. 🎵 배경음과 🎧 헤드셋도 바꿀 수 있어요.' },
     { icon: '🎁', text: '곳곳에 선물 상자가 숨어 있어요! 장소 근처에 가서 화면을 둘러보고, 반짝이는 상자를 누르면 열려요.' },
+    { icon: '📸', text: '산책이 끝나면 인생네컷을 찍을 수 있어요. 친구를 만났다면 함께 찍히고, 혼자서도 찍을 수 있어요!' },
     { icon: '🤝', text: '숨은 친구를 찾고 📜 오늘의 퀘스트를 끝내면 코인이 쌓여요. 아프면 걷지 않으니 꼭 돌봐 주세요!' },
   ];
   let guideStep = 0;
@@ -1909,37 +1937,163 @@ const Walk = (() => {
     if (!state.walkGuideSeen) { state.walkGuideSeen = true; saveState(); }
   }
 
-  // ---------- 사진 찍기 ----------
-  // 찰칵 찍는 시늉만 한다 (저장하지 않는다). 카메라 플래시가 번쩍이고 우왕이가 활짝 웃으며, 기분이 좋아져 행복 하트가 찬다.
-  // 하트는 1분에 한 번만 찬다.
-  const PHOTO_HEART_COOLDOWN = 60000;
-  let photoAt = 0;
+  // ---------- 인생네컷 (우왕이와 이번 산책에서 만난 친구) ----------
+  // 네 컷을 그림으로 그려서 보여 준다. 스트리트 뷰 사진을 쓰지 않으니, 저장은 하지 않고 화면에만 보여 준다.
+  const BOOTH_FRAMES = 4;
+  const BOOTH_BG = ['#fde8ee', '#e6f4ff', '#fff4d6', '#e9f7e8'];
+  const BOOTH_REACTIONS = ['💗', '✨', '🐾', '😊'];
+  let boothBusy = false;
 
-  function takePhoto() {
-    if (!inWalk) return;
-    if (!walkingAway) {
-      fade.classList.add('on');   // 카메라 플래시
+  // 친구 그림을 이미지로 바꾼다 (파일 그림이면 그대로, SVG 그림이면 이미지로 만든다)
+  function friendArtImage(f) {
+    return new Promise((resolve) => {
+      if (f.image) {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = f.image;
+        return;
+      }
+      const art = typeof FRIEND_ART === 'undefined' ? null : FRIEND_ART[f.art];
+      if (!art || !art.includes('<svg')) { resolve(null); return; }
+      const svg = art.includes('xmlns=') ? art : art.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+      const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
+  }
+
+  function loadBoothImage(src) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  }
+
+  function drawBoothHeader(g, W) {
+    g.fillStyle = '#f4ead6';
+    g.fillRect(0, 0, W, 40);
+    g.fillStyle = '#8c1d40';
+    g.font = '16px "Galmuri11", "Malgun Gothic", sans-serif';
+    g.textAlign = 'center';
+    g.fillText('우왕이 인생네컷', W / 2, 26);
+  }
+
+  // 컷마다 다른 연출: 기울기, 좌우 반전, 크기, 머리 위 표정, 말풍선, 반응 스티커
+  const BOOTH_VARIANTS = [
+    { bg: '#fde8ee', tilt: 0, flip: false, scale: 1, face: '😊', reaction: '💗', say: '같이 찍어요!', bounce: 0 },
+    { bg: '#e6f4ff', tilt: -9, flip: false, scale: 1, face: '😆', reaction: '✨', say: '헤헤, 신나요!', bounce: 14 },
+    { bg: '#fff4d6', tilt: 0, flip: true, scale: 1.06, face: '😳', reaction: '🐾', say: '아 찍힌다!', bounce: 6 },
+    { bg: '#e9f7e8', tilt: 7, flip: false, scale: 0.95, face: '😎', reaction: '😊', say: '오늘 최고!', bounce: 0 },
+  ];
+
+  // 말풍선: 흰 바탕, 버건디 도트 테두리, 꼬리 한 칸
+  function drawBubble(g, text, x, y) {
+    g.font = '12px "Galmuri11", "Malgun Gothic", sans-serif';
+    g.textAlign = 'left';
+    const w = g.measureText(text).width + 14;
+    g.fillStyle = '#fffaf0';
+    g.fillRect(x, y, w, 22);
+    g.strokeStyle = '#4a0d22';
+    g.lineWidth = 2;
+    g.strokeRect(x + 1, y + 1, w - 2, 20);
+    g.fillStyle = '#4a0d22';
+    g.fillText(text, x + 7, y + 15);
+  }
+
+  // 한 컷: 배경, 친구들(뒤, 번갈아 튐), 우왕이(기울기·반전·크기), 머리 위 표정, 말풍선, 반응 스티커
+  function drawBoothFrame(g, y, uImg, friends, v) {
+    const W = 240;
+    const H = 180;
+    g.fillStyle = v.bg;
+    g.fillRect(0, y, W, H);
+    g.fillStyle = 'rgba(74, 13, 34, .05)';
+    for (let yy = y; yy < y + H; yy += 3) g.fillRect(0, yy, W, 1);
+
+    friends.forEach((f, i) => {
+      const size = 66;
+      const x = 118 + i * 36;
+      const top = y + 58 - (i % 2) * 14 - (i % 2 === 0 ? v.bounce : 0);
+      if (f.img) g.drawImage(f.img, x, top, size, size);
+      else {
+        g.font = '40px sans-serif';
+        g.textAlign = 'center';
+        g.fillText('🐾', x + size / 2, top + size * 0.7);
+      }
+    });
+
+    const baseH = 118;
+    const uH = baseH * v.scale;
+    const uW = uImg ? (uImg.naturalWidth / uImg.naturalHeight) * uH : uH;
+    const cx = 20 + uW / 2;
+    const cy = y + 52 + uH / 2;
+    g.save();
+    g.translate(cx, cy);
+    g.rotate((v.tilt * Math.PI) / 180);
+    if (v.flip) g.scale(-1, 1);
+    if (uImg) g.drawImage(uImg, -uW / 2, -uH / 2, uW, uH);
+    g.restore();
+
+    // 머리 위 표정 이모지
+    g.font = '26px sans-serif';
+    g.textAlign = 'center';
+    g.fillText(v.face, cx, y + 52);
+
+    g.textAlign = 'left';
+    g.font = '24px sans-serif';
+    g.fillText(v.reaction, 12, y + 36);
+    drawBubble(g, v.say, 96, y + 10);
+
+    g.fillStyle = '#4a0d22';
+    g.font = '12px "Galmuri11", "Malgun Gothic", sans-serif';
+    g.textAlign = 'right';
+    g.fillText(`${(y - 40) / 180 + 1} / ${BOOTH_FRAMES}`, W - 10, y + H - 8);
+
+    g.strokeStyle = '#4a0d22';
+    g.lineWidth = 2;
+    g.strokeRect(1, y + 1, W - 2, H - 2);
+  }
+
+  async function takeBooth() {
+    if (boothBusy) return;
+    boothBusy = true;
+    const booth = $('#booth');
+    const cv = $('#booth-canvas');
+    const status = $('#booth-status');
+    const g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    booth.hidden = false;
+    g.fillStyle = '#fffaf0';
+    g.fillRect(0, 0, cv.width, cv.height);
+    drawBoothHeader(g, cv.width);
+
+    const names = session ? [...new Set(session.friends)] : [];
+    const friends = await Promise.all(names.slice(0, 3).map(async (n) => {
+      const f = friendByName(n);
+      return { name: n, img: await friendArtImage(f) };
+    }));
+    const uImg = await loadBoothImage(mapMeSrc());
+
+    // 찍을 때마다 컷 순서를 섞는다
+    const order = BOOTH_VARIANTS.slice().sort(() => Math.random() - 0.5);
+    for (let i = 0; i < BOOTH_FRAMES; i++) {
+      for (const n of [3, 2, 1]) {
+        status.textContent = `${n}…`;
+        await wait(450);
+      }
+      fade.classList.add('on');   // 찰칵 플래시
       setTimeout(() => fade.classList.remove('on'), 160);
+      Sound.sfx('ding');
+      status.textContent = `찰칵! (${i + 1} / ${BOOTH_FRAMES})`;
+      drawBoothFrame(g, 40 + i * 180, uImg, friends, order[i]);
+      await wait(250);
     }
-    Sound.sfx('ding');
-    playMascot(mascot, 'joy', 700);
-    const now = Date.now();
-    if (now - photoAt < PHOTO_HEART_COOLDOWN) {
-      say('찰칵! 📸 조금 이따 또 찍어요', 2000);
-      return;
-    }
-    photoAt = now;
-    if (state.pet.happy < MAX_HEARTS) {
-      addHearts('happy', 1);
-      if (session) session.hearts += 1;
-      saveState();
-      renderStats();
-      const el = $('#walk-happy');
-      el.classList.remove('up');
-      void el.offsetWidth;
-      el.classList.add('up');
-    }
-    say('찰칵! 📸 기분 최고예요 💗', 2600);
+    status.textContent = '네 컷 완성! 💗 (사진은 저장되지 않아요)';
+    boothBusy = false;
   }
 
   // ---------- 헤드셋 ----------
