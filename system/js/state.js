@@ -125,6 +125,11 @@ function defaultState() {
     walkHeadset: false,    // 산책할 때 우왕이가 헤드셋을 꼈는지
     walkFriends: [],       // 산책에서 만나 인사한 친구 이름
     walkFriendsDone: false, // 숨은 친구를 다 찾아 보너스를 받았는지
+    walkFriendReward: 0,    // 친구를 만나 쌓였지만 아직 받지 않은 코인 (walk.js의 '친구 보상 받기')
+    quests: null,           // 오늘의 퀘스트: { day, ids, progress, claimed } (walk.js, 날이 바뀌면 새로 고른다)
+    walkLog: [],            // 산책 기록 (최근 것이 앞에 온다, walk.js)
+    walkTalked: { day: '', names: [] },   // 오늘 말을 걸어 코인을 받은 친구 (walk.js, 날이 바뀌면 비운다)
+    walkGuideSeen: false,   // 첫 산책 안내를 다 봤거나 건너뛰었는지 (walk.js)
     focusTotal: 0,  // 집중 모드 누적 시간(초)
     playedAt: 0,    // 마지막으로 직접 플레이한 시각. 기기끼리 이 값이 큰 쪽 진행을 쓴다 (cloud.js)
     owner: null,    // 이 진행이 속한 계정 id (로그인 안 했으면 null)

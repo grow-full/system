@@ -158,10 +158,19 @@ function uwangFrame(sheet, col, row) {
 // 래퍼마다 transform을 하나씩 맡는다 (바깥 → 안쪽):
 //   #walker(방 안 가로 위치) > .uwang-move(이동 바운스·기울기·도착 눌림) > .uwang-act(먹기·터치·까딱)
 //   > .uwang-idle(무게중심 이동) > .uwang-breath(호흡) > 상태/표정 이미지 레이어와 의상
+// 산책 헤드셋: 좌표는 상자 비율(%). 귀덮개는 얼굴 옆선(25%·75%), 밴드는 뿔 끝과 머리털 끝이 위로 보이게 정수리에 얹는다
+const UWANG_HEADSET_SVG = `<svg class="uwang-headset" viewBox="0 0 100 100">
+ <path d="M24.5 30 A25.5 25.5 0 0 1 75.5 30" fill="none" stroke="#3b2417" stroke-width="7.5" stroke-linecap="round"/>
+ <path d="M24.5 30 A25.5 25.5 0 0 1 75.5 30" fill="none" stroke="#800020" stroke-width="4.75" stroke-linecap="round"/>
+ <rect x="17.5" y="24" width="14" height="19.5" rx="5.75" fill="#800020" stroke="#3b2417" stroke-width="1.7"/>
+ <rect x="68.5" y="24" width="14" height="19.5" rx="5.75" fill="#800020" stroke="#3b2417" stroke-width="1.7"/>
+ <path d="M21 28.5 v10 M72 28.5 v10" stroke="#fff" stroke-width="1.7" stroke-linecap="round" opacity=".45"/>
+</svg>`;
+
 const UWANG_HTML = `<div class="uwang-art" aria-hidden="true"><div class="uwang-move"><div class="uwang-act"><div class="uwang-idle"><div class="uwang-breath">
  <div class="uwang-layer"></div><div class="uwang-layer"></div><div class="uwang-expression"></div>
  <div class="uwang-angry"><i class="flush flush-l"></i><i class="flush flush-r"></i><span class="vein">💢</span></div>
- <div class="uwang-sleep-mark">Zzz</div><span class="uwang-form-mark"></span><div class="outfit"></div>
+ <div class="uwang-sleep-mark">Zzz</div><span class="uwang-form-mark"></span><div class="outfit"></div>${UWANG_HEADSET_SVG}
 </div></div></div></div></div>`;
 
 function mountMascot(el, stage) {

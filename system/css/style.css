@@ -987,8 +987,8 @@ main { min-width: 0; height: 100vh; }
 /* 물 마시기: 목마르면 파랗게 콩콩 뛰며 알려 준다 */
 .walk-drink.thirsty { border-color: #4a9fd8; background: #e8f4fc; color: #1f6fa8; animation: thirsty-hop 1.2s ease-in-out infinite; }
 @keyframes thirsty-hop { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-3px); } }
-/* 텀블러: 우왕이 그림 안에 들어가서, 뚜껑의 마시는 구멍이 입(가로 50%, 세로 70%)에 딱 닿은 채 기울어진다 */
-.walk-cup { position: absolute; left: 48%; top: 69.5%; z-index: 3; width: 15%; opacity: 0; pointer-events: none; transform-origin: 12% 2%; }
+/* 텀블러: 우왕이 그림 안에 들어가서, 뚜껑의 마시는 구멍(컵의 12%, 2% 지점)이 입(가로 50%, 세로 44.5%)에 딱 닿은 채 기울어진다 */
+.walk-cup { position: absolute; left: 48.2%; top: calc(44.4% + var(--head-dy, 0%)); z-index: 4; width: 15%; opacity: 0; pointer-events: none; transform-origin: 12% 2%; }
 .walk-cup svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .15)); }
 .walk-cup.show { animation: cup-drink 1.7s ease-in-out; }
 @keyframes cup-drink {
@@ -1038,9 +1038,74 @@ main { min-width: 0; height: 100vh; }
 .walk-friend .friend-speech { bottom: 100%; margin-bottom: 4px; }
 .walk-friend.hop .friend-body { animation: bounce .6s; }
 .walk-friend:focus-visible { outline: 3px solid #fff; outline-offset: 2px; border-radius: 12px; }
+.walk-friend-claim { width: 100%; margin: 10px 0 0; }
+.walk-friend-claim[hidden] { display: none; }
 
-/* 산책 헤드셋: 게이머 우왕이의 헤드폰 그림을 같이 쓴다 */
-.mascot-wrap[data-headset="true"] .acc-gamer { display: inline; }
+/* 친구 위치 힌트: 산책 화면 위쪽 가운데에 도트 말풍선으로 뜬다 */
+.walk-warm {
+  position: absolute; top: 12px; left: 50%; z-index: 4; transform: translateX(-50%);
+  padding: 6px 12px; background: var(--lcd); color: var(--ink); font-size: 14px; font-weight: 700;
+  box-shadow: var(--px-border); pointer-events: none; white-space: nowrap;
+}
+
+/* 오늘의 퀘스트와 산책 기록 */
+.walk-quest-card, .walk-log-card { margin-top: 12px; }
+
+/* 말걸기 버튼: 친구가 보이면 머리 위에 뜨는 도트 버튼 (위치는 JS가 친구를 따라 옮긴다) */
+.walk-talk-btn {
+  position: absolute; z-index: 6; transform: translate(-50%, -100%); pointer-events: auto;
+  padding: 6px 10px; margin: 0; border: 0; border-radius: 0; background: var(--primary); color: #fff;
+  font: inherit; font-size: 13px; font-weight: 700; white-space: nowrap;
+  box-shadow: 0 3px 0 0 var(--primary-dark); cursor: pointer;
+}
+.walk-talk-btn:active { box-shadow: none; transform: translate(-50%, -97%); }
+.walk-talk-btn[hidden] { display: none; }
+.walk-talk-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+/* 첫 산책 안내 말풍선: 크림 바탕, 버건디 도트 테두리, 아래 꼬리, 한 칸씩 튀어나오는 등장 */
+.walk-guide { position: absolute; top: 14px; left: 50%; z-index: 6; width: min(340px, calc(100% - 32px)); transform: translateX(-50%); pointer-events: none; }
+.walk-guide[hidden] { display: none; }
+.guide-bubble { position: relative; padding: 12px 14px; background: #fffaf0; color: var(--ink); box-shadow: var(--px-border); pointer-events: auto; }
+.guide-bubble::after {
+  content: ''; position: absolute; left: 50%; bottom: -8px; width: 12px; height: 12px;
+  margin-left: -6px; background: #fffaf0; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink);
+  transform: rotate(45deg);
+}
+.guide-bubble.pop { animation: guide-pop .32s steps(4, end); }
+@keyframes guide-pop { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
+.guide-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.guide-icon { font-size: 22px; line-height: 1; }
+.guide-head b { flex: 1; font-size: 14px; color: var(--primary-dark); }
+.guide-head small { font-size: 12px; color: var(--sub); }
+.guide-text { min-height: 4.5em; margin: 0 0 10px; font-size: 14px; line-height: 1.55; word-break: keep-all; }
+.guide-foot { display: flex; align-items: center; gap: 6px; }
+.guide-dots { flex: 1; display: flex; gap: 4px; }
+.guide-dots i { width: 8px; height: 8px; background: var(--lcd-dark); box-shadow: 0 0 0 1px var(--ink); }
+.guide-dots i.on { background: var(--primary); }
+.guide-skip, .guide-next { margin: 0; padding: 6px 10px; font-size: 13px; }
+.guide-next:focus-visible, .guide-skip:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+.walk-quests, .walk-log { list-style: none; margin: 8px 0 0; padding: 0; }
+.walk-quests li, .walk-log li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-top: 1px dashed var(--lcd-dark); }
+.walk-quests li:first-child, .walk-log li:first-child { border-top: 0; }
+.quest-what { display: flex; flex-direction: column; font-size: 14px; }
+.quest-what small, .quest-reward, .walk-log small { font-size: 12px; color: var(--sub); }
+.quest-claim { padding: 6px 10px; border: 0; background: var(--primary); color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 3px 0 0 var(--primary-dark); cursor: pointer; }
+.quest-claim:active { box-shadow: none; transform: translateY(3px); }
+.quest-done { font-size: 13px; color: var(--primary-dark); }
+.walk-quests li.is-done .quest-what { color: var(--sub); text-decoration: line-through; }
+.walk-log li { flex-wrap: wrap; }
+.walk-log .log-when { font-size: 12px; color: var(--sub); }
+.walk-log .log-what { flex: 1; font-size: 13px; }
+.walk-log .log-empty { display: block; color: var(--sub); font-size: 13px; }
+
+/* 머리에 붙는 소품(헤드셋, 물 마시는 텀블러)의 보정: 졸림·피로 그림은 머리가 상자의 6%만큼 낮고, 듬직 우왕이는 옆으로 1.12배 넓다 */
+.mascot-wrap { --head-dy: 0%; --head-sx: 1; }
+.mascot-wrap:is([data-sleep="true"], [data-fatigue-stage="tired"], [data-fatigue-stage="exhausted"]) { --head-dy: 6%; }
+.mascot-wrap[data-form="sturdy"] { --head-sx: 1.12; }
+/* 산책 헤드셋: PNG 우왕이 머리에 겹치는 SVG (mascot.js의 UWANG_HEADSET_SVG) */
+.uwang-headset { position: absolute; inset: 0; z-index: 3; display: none; width: 100%; height: 100%; overflow: visible; pointer-events: none; transform: translateY(var(--head-dy)) scaleX(var(--head-sx)); transform-origin: 50% 88%; }
+.mascot-wrap[data-headset="true"] .uwang-headset { display: block; }
 /* 헤드셋을 끼고 서 있을 때는 음악에 맞춰 고개를 까딱까딱 */
 .walk-walker:not([data-walking="true"]) .mascot-wrap[data-headset="true"]:not([data-anim="joy"]) .mascot-inner { animation: head-bob .9s ease-in-out infinite; transform-origin: 50% 90%; }
 @keyframes head-bob { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
@@ -1131,14 +1196,16 @@ main { min-width: 0; height: 100vh; }
 .map-me {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border: 3px solid #fff;
+  width: 32px;
+  height: 32px;
+  padding: 3px;
+  border: 0;
   border-radius: 50%;
-  background: var(--primary);
-  box-shadow: 0 0 0 4px rgba(255, 138, 61, .35), 0 2px 6px rgba(0, 0, 0, .3);
+  background: #fffaf0;
+  box-shadow: 0 0 0 3px var(--primary), 0 0 0 6px rgba(255, 138, 61, .35), 0 2px 6px rgba(0, 0, 0, .3);
   font-size: 18px;
 }
+.map-me img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 .walk-rules { margin: 12px 0 0; font-size: 14px; }
 .walk-rules summary { font-size: 15px; }
 .walk-rules-title { margin: 14px 0 8px; font-size: 13px; font-weight: 700; color: var(--sub); }
@@ -1798,6 +1865,8 @@ body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #
 /* 의상은 몸 래퍼 안에 있어 몸과 함께 움직인다 */
 .mascot-wrap:has(.uwang-art) .outfit .slot-head { top: 17%; }
 .mascot-wrap:has(.uwang-art) .outfit .slot-face { top: 36%; font-size: calc(var(--size) * .25); }
+/* 뿔테 안경: 두 렌즈 가운데가 PNG 우왕이 눈(가로 43.5%·56%, 세로 34.4%)을 감싸고, 윗테가 눈에 걸리지 않게 렌즈 안쪽 가운데에 눈을 둔다 */
+.mascot-wrap:has(.uwang-art) .outfit .o-basic_glasses { top: calc(38% + var(--head-dy)); width: calc(var(--size) * .46); }
 .mascot-wrap:has(.uwang-art) .outfit .slot-neck { top: 66%; font-size: calc(var(--size) * .2); }
 .mascot-wrap:has(.uwang-art) .outfit .slot-hand { left: 72%; top: 72%; }
 /* 음식: 위치는 JS가 캐릭터 크기에 비례해 입 위치로 옮긴다 */

@@ -224,12 +224,28 @@ DESTINATIONS.forEach((d) => { d.outfit = OUTFITS[d.id]; });
 
 // 공부할 때 쓰는 갈색 뿔테 안경 (그림 이모지는 파란색이라 직접 그린다)
 // 좌표는 우왕이 그림(200×200)과 같아서 렌즈가 우왕이 눈(72,104 / 128,104)에 맞는다.
+// 갈색 뿔테: 짙은 테두리 위에 밝은 갈색 테를 얹고, 렌즈는 호박색으로 살짝 비치게 그린다 (좌표는 그대로라 눈 위치가 같다)
 const HORN_GLASSES_SVG = '<svg viewBox="38 86 124 36" xmlns="http://www.w3.org/2000/svg">'
-  + '<g fill="rgba(255,255,255,.28)" stroke="#4a2c17" stroke-width="5.5" stroke-linejoin="round">'
+  // 렌즈 (호박색 비침)
+  + '<g fill="rgba(226,164,96,.30)" stroke="none">'
   + '<rect x="51" y="91" width="42" height="27" rx="9"/><rect x="107" y="91" width="42" height="27" rx="9"/></g>'
-  + '<path d="M51 95 h42 M107 95 h42" stroke="#2e1a0d" stroke-width="7" stroke-linecap="round"/>'
-  + '<path d="M93 99 q7 -6 14 0" stroke="#4a2c17" stroke-width="5" fill="none" stroke-linecap="round"/>'
-  + '<path d="M51 97 l-10 -2 M149 97 l10 -2" stroke="#4a2c17" stroke-width="5" stroke-linecap="round"/>'
+  // 테: 짙은 바깥선 → 밝은 갈색 안선 (뿔테 느낌)
+  + '<g fill="none" stroke-linejoin="round">'
+  + '<rect x="51" y="91" width="42" height="27" rx="9" stroke="#2e1a0d" stroke-width="7.5"/>'
+  + '<rect x="107" y="91" width="42" height="27" rx="9" stroke="#2e1a0d" stroke-width="7.5"/>'
+  + '<rect x="51" y="91" width="42" height="27" rx="9" stroke="#8a5530" stroke-width="4.5"/>'
+  + '<rect x="107" y="91" width="42" height="27" rx="9" stroke="#8a5530" stroke-width="4.5"/></g>'
+  // 윗테(두꺼운 뿔 느낌) + 윗면 하이라이트
+  + '<path d="M50 94.5 h44 M106 94.5 h44" stroke="#2e1a0d" stroke-width="8" stroke-linecap="round"/>'
+  + '<path d="M51 93.2 h42 M107 93.2 h42" stroke="#b07a46" stroke-width="2" stroke-linecap="round"/>'
+  // 다리 (귀에 거는 부분)
+  + '<path d="M51 97 l-10 -2 M149 97 l10 -2" stroke="#2e1a0d" stroke-width="7" stroke-linecap="round"/>'
+  + '<path d="M51 97 l-10 -2 M149 97 l10 -2" stroke="#8a5530" stroke-width="3.5" stroke-linecap="round"/>'
+  // 다리 연결 (코받침 다리)
+  + '<path d="M93 99 q7 -6 14 0" stroke="#2e1a0d" stroke-width="7" fill="none" stroke-linecap="round"/>'
+  + '<path d="M93 99 q7 -6 14 0" stroke="#8a5530" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
+  // 렌즈 반사광
+  + '<path d="M57 104 l5 -5 M113 104 l5 -5" stroke="rgba(255,255,255,.6)" stroke-width="2.2" stroke-linecap="round"/>'
   + '</svg>';
 
 // 처음부터 가지고 있는 기본 옷 (여행을 가지 않아도 언제나 입을 수 있다)

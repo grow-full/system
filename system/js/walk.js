@@ -62,6 +62,14 @@ const Walk = (() => {
     $('#btn-walk-music').addEventListener('click', toggleMusic);
     $('#btn-walk-headset').addEventListener('click', toggleHeadset);
     $('#btn-walk-drink').addEventListener('click', drink);
+    $('#btn-friend-claim').addEventListener('click', claimFriendReward);
+    $('#walk-talk-btn').addEventListener('click', talkFriend);
+    $('#guide-next').addEventListener('click', nextGuide);
+    $('#guide-skip').addEventListener('click', closeGuide);
+    $('#walk-quests').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-claim]');
+      if (b) claimQuest(b.dataset.claim);
+    });
     $('#btn-walk-next').addEventListener('click', () => { if (!blockReason()) setStep('pick'); });
     $('#btn-walk-back').addEventListener('click', () => setStep('check'));
     $('#btn-walk-dress').addEventListener('click', () => { if (chosenName && !blockReason()) setStep('dress'); });
@@ -225,7 +233,7 @@ const Walk = (() => {
   }
 
   // ---------- 우왕이 위치 지도 ----------
-  // 학교 지도 위에 우왕이(🐣)가 지금 있는 곳과 장소(📍)들을 보여 준다. 📍를 누르면 그곳으로 걸어간다.
+  // 학교 지도 위에 우왕이(그림)가 지금 있는 곳과 장소(📍)들을 보여 준다. 📍를 누르면 그곳으로 걸어간다.
   let minimap = null;
   let meMarker = null;
 
@@ -259,10 +267,10 @@ const Walk = (() => {
       el.addEventListener('click', () => goTo(i));
     });
 
-    // 우왕이 🐣
+    // 우왕이 그림 (지금 성장 단계의 그림)
     const me = document.createElement('div');
     me.className = 'map-me';
-    me.textContent = '🐣';
+    me.innerHTML = `<img src="${mapMeSrc()}" alt="우왕이">`;
     meMarker = new AdvancedMarkerElement({ map: minimap, position: pano.getPosition(), content: me, zIndex: 999 });
 
     // 처음에는 장소가 모두 보이게 맞춘다
@@ -270,11 +278,20 @@ const Walk = (() => {
     updateMinimap();
   }
 
+  // 지도 위 우왕이 그림: 성장 단계에 맞는 그림을 쓴다 (알 단계는 아기 그림)
+  function mapMeSrc() {
+    const stage = state.pet.stage;
+    return `assets/uwang-${['baby', 'child', 'adult'].includes(stage) ? stage : 'baby'}.png`;
+  }
+
   function updateMinimap() {
     if (!minimap || !meMarker || !pano) return;
     const pos = pano.getPosition();
     if (!pos) return;
     meMarker.position = pos;
+    // 성장하면 지도 위 그림도 바꾼다
+    const img = meMarker.content && meMarker.content.querySelector('img');
+    if (img && img.getAttribute('src') !== mapMeSrc()) img.setAttribute('src', mapMeSrc());
     // 우왕이가 지도 밖으로 나가면 따라간다
     const view = minimap.getBounds();
     if (view && !view.contains(pos)) minimap.panTo(pos);
@@ -617,33 +634,68 @@ const Walk = (() => {
     if (Math.abs(wrap(heading - friendHeading)) < MEET_DEG && Math.abs(depth - FRIEND_DEPTH) < MEET_DEPTH) greet();
   }
 
+  // 말걸기 버튼: 친구가 화면에 보이면 바로 뜬다. 누르면 코인을 주는데, 같은 친구에게는 하루에 한 번만 준다.
+  const TALK_COINS = 3;
+
+  function talkedToday(name) {
+    const t = state.walkTalked;
+    return Boolean(t && t.day === todayKey() && t.names.includes(name));
+  }
+
+  function renderTalk() {
+    const btn = $('#walk-talk-btn');
+    if (!btn) return;
+    const fEl = $('#walk-friend');
+    const show = Boolean(friend) && inWalk && canWalk() && !fEl.hidden && !talkedToday(friend.name);
+    btn.hidden = !show;
+    if (!show) return;
+    btn.textContent = `💬 말걸기 (+${TALK_COINS})`;
+    const b = fEl.getBoundingClientRect();
+    const o = overlay.getBoundingClientRect();
+    btn.style.left = `${b.left + b.width / 2 - o.left}px`;
+    btn.style.top = `${b.top - o.top - 6}px`;
+  }
+
+  function talkFriend() {
+    if (!friend || !canWalk() || talkedToday(friend.name)) return;
+    const day = todayKey();
+    if (!state.walkTalked || state.walkTalked.day !== day) state.walkTalked = { day, names: [] };
+    state.walkTalked.names.push(friend.name);
+    state.coins += TALK_COINS;
+    if (session) session.coins += TALK_COINS;
+    saveState();
+    renderTop();
+    $('#walk-friend-speech').textContent = friend.hello;
+    playMascot(mascot, 'joy', 600);
+    Sound.sfx('ding');
+    toast(`💬 ${friend.name}와 이야기했어요 🪙 +${TALK_COINS}`);
+    renderTalk();
+  }
+
   async function greet() {
     if (!friend || greeting) return;
     greeting = true;
     friendMet = true;
     const f = friend;
-    if (session && !session.friends.includes(f.name)) session.friends.push(f.name);
+    if (session && !session.friends.includes(f.name)) { session.friends.push(f.name); bumpQuest('friends', 1); }
     if (!state.walkFriends.includes(f.name)) {
-      // 처음 만난 친구: 코인, 다 찾으면 보너스 (보너스는 한 번만)
+      // 처음 만난 친구: 보상은 쌓아 두고, '친구 보상 받기' 버튼을 눌러야 코인으로 들어온다 (보너스도 한 번만 쌓인다)
       state.walkFriends.push(f.name);
-      state.coins += FRIEND_COINS;
-      if (session) session.coins += FRIEND_COINS;
+      state.walkFriendReward += FRIEND_COINS;
       const list = friendList();
       const got = list.filter((x) => state.walkFriends.includes(x.name)).length;
       const allDone = !state.walkFriendsDone && list.length > 0 && got >= list.length;
       if (allDone) {
         state.walkFriendsDone = true;
-        state.coins += FRIEND_ALL_BONUS;
-        if (session) session.coins += FRIEND_ALL_BONUS;
+        state.walkFriendReward += FRIEND_ALL_BONUS;
       }
       saveState();
-      renderTop();
       renderFriendHint();
-      setTimeout(() => toast(`🤝 ${f.name}를 찾았어요! 🪙 +${FRIEND_COINS} (${got}/${list.length})`), 1700);
+      setTimeout(() => toast(`🤝 ${f.name}를 찾았어요! 보상 🪙 ${FRIEND_COINS}개를 받을 수 있어요 (${got}/${list.length})`), 1700);
       if (allDone) {
         setTimeout(() => {
           Sound.sfx('levelup');
-          toast(`🎉 숨어 있던 친구 ${list.length}명을 모두 찾았어요! 보너스 🪙 +${FRIEND_ALL_BONUS}`);
+          toast(`🎉 숨어 있던 친구 ${list.length}명을 모두 찾았어요! 보너스 🪙 +${FRIEND_ALL_BONUS}도 받을 수 있어요`);
         }, 4400);
       }
     }
@@ -697,7 +749,8 @@ const Walk = (() => {
   // ---------- 시간 흐름 ----------
   function canWalk() {
     // 산책 중에는 밤이거나 불이 꺼져 있어도 깨어서 걷는다
-    return state.pet.stage !== 'egg' && !state.flight;
+    // 아프면 걷지 않는다 (걸음·하트·코인이 쌓이지 않는다)
+    return state.pet.stage !== 'egg' && !state.flight && !state.pet.sick;
   }
 
   // ---------- 걸음 수 · 산책 시간 · 행복 ----------
@@ -713,6 +766,7 @@ const Walk = (() => {
   function addSteps(meters) {
     const added = Math.max(1, Math.round(meters / METERS_PER_STEP));
     steps += added;
+    bumpQuest('steps', added);
     addHeartProgress(added);
     checkThirst();
     return added;
@@ -763,8 +817,8 @@ const Walk = (() => {
   function drink() {
     if (!inWalk || drinking || !canWalk()) return;
     drinking = true;
-    // 컵은 우왕이 그림 안에 넣어서, 몸이 흔들려도 입에 딱 붙어 있게 한다
-    const inner = mascot.querySelector('.mascot-inner') || mascot;
+    // 컵은 우왕이 몸과 같이 움직이는 층에 넣어서, 몸이 흔들려도 입에 딱 붙어 있게 한다
+    const inner = mascot.querySelector('.uwang-breath') || mascot.querySelector('.mascot-inner') || mascot;
     let cup = inner.querySelector('.walk-cup');
     if (!cup) {
       cup = document.createElement('span');
@@ -782,6 +836,7 @@ const Walk = (() => {
       thirsty = false;
       drankAt = steps;
       if (session) session.drinks++;
+      bumpQuest('drinks', 1);
       say(pickOne(['꿀꺽꿀꺽… 캬, 시원해요! 💧', '물 마시니까 힘이 나요 💪', '살 것 같아요! 고마워요 😊']), 2400);
       addHeartProgress(DRINK_BONUS);
     } else {
@@ -835,16 +890,23 @@ const Walk = (() => {
       ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${String(s).padStart(2, '0')}`
       : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     let html = '';
-    for (let i = 0; i < MAX_HEARTS; i++) html += `<span class="${i < state.pet.happy ? 'on' : 'off'}">❤️</span>`;
+    for (let i = 0; i < MAX_HEARTS; i++) html += `<span class="${i < state.pet.happy ? 'on' : 'off'}">${icon(i < state.pet.happy ? 'heart' : 'heartEmpty', 20)}</span>`;
     $('#walk-happy').innerHTML = html;
   }
 
   function tick() {
     if ($('#screen-walk').hidden) return;
     if (!inWalk) { renderCheck(); updateMusic(); return; }   // 산책 전 체크 화면 (음악은 끈다)
+    // 산책 중에 아파지면 한 번 알려 주고 걸음을 멈춘다
+    if (state.pet.sick) {
+      if (!sickNoted) { sickNoted = true; say('으으… 아파서 더 못 걸어요 🤒 산책을 끝내고 쉬어요', 4000); }
+    } else sickNoted = false;
+    renderWarmth();
+    renderTalk();
     // 지도가 떠 있고 우왕이가 같이 걸을 수 있을 때만 산책 시간이 흐른다
     if (pano && canWalk()) {
       walkSeconds++;
+      if (walkSeconds % 60 === 0) bumpQuest('minutes', 1);
       // 산책 10분마다 코인 5개
       if (walkSeconds % WALK_COIN_SECONDS === 0) {
         state.coins += WALK_COIN_REWARD;
@@ -893,6 +955,7 @@ const Walk = (() => {
     let status = '';
     if (pet.stage === 'egg') status = '알에서 태어나면 같이 산책할 수 있어요 🥚';
     else if (state.flight) status = '우왕이는 지금 여행 중이에요 ✈️';
+    else if (pet.sick) status = '우왕이가 아파서 쉬고 있어요 🤒 산책을 끝내고 약을 먹여 주세요';
     overlay.dataset.away = Boolean(state.flight);
     $('#walk-status').textContent = status;
     renderStats();
@@ -932,7 +995,7 @@ const Walk = (() => {
 
     const bored = MAX_HEARTS - pet.happy;   // 행복이 낮을수록 심심하다
     let hearts = '';
-    for (let i = 0; i < MAX_HEARTS; i++) hearts += `<span class="${i < pet.hunger ? 'on' : 'off'}">❤️</span>`;
+    for (let i = 0; i < MAX_HEARTS; i++) hearts += `<span class="${i < pet.hunger ? 'on' : 'off'}">${icon(i < pet.hunger ? 'heart' : 'heartEmpty', 20)}</span>`;
     $('#wc-hunger').innerHTML = hearts;
     let yawns = '';
     for (let i = 0; i < MAX_HEARTS; i++) yawns += `<span class="${i < bored ? 'on' : 'off'}">🥱</span>`;
@@ -962,7 +1025,7 @@ const Walk = (() => {
     $('#walk-dress').hidden = step !== 'dress';
     $('#walk-summary').hidden = step !== 'summary';
     $('#walk-main').hidden = step !== 'walk';
-    if (step === 'check') renderCheck();
+    if (step === 'check') { renderCheck(); renderQuests(); renderWalkLog(); }
     if (step === 'pick') renderPick();
     if (step === 'dress') { renderDress(); sayDress('오늘은 뭐 입고 나갈까요? 👕'); }
     renderFriendHint();
@@ -1017,8 +1080,8 @@ const Walk = (() => {
 
   // ---------- 숨은 친구 안내 ----------
   // 어디에 있는지는 알려 주지 않고, 몇 명이 숨어 있고 몇 명을 만났는지만 보여 준다.
-  const FRIEND_COINS = 2;        // 친구를 처음 만나면
-  const FRIEND_ALL_BONUS = 15;   // 친구를 모두 찾으면
+  const FRIEND_COINS = 5;        // 친구를 처음 만나면
+  const FRIEND_ALL_BONUS = 25;   // 친구를 모두 찾으면
 
   // 친구 목록 (이름이 같으면 한 번만)
   function friendList() {
@@ -1047,10 +1110,175 @@ const Walk = (() => {
     hintEl.hidden = !text;
 
     // 찾은 친구 칸: 만난 친구는 얼굴, 아직이면 그림자와 ?
+    // 쌓인 친구 보상이 있으면 '받기' 버튼을 보여 준다
+    const claim = $('#btn-friend-claim');
+    if (claim) {
+      claim.hidden = !state.walkFriendReward;
+      claim.textContent = `🪙 친구 보상 받기 (+${state.walkFriendReward})`;
+    }
+
     $('#walk-friend-count').textContent = `${met.length} / ${list.length}`;
     $('#walk-friends').innerHTML = list.map((f) => (state.walkFriends.includes(f.name)
       ? `<div class="walk-friend-badge" title="${f.name}"><div class="face">${friendFace(f)}</div><small>${f.name}</small></div>`
       : `<div class="walk-friend-badge locked" title="아직 못 찾은 친구"><div class="face">${friendFace(f)}<b>?</b></div><small>???</small></div>`)).join('');
+  }
+
+  // 쌓아 둔 친구 보상을 코인으로 받는다
+  function claimFriendReward() {
+    const amount = state.walkFriendReward;
+    if (!amount) return;
+    state.coins += amount;
+    if (session) session.coins += amount;
+    state.walkFriendReward = 0;
+    saveState();
+    renderTop();
+    renderFriendHint();
+    Sound.sfx('levelup');
+    toast(`🤝 친구 보상 🪙 +${amount}을 받았어요!`);
+  }
+
+  // ---------- 친구 위치 힌트 ----------
+  // 아직 못 만난 친구 중 가장 가까운 친구가 사는 장소와의 거리를 온도로 보여 준다 (정확한 거리와 이름은 숨긴다)
+  const WARM_BANDS = [[40, '🔥 아주 가까워요!'], [120, '🌡️ 따뜻해요'], [300, '❄️ 조금 멀어요'], [Infinity, '🧊 멀리 있어요']];
+  let sickNoted = false;   // 산책 중 아프다는 말을 이미 했는지
+
+  function friendWarmth() {
+    if (!pano || !spherical || !canWalk() || !places.length) return '';
+    const here = pano.getPosition();
+    if (!here) return '';
+    const all = typeof WALK_FRIENDS === 'undefined' ? {} : WALK_FRIENDS;
+    let best = Infinity;
+    for (const [placeName, f] of Object.entries(all)) {
+      if (state.walkFriends.includes(f.name)) continue;   // 이미 만난 친구는 빼고
+      const p = places.find((x) => x.name === placeName);
+      const spot = p && p.spots[0];
+      if (!spot) continue;
+      best = Math.min(best, spherical.computeDistanceBetween(here, spot.latLng));
+    }
+    if (best === Infinity) return '';
+    return WARM_BANDS.find(([max]) => best <= max)[1];
+  }
+
+  function renderWarmth() {
+    const el = $('#walk-warm');
+    if (!el) return;
+    const text = inWalk ? friendWarmth() : '';
+    el.hidden = !text;
+    el.textContent = text ? `숨은 친구: ${text}` : '';
+  }
+
+  // ---------- 오늘의 퀘스트 ----------
+  // 날마다 세 가지를 고른다 (같은 날에는 새로고침해도 같다). 날이 바뀌면 새로 고르고, 받지 않은 보상은 사라진다.
+  const QUEST_POOL = [
+    { id: 'steps300', kind: 'steps', goal: 300, unit: '걸음', label: '산책에서 걸음 채우기', reward: 6 },
+    { id: 'steps800', kind: 'steps', goal: 800, unit: '걸음', label: '산책에서 많이 걷기', reward: 12 },
+    { id: 'minutes5', kind: 'minutes', goal: 5, unit: '분', label: '산책 시간 채우기', reward: 6 },
+    { id: 'minutes15', kind: 'minutes', goal: 15, unit: '분', label: '오래 산책하기', reward: 12 },
+    { id: 'places2', kind: 'places', goal: 2, unit: '곳', label: '새로운 장소 가 보기', reward: 8 },
+    { id: 'drink1', kind: 'drinks', goal: 1, unit: '번', label: '목마를 때 물 마시기', reward: 5 },
+    { id: 'friend1', kind: 'friends', goal: 1, unit: '명', label: '숨은 친구와 인사하기', reward: 8 },
+    { id: 'stamp1', kind: 'stamps', goal: 1, unit: '개', label: '도장 하나 받기', reward: 6 },
+  ];
+  const QUEST_COUNT = 3;
+
+  function todayKey(d = new Date()) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  // 날짜 문자열로 같은 순서를 만드는 간단한 난수 (같은 날이면 항상 같은 퀘스트가 나온다)
+  function pickQuests(day) {
+    let seed = 0;
+    for (const ch of day) seed = (Math.imul(seed, 31) + ch.charCodeAt(0)) >>> 0;
+    const pool = QUEST_POOL.slice();
+    const picked = [];
+    const kinds = new Set();
+    while (picked.length < QUEST_COUNT && pool.length) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      const [q] = pool.splice(seed % pool.length, 1);
+      if (kinds.has(q.kind)) continue;   // 같은 종류는 한 번만
+      kinds.add(q.kind);
+      picked.push(q.id);
+    }
+    return picked;
+  }
+
+  function ensureQuests() {
+    const day = todayKey();
+    if (state.quests && state.quests.day === day) return state.quests;
+    state.quests = { day, ids: pickQuests(day), progress: {}, claimed: [] };
+    saveState();
+    return state.quests;
+  }
+
+  function bumpQuest(kind, n = 1) {
+    const q = ensureQuests();
+    q.progress[kind] = (q.progress[kind] || 0) + n;
+    // 걸음마다 저장하지 않는다: app.js가 10초마다와 탭을 숨길 때 저장하고, 산책을 끝낼 때도 저장한다
+    if (!inWalk) renderQuests();
+  }
+
+  function claimQuest(id) {
+    const q = ensureQuests();
+    const def = QUEST_POOL.find((x) => x.id === id);
+    if (!def || !q.ids.includes(id) || q.claimed.includes(id) || (q.progress[def.kind] || 0) < def.goal) return;
+    q.claimed.push(id);
+    state.coins += def.reward;
+    if (session) session.coins += def.reward;
+    saveState();
+    renderTop();
+    renderQuests();
+    Sound.sfx('levelup');
+    toast(`📜 퀘스트 완료! 🪙 +${def.reward}`);
+  }
+
+  function renderQuests() {
+    const box = $('#walk-quests');
+    if (!box) return;
+    const q = ensureQuests();
+    const defs = q.ids.map((id) => QUEST_POOL.find((x) => x.id === id)).filter(Boolean);
+    const doneCount = defs.filter((d) => q.claimed.includes(d.id)).length;
+    $('#walk-quest-count').textContent = `${doneCount} / ${defs.length}`;
+    box.innerHTML = defs.map((d) => {
+      const now = Math.min(q.progress[d.kind] || 0, d.goal);
+      const claimed = q.claimed.includes(d.id);
+      const ready = !claimed && now >= d.goal;
+      const action = claimed
+        ? '<b class="quest-done">받음 ✔</b>'
+        : ready ? `<button class="quest-claim" data-claim="${d.id}">🪙 ${d.reward} 받기</button>`
+        : `<small class="quest-reward">🪙 ${d.reward}</small>`;
+      return `<li class="${claimed ? 'is-done' : ''}"><span class="quest-what">${d.label}<small>${now} / ${d.goal} ${d.unit}</small></span>${action}</li>`;
+    }).join('');
+  }
+
+  // ---------- 산책 기록 ----------
+  // 산책을 끝낼 때마다 한 줄씩 남는다 (아무것도 안 한 산책은 남기지 않는다). 최근 50개까지 보관한다.
+  const WALK_LOG_MAX = 50;
+
+  function saveWalkLog() {
+    if (!session) return;
+    if (!steps && !walkSeconds) return;
+    const entry = {
+      at: Date.now(), time: session.time, steps, seconds: walkSeconds,
+      places: session.places.size, coins: session.coins, hearts: session.hearts,
+      drinks: session.drinks, stamps: session.stamps.length, friends: session.friends.length,
+    };
+    state.walkLog = [entry, ...(state.walkLog || [])].slice(0, WALK_LOG_MAX);
+    saveState();
+  }
+
+  function renderWalkLog() {
+    const box = $('#walk-log');
+    if (!box) return;
+    const list = state.walkLog || [];
+    const totalSteps = list.reduce((a, e) => a + (e.steps || 0), 0);
+    const totalSec = list.reduce((a, e) => a + (e.seconds || 0), 0);
+    $('#walk-log-total').textContent = list.length ? `${list.length}번 · ${totalSteps.toLocaleString()}걸음 · ${fmtTime(totalSec)}` : '';
+    box.innerHTML = list.length ? list.slice(0, 6).map((e) => {
+      const d = new Date(e.at);
+      const when = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      const t = TIMES[e.time] || { label: '산책', icon: '🐾' };
+      return `<li><span class="log-when">${when}</span><span class="log-what">${t.icon} ${t.label} · ${e.steps.toLocaleString()}걸음 · ${fmtTime(e.seconds)}</span><small>장소 ${e.places} · 🪙 ${e.coins}</small></li>`;
+    }).join('') : '<li class="log-empty">아직 산책 기록이 없어요. 산책을 마치면 여기에 남아요.</li>';
   }
 
   // ---------- 옷 입기 ----------
@@ -1249,6 +1477,7 @@ const Walk = (() => {
     if (blockReason()) return;
     setStep('walk');
     newSession();
+    sickNoted = false;
     steps = 0;
     walkSeconds = 0;
     heartProgress = 0;
@@ -1274,6 +1503,7 @@ const Walk = (() => {
     updateMusic();   // 버튼을 누른 순간이라 브라우저가 소리를 허락한다
     stampedPano = '';
     setTimeout(checkStamp, 800);   // 출발 장소도 도장을 찍는다 (지도가 자리를 잡은 뒤)
+    setTimeout(showGuide, 1500);   // 처음 산책이면 안내 말풍선을 띄운다
   }
 
   // 산책에서 돌아오면 옷과 헤드셋을 모두 벗는다 (다음 산책 때 다시 골라 입는다)
@@ -1285,6 +1515,8 @@ const Walk = (() => {
   }
 
   function endWalk() {
+    $('#walk-guide').hidden = true;   // 안내가 아직 남아 있어도 산책이 끝나면 닫는다 (다음 산책에 이어서 본다)
+    saveWalkLog();
     setStep('summary');
     renderSummary();   // 요약에는 입고 나갔던 모습 그대로 보여 준다
     undressAll();
@@ -1321,7 +1553,7 @@ const Walk = (() => {
     if (here === stampedPano) return;
     stampedPano = here;
     hereName = namedHere();
-    if (hereName && session) session.places.add(hereName);
+    if (hereName && session && !session.places.has(hereName)) { session.places.add(hereName); bumpQuest('places', 1); }
     hereSteps = 0;
     hereDone = false;
     setFriend(hereName);   // 이 장소에 사는 친구
@@ -1359,6 +1591,7 @@ const Walk = (() => {
     state.walkStamps[name] = { first: Date.now(), visits: 1 };
     state.coins += STAMP_COINS;
     if (session) { session.coins += STAMP_COINS; session.stamps.push(name); }
+    bumpQuest('stamps', 1);
     const total = placeNames().length;
     const got = placeNames().filter((n) => state.walkStamps[n]).length;
     const allDone = !state.walkStampsDone && total > 0 && got >= total;
@@ -1417,6 +1650,47 @@ const Walk = (() => {
     const map = typeof WALK_MUSIC === 'undefined' ? {} : WALK_MUSIC;
     const fallback = typeof WALK_MUSIC_DEFAULT === 'undefined' ? 'campus' : WALK_MUSIC_DEFAULT;
     Sound.bgm(map[moodName()] || fallback);
+  }
+
+  // ---------- 첫 산책 안내 ----------
+  // 처음 산책을 시작하면 말풍선으로 조작법과 볼거리를 한 번 알려 준다. 건너뛰거나 다 보면 다시 뜨지 않는다.
+  const GUIDE_STEPS = [
+    { icon: '🐾', text: '처음 나왔어요! 여기는 우왕이와 함께 걷는 산책길이에요.' },
+    { icon: '👣', text: '방향키나 아래 ▲◀▼▶ 버튼으로 우왕이를 걷게 해요. 화면을 드래그하면 둘러볼 수 있어요.' },
+    { icon: '📍', text: '📍 목록에서 장소를 고르면 우왕이가 그곳까지 걸어가요. 🗺️ 지도로 바꿔 볼 수도 있어요.' },
+    { icon: '💧', text: '목이 마르면 💧 물을 마셔요. 🎵 배경음과 🎧 헤드셋도 바꿀 수 있어요.' },
+    { icon: '🤝', text: '숨은 친구를 찾고 📜 오늘의 퀘스트를 끝내면 코인이 쌓여요. 아프면 걷지 않으니 꼭 돌봐 주세요!' },
+  ];
+  let guideStep = 0;
+
+  function showGuide() {
+    if (state.walkGuideSeen || !inWalk) return;
+    guideStep = 0;
+    renderGuide();
+    $('#walk-guide').hidden = false;
+  }
+
+  function renderGuide() {
+    const s = GUIDE_STEPS[guideStep];
+    $('#guide-icon').textContent = s.icon;
+    $('#guide-text').textContent = s.text;
+    $('#guide-count').textContent = `${guideStep + 1} / ${GUIDE_STEPS.length}`;
+    $('#guide-dots').innerHTML = GUIDE_STEPS.map((_, i) => `<i class="${i <= guideStep ? 'on' : ''}"></i>`).join('');
+    $('#guide-next').textContent = guideStep === GUIDE_STEPS.length - 1 ? '시작하기' : '다음';
+    const bubble = $('#walk-guide .guide-bubble');
+    bubble.classList.remove('pop');
+    void bubble.offsetWidth;   // 같은 애니메이션을 다시 돌리려고 강제로 다시 그린다
+    bubble.classList.add('pop');
+  }
+
+  function nextGuide() {
+    if (guideStep < GUIDE_STEPS.length - 1) { guideStep++; renderGuide(); }
+    else closeGuide();
+  }
+
+  function closeGuide() {
+    $('#walk-guide').hidden = true;
+    if (!state.walkGuideSeen) { state.walkGuideSeen = true; saveState(); }
   }
 
   // ---------- 헤드셋 ----------
