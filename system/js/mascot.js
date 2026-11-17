@@ -160,10 +160,10 @@ function uwangFrame(sheet, col, row) {
 //   > .uwang-idle(무게중심 이동) > .uwang-breath(호흡) > 상태/표정 이미지 레이어와 의상
 // 산책 헤드셋: 좌표는 상자 비율(%). 귀덮개는 얼굴 옆선(25%·75%), 밴드는 뿔 끝과 머리털 끝이 위로 보이게 정수리에 얹는다
 const UWANG_HEADSET_SVG = `<svg class="uwang-headset" viewBox="0 0 100 100">
- <path d="M24.5 30 A25.5 25.5 0 0 1 75.5 30" fill="none" stroke="#3b2417" stroke-width="7.5" stroke-linecap="round"/>
- <path d="M24.5 30 A25.5 25.5 0 0 1 75.5 30" fill="none" stroke="#800020" stroke-width="4.75" stroke-linecap="round"/>
- <rect x="17.5" y="24" width="14" height="19.5" rx="5.75" fill="#800020" stroke="#3b2417" stroke-width="1.7"/>
- <rect x="68.5" y="24" width="14" height="19.5" rx="5.75" fill="#800020" stroke="#3b2417" stroke-width="1.7"/>
+ <path d="M24.5 30 A25.5 25.5 0 0 1 75.5 30" fill="none" stroke="#2e3036" stroke-width="7.5" stroke-linecap="round"/>
+ <path d="M24.5 30 A25.5 25.5 0 0 1 75.5 30" fill="none" stroke="#9ea3ad" stroke-width="4.75" stroke-linecap="round"/>
+ <rect x="17.5" y="24" width="14" height="19.5" rx="5.75" fill="#9ea3ad" stroke="#2e3036" stroke-width="1.7"/>
+ <rect x="68.5" y="24" width="14" height="19.5" rx="5.75" fill="#9ea3ad" stroke="#2e3036" stroke-width="1.7"/>
  <path d="M21 28.5 v10 M72 28.5 v10" stroke="#fff" stroke-width="1.7" stroke-linecap="round" opacity=".45"/>
 </svg>`;
 

@@ -1441,6 +1441,7 @@ const Walk = (() => {
       at: Date.now(), time: session.time, steps, seconds: walkSeconds,
       places: session.places.size, coins: session.coins, hearts: session.hearts,
       drinks: session.drinks, stamps: session.stamps.length, friends: session.friends.length,
+      friendNames: [...new Set(session.friends)],   // 이번 산책에서 인사한 친구 이름 (중복 없이)
     };
     state.walkLog = [entry, ...(state.walkLog || [])].slice(0, WALK_LOG_MAX);
     lastLogAt = entry.at;
@@ -1486,8 +1487,9 @@ const Walk = (() => {
       const d = new Date(e.at);
       const when = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
       const t = TIMES[e.time] || { label: '산책', icon: '🐾' };
+      const names = e.friendNames && e.friendNames.length ? `<small class="log-friends">만난 친구: ${e.friendNames.map((n) => `<span class="log-face" title="${noteText(n)}">${friendFace(friendByName(n))}</span>`).join('')}</small>` : '';
       const note = e.note ? `<small class="log-note">💬 ${noteText(e.note)}</small>` : '';
-      return `<li><span class="log-when">${when}</span><span class="log-what">${t.icon} ${t.label} · ${e.steps.toLocaleString()}걸음 · ${fmtTime(e.seconds)}</span><small>장소 ${e.places} · 🪙 ${e.coins}</small>${note}</li>`;
+      return `<li><span class="log-when">${when}</span><span class="log-what">${t.icon} ${t.label} · ${e.steps.toLocaleString()}걸음 · ${fmtTime(e.seconds)}</span><small>장소 ${e.places} · 🪙 ${e.coins}</small>${names}${note}</li>`;
     }).join('') : '<li class="log-empty">아직 산책 기록이 없어요. 산책을 마치면 여기에 남아요.</li>';
   }
 
