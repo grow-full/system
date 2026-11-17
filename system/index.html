@@ -441,6 +441,14 @@
             </div>
             <button class="primary" id="btn-walk-next">📍 출발 장소 고르기</button>
             <button class="ghost" id="btn-walk-care" hidden>🐣 우왕이 돌보러 가기</button>
+            <div class="card walk-quest-card">
+              <div class="collection-head"><b>📜 오늘의 퀘스트</b><small id="walk-quest-count"></small></div>
+              <ul class="walk-quests" id="walk-quests"></ul>
+            </div>
+            <div class="card walk-log-card">
+              <div class="collection-head"><b>📔 산책 기록</b><small id="walk-log-total"></small></div>
+              <ul class="walk-log" id="walk-log"></ul>
+            </div>
           </div>
   
           <!-- 출발 장소 고르기 -->
@@ -534,6 +542,20 @@
               <div class="walk-hint" id="walk-hint" hidden></div>
               <div class="walk-place" id="walk-place" hidden></div>
               <p class="walk-notice" id="walk-notice" hidden></p>
+              <div class="walk-warm" id="walk-warm" hidden></div>
+              <button class="walk-talk-btn" id="walk-talk-btn" hidden>💬 말걸기</button>
+              <!-- 첫 산책 안내 말풍선: 처음 한 번만 뜬다 -->
+              <div class="walk-guide" id="walk-guide" hidden role="dialog" aria-label="산책 안내">
+                <div class="guide-bubble">
+                  <div class="guide-head"><span class="guide-icon" id="guide-icon">🐾</span><b>산책 안내</b><small id="guide-count"></small></div>
+                  <p class="guide-text" id="guide-text"></p>
+                  <div class="guide-foot">
+                    <span class="guide-dots" id="guide-dots"></span>
+                    <button class="ghost guide-skip" id="guide-skip">건너뛰기</button>
+                    <button class="primary guide-next" id="guide-next">다음</button>
+                  </div>
+                </div>
+              </div>
               <div class="walk-fade" id="walk-fade"></div>
               <div class="walk-stamp-pop" id="walk-stamp-pop" hidden></div>
             </div>
@@ -602,7 +624,7 @@
             <li><span class="wr-icon">⏱</span><span class="wr-what">10분 산책하기</span><span class="wr-gift">🪙 5</span></li>
             <li><span class="wr-icon">🐾</span><span class="wr-what">100걸음 걷기</span><span class="wr-gift">💗 +1</span></li>
             <li><span class="wr-icon">🏅</span><span class="wr-what">한 장소에서 50걸음<small>도장을 모두 모으면 🪙 30 더</small></span><span class="wr-gift">첫 도장 🪙 3</span></li>
-            <li><span class="wr-icon">🤝</span><span class="wr-what">숨은 친구와 인사하기<small>5명을 모두 찾으면 🪙 15 더</small></span><span class="wr-gift">처음 🪙 2</span></li>
+            <li><span class="wr-icon">🤝</span><span class="wr-what">숨은 친구와 인사하기<small>5명을 모두 찾으면 🪙 25 더</small></span><span class="wr-gift">처음 🪙 5</span></li>
             <li><span class="wr-icon">💧</span><span class="wr-what">목마를 때 물 마시기<small>80걸음쯤 걸으면 목말라해요. 다음 💗까지 30걸음을 채워 줘요</small></span><span class="wr-gift">💗 +30걸음</span></li>
           </ul>
           <p class="walk-rules-note">산책 시간은 산책 화면을 보고 있을 때만 흘러요.</p>
@@ -610,7 +632,8 @@
         <div class="card walk-stamps-card">
           <div class="collection-head"><b>🤝 찾은 친구</b><small id="walk-friend-count"></small></div>
           <div class="walk-friends" id="walk-friends"></div>
-          <p class="collection-note">친구가 사는 곳에 가서 인사하면 얼굴이 나타나요.</p>
+          <button class="primary walk-friend-claim" id="btn-friend-claim" hidden></button>
+          <p class="collection-note">친구가 사는 곳에 가서 인사하면 얼굴이 나타나요. 보상은 위 버튼을 눌러 받아요.</p>
         </div>
         <div class="card walk-stamps-card">
           <div class="collection-head"><b>🏅 산책 도장</b><small id="walk-stamp-count"></small></div>
