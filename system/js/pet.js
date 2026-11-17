@@ -1033,6 +1033,7 @@ const Pet = (() => {
     const items = [
       ...DESTINATIONS.map((d) => ({ id: d.id, outfit: d.outfit, locked: d.name, hint: `${d.name}에 가면 받아요` })),
       ...FOCUS_COSTUMES.map((c) => ({ id: c.id, outfit: c, locked: `📚 ${c.hours}시간`, hint: `집중 모드로 ${c.hours}시간 모으면 받아요` })),
+      ...Object.keys(GIFT_OUTFITS).map((id) => ({ id, outfit: OUTFITS[id], locked: '🎁 산책에서 찾기', hint: '산책할 때 곳곳에 숨은 선물을 찾으면 옷장에 들어가요' })),
     ];
     $('#wardrobe-count').textContent = `${items.filter((it) => state.outfits.includes(it.id)).length} / ${items.length}`;
     $('#wardrobe').innerHTML = items.map(({ id, outfit: o, locked, hint }) => {

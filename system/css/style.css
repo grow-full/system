@@ -217,6 +217,10 @@ main { min-width: 0; height: 100vh; }
 .outfit .slot-face { left: 50%; top: 54%; font-size: calc(var(--size) * .3); }
 .outfit .slot-neck { left: 50%; top: 82%; font-size: calc(var(--size) * .22); }
 .outfit .slot-hand { left: 92%; top: 72%; font-size: calc(var(--size) * .22); }
+/* 몸 (과잠): 몸통 가운데에 입힌다. 그림(svg)은 글자 크기에 맞춘다 */
+.outfit .slot-body { left: 50%; top: 70%; font-size: calc(var(--size) * .36); }
+.outfit .slot-body svg { display: block; width: 1em; height: 1em; overflow: visible; }
+.mascot-wrap:has(.uwang-art) .outfit .slot-body { top: 72%; font-size: calc(var(--size) * .34); }
 
 /* 도트답게 움직임은 뚝뚝 끊어서 */
 .m-body { animation: breathe 1.6s steps(1) infinite; }
@@ -1042,6 +1046,72 @@ main { min-width: 0; height: 100vh; }
 .walk-friend-claim[hidden] { display: none; }
 
 /* 친구 위치 힌트: 산책 화면 위쪽 가운데에 도트 말풍선으로 뜬다 */
+/* 숨은 선물 상자: 살짝 까딱이고 반짝이며, 누르면 열린다. 위치는 JS가 left/top으로 옮긴다 */
+.walk-gift {
+  position: absolute; left: 0; top: 0; z-index: 3; width: 44px; height: 44px; padding: 0; margin: 0;
+  border: 0; border-radius: 0; background: none; cursor: pointer; pointer-events: auto;
+  transform-origin: 50% 100%; animation: gift-wiggle 2.6s steps(1, end) infinite;
+}
+.walk-gift[hidden] { display: none; }
+/* 바닥에 놓인 느낌: 상자 밑에 납작한 그림자를 깐다 */
+.walk-gift::after {
+  content: ''; position: absolute; left: 14%; right: 14%; bottom: -3px; height: 6px;
+  background: rgba(74, 13, 34, .28); pointer-events: none;
+}
+.walk-gift:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.walk-gift .gift-box {
+  display: block; width: 100%; height: 100%; overflow: visible;
+  filter: drop-shadow(0 3px 0 var(--ink));
+  transition: transform .15s steps(2, end);
+}
+.walk-gift:hover .gift-box, .walk-gift:focus-visible .gift-box { transform: translateY(-4px); }
+.walk-gift.opening { animation: gift-open .6s steps(4, end) forwards; }
+.gift-tag {
+  position: absolute; left: 50%; bottom: 100%; padding: 3px 8px; white-space: nowrap;
+  background: var(--lcd); color: var(--primary-dark); font-size: 12px; font-weight: 700;
+  box-shadow: var(--px-border); transform: translate(-50%, -6px); pointer-events: none;
+  animation: gift-tag-bob .8s steps(2, end) infinite;
+}
+.gift-spark { position: absolute; font-size: 12px; font-style: normal; line-height: 1; pointer-events: none; animation: gift-spark 1.6s steps(3, end) infinite; }
+.gift-spark.sp1 { left: -6px; top: 8px; }
+.gift-spark.sp2 { right: -8px; top: -2px; animation-delay: .5s; }
+.gift-spark.sp3 { right: 0; bottom: 6px; animation-delay: 1s; }
+@keyframes gift-wiggle {
+  0%, 80%, 100% { transform: rotate(0); }
+  84% { transform: rotate(-9deg); }
+  88% { transform: rotate(9deg); }
+  92% { transform: rotate(-5deg); }
+  96% { transform: rotate(4deg); }
+}
+@keyframes gift-open {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35) rotate(-8deg); opacity: 1; }
+  100% { transform: scale(.2) rotate(12deg); opacity: 0; }
+}
+@keyframes gift-tag-bob { from { transform: translate(-50%, -6px); } to { transform: translate(-50%, -11px); } }
+@keyframes gift-spark { 0% { opacity: 0; transform: scale(.4); } 40% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(.6) translateY(-5px); } }
+@media (prefers-reduced-motion: reduce) { .walk-gift, .gift-tag, .gift-spark { animation: none; } }
+
+/* 선물 받기 창: 크림 카드에 도트 테두리 */
+.gift-reveal { position: absolute; inset: 0; z-index: 7; display: grid; place-items: center; background: rgba(74, 13, 34, .28); pointer-events: auto; }
+.gift-reveal[hidden] { display: none; }
+.gift-reveal-card {
+  width: min(300px, calc(100% - 40px)); padding: 16px; background: #fffaf0; color: var(--ink);
+  text-align: center; box-shadow: var(--px-border); animation: guide-pop .32s steps(4, end);
+}
+.gift-reveal-title { margin: 0 0 10px; font-size: 15px; font-weight: 700; color: var(--primary-dark); }
+.gift-reveal-art { display: grid; place-items: center; height: 130px; margin-bottom: 10px; background: #dff0f5; box-shadow: var(--px-border); }
+.gift-reveal-art .outfit-art { display: block; width: 96px; height: 96px; }
+.gift-reveal-art .outfit-art svg { display: block; width: 100%; height: 100%; }
+.gift-reveal-art .reveal-card { width: 104px; height: 104px; object-fit: contain; }
+.gift-reveal-art .reveal-emoji { font-size: 72px; line-height: 1; }
+.gift-reveal-art .reveal-friend { display: block; width: 110px; height: 110px; }
+.gift-reveal-art .reveal-friend svg, .gift-reveal-art .reveal-friend img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.gift-reveal-name { display: block; margin-bottom: 4px; font-size: 16px; }
+.gift-reveal-desc { margin: 0 0 12px; font-size: 13px; line-height: 1.5; color: var(--sub); word-break: keep-all; }
+.gift-reveal-ok { width: 100%; margin: 0; }
+
+
 .walk-warm {
   position: absolute; top: 12px; left: 50%; z-index: 4; transform: translateX(-50%);
   padding: 6px 12px; background: var(--lcd); color: var(--ink); font-size: 14px; font-weight: 700;
@@ -1061,6 +1131,19 @@ main { min-width: 0; height: 100vh; }
 .walk-talk-btn:active { box-shadow: none; transform: translate(-50%, -97%); }
 .walk-talk-btn[hidden] { display: none; }
 .walk-talk-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+/* 산책 소감 한 줄 */
+.walk-note-card { margin: 12px 0; }
+.walk-note-card[hidden] { display: none; }
+.walk-note-label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 700; color: var(--primary-dark); }
+.walk-note-row { display: flex; gap: 6px; }
+.walk-note-row input {
+  flex: 1; min-width: 0; margin: 0; padding: 8px 10px; border: 0; border-radius: 0;
+  background: #fffaf0; color: var(--ink); font: inherit; font-size: 14px; box-shadow: var(--px-border);
+}
+.walk-note-save { width: auto; margin: 0; padding: 8px 14px; }
+.walk-note-msg { min-height: 1em; margin: 6px 0 0; font-size: 12px; color: var(--sub); }
+.walk-log .log-note { flex-basis: 100%; font-size: 12px; color: var(--primary-dark); word-break: keep-all; }
 
 /* 첫 산책 안내 말풍선: 크림 바탕, 버건디 도트 테두리, 아래 꼬리, 한 칸씩 튀어나오는 등장 */
 .walk-guide { position: absolute; top: 14px; left: 50%; z-index: 6; width: min(340px, calc(100% - 32px)); transform: translateX(-50%); pointer-events: none; }

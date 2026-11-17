@@ -519,6 +519,14 @@
                 <div class="walk-summary-icons" id="ws-friends"></div>
               </div>
             </div>
+            <div class="card walk-note-card" id="walk-note-card" hidden>
+              <label class="walk-note-label" for="walk-note-input">📝 오늘 산책은 어땠나요? 한 줄 소감</label>
+              <div class="walk-note-row">
+                <input id="walk-note-input" type="text" maxlength="60" placeholder="예: 날씨가 좋아서 기분 최고였어요" autocomplete="off">
+                <button class="primary walk-note-save" id="walk-note-save" type="button">저장</button>
+              </div>
+              <p class="walk-note-msg" id="walk-note-msg" aria-live="polite"></p>
+            </div>
             <button class="primary" id="btn-summary-again">🐾 다시 산책 가기</button>
             <button class="ghost" id="btn-summary-pet">🐣 우왕이 보러 가기</button>
           </div>
@@ -530,6 +538,28 @@
             <div class="walk-view" id="walk-view"></div>
             <div class="walk-tint" id="walk-tint" aria-hidden="true"></div>
             <div class="walk-overlay" id="walk-overlay">
+              <button class="walk-gift" id="walk-gift" type="button" hidden aria-label="선물 상자 열기">
+                <span class="gift-tag">열어 보기!</span>
+                <svg class="gift-box" viewBox="0 0 32 32" shape-rendering="crispEdges" aria-hidden="true">
+                  <rect x="5" y="14" width="22" height="15" fill="#fff3f6" stroke="#4a0d22" stroke-width="1.6"/>
+                  <rect x="14" y="14" width="4" height="15" fill="#e8577a"/>
+                  <rect x="8" y="17" width="3" height="8" fill="#ffffff" opacity=".85"/>
+                  <rect x="3" y="9" width="26" height="6" fill="#ffd0dc" stroke="#4a0d22" stroke-width="1.6"/>
+                  <rect x="14" y="9" width="4" height="6" fill="#e8577a"/>
+                  <path d="M16 9 C12 2 6 3 8 7 C9 9 13 9 16 9 Z" fill="#e8577a" stroke="#4a0d22" stroke-width="1.4"/>
+                  <path d="M16 9 C20 2 26 3 24 7 C23 9 19 9 16 9 Z" fill="#e8577a" stroke="#4a0d22" stroke-width="1.4"/>
+                </svg>
+                <i class="gift-spark sp1">✨</i><i class="gift-spark sp2">✨</i><i class="gift-spark sp3">✦</i>
+              </button>
+              <div class="gift-reveal" id="gift-reveal" hidden>
+                <div class="gift-reveal-card">
+                  <p class="gift-reveal-title">🎁 선물을 받았어요!</p>
+                  <div class="gift-reveal-art" id="gift-reveal-art"></div>
+                  <b class="gift-reveal-name" id="gift-reveal-name"></b>
+                  <p class="gift-reveal-desc" id="gift-reveal-desc"></p>
+                  <button class="primary gift-reveal-ok" id="gift-reveal-ok" type="button">좋아요</button>
+                </div>
+              </div>
               <button class="walk-friend" id="walk-friend" hidden>
                 <div class="walk-speech friend-speech" id="walk-friend-speech"></div>
                 <span class="friend-body" id="walk-friend-body"></span>
@@ -580,7 +610,7 @@
           <button class="walk-music" id="btn-walk-music" aria-pressed="true"><span id="walk-music-icon">🎵</span> <span id="walk-music-label">배경음 켜짐</span></button>
           <button class="walk-music" id="btn-walk-headset" aria-pressed="false">🎧 <span id="walk-headset-label">헤드셋 끼기</span></button>
           <button class="walk-music walk-drink" id="btn-walk-drink">💧 <span id="walk-drink-label">물 마시기</span></button>
-        </div>
+          <button class="walk-music walk-photo" id="btn-walk-photo">📸 사진 찍기</button>        </div>
         <!-- 어디로 갈까요?: 지도와 목록을 한 칸에서 바꿔 본다 -->
         <div class="card walk-nav" id="walk-nav" hidden>
           <div class="walk-nav-head">

@@ -196,7 +196,7 @@ const DESTINATIONS = [
 ];
 
 // 여행지에 처음 도착하면 받는 의상. slot: 입는 자리
-const SLOT_NAMES = { head: '머리', face: '얼굴', neck: '목', hand: '손' };
+const SLOT_NAMES = { head: '머리', face: '얼굴', neck: '목', hand: '손', body: '몸' };
 const OUTFITS = {
   jeju: { emoji: '🍊', name: '감귤 모자', slot: 'head' },
   seoul: { emoji: '📸', name: '여행 카메라', slot: 'neck' },
@@ -221,6 +221,30 @@ const OUTFITS = {
   sydney: { emoji: '🤿', name: '스노클 마스크', slot: 'face' },
 };
 DESTINATIONS.forEach((d) => { d.outfit = OUTFITS[d.id]; });
+
+// 산책 중 곳곳에 숨겨 둔 선물. 찾으면 옷장에 바로 들어간다 (WALK_GIFTS: maps-config.js)
+// 산책 선물 중 옷으로 받는 것 (지금은 없음)
+const GIFT_OUTFITS = {};
+Object.assign(OUTFITS, GIFT_OUTFITS);
+// 선물 상자에서 나오는 것: outfit은 옷장에 들어가고, card는 포토카드로 모은다
+const GIFT_ITEMS = {
+  photocard1: { kind: 'card', name: '우왕이 포토카드 ①' },
+  photocard2: { kind: 'card', name: '우왕이 포토카드 ②' },
+  photocard3: { kind: 'card', name: '우왕이 포토카드 ③' },
+  card_jwawang: { kind: 'card', name: '좌왕이 포토카드', friend: '좌왕이' },
+  card_steady: { kind: 'card', name: '스테디 포토카드', friend: '스테디' },
+  card_tana: { kind: 'card', name: '타나 포토카드', friend: '타나' },
+  card_neuru: { kind: 'card', name: '느루 포토카드', friend: '느루' },
+  coins1: { kind: 'coins', name: '코인 꾸러미', amount: 10 },
+  coins2: { kind: 'coins', name: '코인 꾸러미', amount: 10 },
+  coins3: { kind: 'coins', name: '코인 꾸러미', amount: 10 },
+  coins4: { kind: 'coins', name: '코인 꾸러미', amount: 10 },
+  heart1: { kind: 'heart', name: '행복 하트', amount: 2 },
+  heart2: { kind: 'heart', name: '행복 하트', amount: 2 },
+  heart3: { kind: 'heart', name: '행복 하트', amount: 2 },
+  heart4: { kind: 'heart', name: '행복 하트', amount: 2 },
+  heart5: { kind: 'heart', name: '행복 하트', amount: 2 },
+};
 
 // 공부할 때 쓰는 갈색 뿔테 안경 (그림 이모지는 파란색이라 직접 그린다)
 // 좌표는 우왕이 그림(200×200)과 같아서 렌즈가 우왕이 눈(72,104 / 128,104)에 맞는다.

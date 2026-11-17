@@ -112,7 +112,7 @@ function defaultState() {
     souvenirs: [],
     decor: [],      // 방 꾸미기: 장식 자리마다 놓은 기념품(여행지 id 또는 null) (pet.js DECOR_SLOTS)
     outfits: [],    // 받은 의상 (여행지 id)
-    equipped: { head: null, face: null, neck: null, hand: null },
+    equipped: { head: null, face: null, neck: null, hand: null, body: null },
     forms: [],      // 지금까지 키워 본 어른 모습 (다시 키워도 남는다)
     bestScores: {},
     deviceId: Math.random().toString(36).slice(2, 10),
@@ -129,6 +129,8 @@ function defaultState() {
     quests: null,           // 오늘의 퀘스트: { day, ids, progress, claimed } (walk.js, 날이 바뀌면 새로 고른다)
     walkLog: [],            // 산책 기록 (최근 것이 앞에 온다, walk.js)
     walkTalked: { day: '', names: [] },   // 오늘 말을 걸어 코인을 받은 친구 (walk.js, 날이 바뀌면 비운다)
+    photoCards: [],         // 받은 우왕이 포토카드 (선물 상자에서 나온다, walk.js)
+    walkGiftsOpened: [],    // 이미 연 선물 상자 id (코인·하트 상자는 한 번만 받는다, walk.js)
     walkGuideSeen: false,   // 첫 산책 안내를 다 봤거나 건너뛰었는지 (walk.js)
     focusTotal: 0,  // 집중 모드 누적 시간(초)
     playedAt: 0,    // 마지막으로 직접 플레이한 시각. 기기끼리 이 값이 큰 쪽 진행을 쓴다 (cloud.js)

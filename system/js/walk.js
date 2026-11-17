@@ -62,7 +62,12 @@ const Walk = (() => {
     $('#btn-walk-music').addEventListener('click', toggleMusic);
     $('#btn-walk-headset').addEventListener('click', toggleHeadset);
     $('#btn-walk-drink').addEventListener('click', drink);
+    $('#btn-walk-photo').addEventListener('click', takePhoto);
+    $('#walk-gift').addEventListener('click', openGift);
+    $('#gift-reveal-ok').addEventListener('click', closeReveal);
     $('#btn-friend-claim').addEventListener('click', claimFriendReward);
+    $('#walk-note-save').addEventListener('click', saveNote);
+    $('#walk-note-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveNote(); });
     $('#walk-talk-btn').addEventListener('click', talkFriend);
     $('#guide-next').addEventListener('click', nextGuide);
     $('#guide-skip').addEventListener('click', closeGuide);
@@ -148,11 +153,33 @@ const Walk = (() => {
   // 지금 장소에 대한 우왕이의 감상 하나 (바로 전에 한 말은 피한다)
   let lastComment = '';
   let idleSpeech = false;     // 지금 말풍선이 가만히 있을 때 한 혼잣말인지 (걸으면 바로 바꾼다)
+  // 장소와 상관없이 가끔 나오는 말: 주변 구경, 우왕이의 상태(걸은 양·행복·배고픔·산책 시간)에 따라 고른다
+  const GENERIC_LINES = [
+    '사람들이 지나가요 👀', '새 소리가 들려요 🐦', '저 나무 좀 봐요 🌳', '바람이 살랑살랑 🍃',
+    '오늘 산책 기분 좋아요 😊', '누가 나를 봤을까요? 😳', '여기 사진 찍기 좋아요 📷', '발바닥이 간지러워요 🐾',
+    '좋은 하루예요 ✨', '저 구름 모양 보세요, 꼭 뭐 같아요 ☁️',
+  ];
+
+  function moodPool() {
+    const pool = GENERIC_LINES.slice();
+    const pet = state.pet;
+    if (steps >= 300) pool.push('다리가 조금 뻐근해요 😅', '걸음이 차곡차곡 쌓이고 있어요! 👣');
+    if (walkSeconds >= 600) pool.push('벌써 10분이나 걸었어요! ⏱️');
+    if (pet.happy >= 4) pool.push('오늘 기분 최고예요 💗', '산책하니까 신나요!');
+    if (pet.hunger <= 1) pool.push('배가 살짝 고파요… 🍙');
+    return pool;
+  }
+
   function placeComment() {
     const all = typeof WALK_COMMENTS === 'undefined' ? {} : WALK_COMMENTS;
     const fallback = typeof WALK_COMMENTS_DEFAULT === 'undefined' ? PHRASES : WALK_COMMENTS_DEFAULT;
     const timely = inWalk ? timeComment() : '';
     if (timely && timely !== lastComment) { lastComment = timely; return timely; }
+    if (inWalk && Math.random() < 0.3) {
+      const pool = moodPool().filter((l) => l !== lastComment);
+      lastComment = pool[Math.floor(Math.random() * pool.length)];
+      return lastComment;
+    }
     const lines = (pano && all[moodName()]) || fallback;
     const choices = lines.length > 1 ? lines.filter((l) => l !== lastComment) : lines;
     lastComment = choices[Math.floor(Math.random() * choices.length)];
@@ -352,10 +379,21 @@ const Walk = (() => {
     }).join('');
   }
 
+  // 장소로 걸어가기도 같은 방식으로 감싼다 (오류가 나도 방향키가 막히지 않게)
   async function goTo(index) {
     const p = places[index];
     const spot = p && nearestSpot(p);
     if (!spot || traveling || !canWalk()) return;
+    try {
+      await goToInner(index, spot);
+    } catch (e) {
+      console.error('장소로 걷기 실패', e);
+      traveling = false;
+    }
+  }
+
+  async function goToInner(index, spot) {
+    const p = places[index];
     traveling = true;
     const from = pano.getPosition();
     const bearing = from ? spherical.computeHeading(from, spot.latLng) : pano.getPov().heading;
@@ -500,8 +538,18 @@ const Walk = (() => {
     });
   }
 
+  // 걷기가 중간에 오류로 끊겨도 '이동 중' 표시가 남아 방향키가 막히지 않게 감싼다
   async function go(backward = false) {
     if (!pano || !service || traveling || !canWalk()) return;
+    try {
+      await goInner(backward);
+    } catch (e) {
+      console.error('걷기 실패', e);
+      traveling = false;
+    }
+  }
+
+  async function goInner(backward = false) {
     traveling = true;
     const look = pano.getPov().heading;
     const direction = backward ? wrap(look + 180) : look;
@@ -540,7 +588,12 @@ const Walk = (() => {
   let followUntil = 0;        // 이 시각까지는 화면이 우왕이를 따라 돈다
 
   function nudge(dir) {
-    if (!pano || traveling || !canWalk()) return;
+    if (!pano) return;
+    if (!canWalk()) {   // 못 걷는 이유를 말해 준다 (알, 아픔, 여행 중)
+      say(state.pet.sick ? '아파서 걸을 수 없어요 🤒' : '지금은 걸을 수 없어요', 1600);
+      return;
+    }
+    if (traveling) return;   // 다른 곳으로 걸어가는 중이면 잠깐 기다린다
     lastMove = Date.now() + 4000;    // 직접 움직이는 동안은 혼자 돌아다니지 않는다
     followUntil = Date.now() + 1500;
     if (dir === 'left' || dir === 'right') {
@@ -589,6 +642,28 @@ const Walk = (() => {
     if (off) hint.textContent = off === 'left' ? '← 우왕이는 이쪽에 있어요' : '우왕이는 이쪽에 있어요 →';
     hint.dataset.side = off;
 
+    // 숨은 선물(🎁)도 같은 방식으로 장소 안에 둔다. 찾으면 사라진다
+    // (상자는 left/top으로 옮긴다: transform은 흔들기 애니메이션이 쓰고 있다)
+    const gEl = $('#walk-gift');
+    if (!gift || away || walkingAway) {
+      gEl.hidden = true;
+    } else {
+      const gSize = Math.max(34, BASE_SIZE * 2 ** (zoom - 1) * (1 - 0.7 * GIFT_DEPTH) * 0.3);
+      // 상자는 장소 쪽에 놓인다: 걸어가도 그 장소가 있는 방향에 계속 보인다 (도착한 시선에 묶이지 않는다)
+      const gp = places.find((x) => x.name === giftPlace);
+      const gs = gp && nearestSpot(gp);
+      const here = pano.getPosition();
+      const gBearing = gs && here && gs.meters > 8 ? spherical.computeHeading(here, gs.latLng) : pov.heading + 22;
+      const gx = w / 2 + wrap(gBearing - pov.heading) * pxPerDeg;
+      const gy = h * (FOOT_AT + (HORIZON_AT - FOOT_AT) * GIFT_DEPTH);
+      gEl.style.width = `${gSize}px`;
+      gEl.style.height = `${gSize}px`;
+      gEl.style.left = `${gx - gSize / 2}px`;
+      // 상자 그림은 칸 맨 아래에 3/32만큼 여백이 있어서, 그만큼 올려 상자 밑면이 바닥 선(gy)에 닿게 한다
+      gEl.style.top = `${gy - gSize * 0.906}px`;
+      gEl.hidden = gx < -gSize || gx > w + gSize;
+    }
+
     // 친구도 같은 방식으로 장소 안의 방향에 세운다
     const fEl = $('#walk-friend');
     if (!friend || away || walkingAway) { fEl.hidden = true; return; }
@@ -632,6 +707,106 @@ const Walk = (() => {
   function checkMeet() {
     if (!friend || friendMet || greeting || walkingAway || !canWalk()) return;
     if (Math.abs(wrap(heading - friendHeading)) < MEET_DEG && Math.abs(depth - FRIEND_DEPTH) < MEET_DEPTH) greet();
+  }
+
+  // ---------- 숨은 선물 상자 ----------
+  // 장소마다 선물 상자가 하나 숨어 있다 (maps-config.js의 WALK_GIFTS). 상자를 누르면 열려서 받는다.
+  let gift = null;             // 이 장소의 선물 id (없으면 null)
+  const GIFT_DEPTH = 0.3;      // 상자가 놓인 거리 (화면 위쪽일수록 멀다)
+  let giftPlace = '';          // 상자가 놓인 장소 이름 (방향은 장소를 따라 매번 계산한다)
+  let giftOpened = false;      // 이미 열었는지 (두 번 받지 않게)
+
+  // 이미 가진 선물인지
+  function giftOwned(id) {
+    const item = GIFT_ITEMS[id];
+    if (!item) return true;
+    if (item.kind === 'outfit') return state.outfits.includes(id);
+    if (item.kind === 'card') return state.photoCards.includes(id);
+    return state.walkGiftsOpened.includes(id);   // 코인·하트 상자는 한 번만
+  }
+
+  // 도착한 장소에 선물 상자를 놓는다 (이미 받은 선물이면 놓지 않는다)
+  function setGift(name) {
+    const all = typeof WALK_GIFTS === 'undefined' ? {} : WALK_GIFTS;
+    const id = name && all[name];
+    gift = id && !giftOwned(id) ? id : null;
+    giftOpened = false;
+    $('#walk-gift').hidden = !gift;
+    giftPlace = gift ? name : '';
+  }
+
+  // 상자를 누르면 살짝 튀었다가 열리고, 받은 것을 보여 준다
+  function openGift() {
+    if (!gift || giftOpened) return;
+    giftOpened = true;
+    const id = gift;
+    const box = $('#walk-gift');
+    box.classList.add('opening');
+    Sound.sfx('levelup');
+    setTimeout(() => {
+      grantGift(id);
+      box.hidden = true;
+      box.classList.remove('opening');
+      showReveal(id);
+    }, 600);
+  }
+
+  function grantGift(id) {
+    const item = GIFT_ITEMS[id];
+    if (!state.walkGiftsOpened.includes(id)) state.walkGiftsOpened.push(id);
+    if (item.kind === 'outfit') {
+      if (!state.outfits.includes(id)) state.outfits.push(id);   // 옷장에 바로 넣는다
+    } else if (item.kind === 'card') {
+      if (!state.photoCards.includes(id)) state.photoCards.push(id);   // 포토카드 모음에 넣는다
+    } else if (item.kind === 'coins') {
+      state.coins += item.amount;
+      if (session) session.coins += item.amount;
+      renderTop();
+    } else if (item.kind === 'heart') {
+      addHearts('happy', item.amount);
+      if (session) session.hearts += item.amount;
+      renderStats();
+    }
+    gift = null;
+    saveState();
+  }
+
+  // 이름으로 친구 정보 찾기 (친구 포토카드 그림에 쓴다)
+  function friendByName(name) {
+    const all = typeof WALK_FRIENDS === 'undefined' ? {} : WALK_FRIENDS;
+    return Object.values(all).find((f) => f.name === name) || {};
+  }
+
+  function showReveal(id) {
+    const item = GIFT_ITEMS[id];
+    const art = {
+      outfit: () => outfitIcon(OUTFITS[id]),
+      card: () => (item.friend
+        ? `<span class="reveal-friend">${friendFace(friendByName(item.friend))}</span>`
+        : `<img class="reveal-card" src="${mapMeSrc()}" alt="우왕이 포토카드">`),
+      coins: () => '<span class="reveal-emoji">🪙</span>',
+      heart: () => '<span class="reveal-emoji">💗</span>',
+    }[item.kind];
+    const desc = {
+      outfit: '옷장에 들어갔어요. 산책 옷 입기에서 바로 입을 수 있어요.',
+      card: '포토카드를 받았어요. 산책 기록에서 몇 장 모았는지 볼 수 있어요.',
+      coins: `코인 ${item.amount}개를 받았어요.`,
+      heart: `행복 하트 ${item.amount}개가 찼어요.`,
+    }[item.kind];
+    $('#gift-reveal-art').innerHTML = art();
+    $('#gift-reveal-name').textContent = item.name;
+    $('#gift-reveal-desc').textContent = desc;
+    $('#gift-reveal').hidden = false;
+    const card = $('#gift-reveal .gift-reveal-card');
+    card.classList.remove('pop');
+    void card.offsetWidth;   // 같은 애니메이션을 다시 돌리려고 강제로 다시 그린다
+    card.classList.add('pop');
+    say(`🎁 ${item.name}을(를) 받았어요!`, 3000);
+    renderWalkLog();
+  }
+
+  function closeReveal() {
+    $('#gift-reveal').hidden = true;
   }
 
   // 말걸기 버튼: 친구가 화면에 보이면 바로 뜬다. 누르면 코인을 주는데, 같은 친구에게는 하루에 한 번만 준다.
@@ -901,6 +1076,8 @@ const Walk = (() => {
     if (state.pet.sick) {
       if (!sickNoted) { sickNoted = true; say('으으… 아파서 더 못 걸어요 🤒 산책을 끝내고 쉬어요', 4000); }
     } else sickNoted = false;
+    // 지도가 늦게 준비되면 출발 때의 장소 확인이 빠지므로, 준비되는 대로 한 번 더 확인한다 (친구·선물 상자 설정)
+    if (pano && stampedPano === '') checkStamp();
     renderWarmth();
     renderTalk();
     // 지도가 떠 있고 우왕이가 같이 걸을 수 있을 때만 산책 시간이 흐른다
@@ -1254,7 +1431,10 @@ const Walk = (() => {
   // 산책을 끝낼 때마다 한 줄씩 남는다 (아무것도 안 한 산책은 남기지 않는다). 최근 50개까지 보관한다.
   const WALK_LOG_MAX = 50;
 
+  let lastLogAt = 0;   // 방금 끝낸 산책의 기록 시각 (소감을 이 기록에 붙인다, 0이면 기록이 없다)
+
   function saveWalkLog() {
+    lastLogAt = 0;
     if (!session) return;
     if (!steps && !walkSeconds) return;
     const entry = {
@@ -1263,7 +1443,33 @@ const Walk = (() => {
       drinks: session.drinks, stamps: session.stamps.length, friends: session.friends.length,
     };
     state.walkLog = [entry, ...(state.walkLog || [])].slice(0, WALK_LOG_MAX);
+    lastLogAt = entry.at;
     saveState();
+  }
+
+  // 소감 칸: 기록이 있을 때만 보이고, 저장하면 그 산책 기록에 붙는다
+  function resetNote() {
+    $('#walk-note-card').hidden = !lastLogAt;
+    $('#walk-note-input').value = '';
+    $('#walk-note-msg').textContent = '';
+  }
+
+  function saveNote() {
+    const text = $('#walk-note-input').value.trim();
+    const msg = $('#walk-note-msg');
+    const entry = (state.walkLog || []).find((e) => e.at === lastLogAt);
+    if (!entry) { msg.textContent = '저장할 산책 기록이 없어요.'; return; }
+    if (!text) { msg.textContent = '소감을 한 줄 적어 주세요.'; return; }
+    entry.note = text.slice(0, 60);
+    saveState();
+    renderWalkLog();
+    msg.textContent = '산책 기록에 저장했어요 💗';
+    say('소감 고마워요! 💗', 2000);
+  }
+
+  // 기록에 적힌 글을 HTML로 쓰이지 않게 바꾼다
+  function noteText(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
   function renderWalkLog() {
@@ -1272,12 +1478,16 @@ const Walk = (() => {
     const list = state.walkLog || [];
     const totalSteps = list.reduce((a, e) => a + (e.steps || 0), 0);
     const totalSec = list.reduce((a, e) => a + (e.seconds || 0), 0);
-    $('#walk-log-total').textContent = list.length ? `${list.length}번 · ${totalSteps.toLocaleString()}걸음 · ${fmtTime(totalSec)}` : '';
+    const cards = `🖼️ 포토카드 ${state.photoCards.length}장`;
+    $('#walk-log-total').textContent = list.length
+      ? `${list.length}번 · ${totalSteps.toLocaleString()}걸음 · ${fmtTime(totalSec)} · ${cards}`
+      : cards;
     box.innerHTML = list.length ? list.slice(0, 6).map((e) => {
       const d = new Date(e.at);
       const when = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
       const t = TIMES[e.time] || { label: '산책', icon: '🐾' };
-      return `<li><span class="log-when">${when}</span><span class="log-what">${t.icon} ${t.label} · ${e.steps.toLocaleString()}걸음 · ${fmtTime(e.seconds)}</span><small>장소 ${e.places} · 🪙 ${e.coins}</small></li>`;
+      const note = e.note ? `<small class="log-note">💬 ${noteText(e.note)}</small>` : '';
+      return `<li><span class="log-when">${when}</span><span class="log-what">${t.icon} ${t.label} · ${e.steps.toLocaleString()}걸음 · ${fmtTime(e.seconds)}</span><small>장소 ${e.places} · 🪙 ${e.coins}</small>${note}</li>`;
     }).join('') : '<li class="log-empty">아직 산책 기록이 없어요. 산책을 마치면 여기에 남아요.</li>';
   }
 
@@ -1405,10 +1615,10 @@ const Walk = (() => {
   // ---------- 시간대 ----------
   // 실제 시계에 맞춰 화면 색과 우왕이의 말이 바뀐다
   const TIMES = {
-    morning: { label: '아침', icon: '☀️', lines: ['아침 공기가 상쾌해요 ☀️', '1교시 가는 사람들이 바빠 보여요', '아침 산책은 기분이 좋아요 🌤️'] },
-    day: { label: '낮', icon: '🌤️', lines: ['햇빛이 따뜻해요 🌤️', '점심 먹고 산책하기 딱 좋아요', '낮에는 캠퍼스가 북적북적해요'] },
-    evening: { label: '저녁', icon: '🌇', lines: ['노을이 예뻐요 🌇', '하늘이 주황색으로 물들었어요', '저녁 바람이 선선해요'] },
-    night: { label: '밤', icon: '🌙', lines: ['밤 산책은 조금 무섭지만 신나요 🌙', '가로등 불빛이 예뻐요 💡', '졸리지만 조금만 더 걸어요 😪'] },
+    morning: { label: '아침', icon: '☀️', lines: ['아침 공기가 상쾌해요 ☀️', '1교시 가는 사람들이 바빠 보여요', '아침 산책은 기분이 좋아요 🌤️', '이슬 맺힌 풀이 반짝반짝해요 💧', '일찍 일어나니까 뿌듯해요 🌅', '커피 냄새가 솔솔 나요 ☕'] },
+    day: { label: '낮', icon: '🌤️', lines: ['햇빛이 따뜻해요 🌤️', '점심 먹고 산책하기 딱 좋아요', '낮에는 캠퍼스가 북적북적해요', '그늘에서 잠깐 쉬고 싶어요 🌳', '구름이 천천히 흘러가요 ☁️', '매점 앞이 제일 시끌벅적해요 🍢'] },
+    evening: { label: '저녁', icon: '🌇', lines: ['노을이 예뻐요 🌇', '하늘이 주황색으로 물들었어요', '저녁 바람이 선선해요', '집에 가는 사람들이 많아요 🚶', '가로등이 하나둘 켜져요 💡', '오늘 하루도 수고했어요 🌙'] },
+    night: { label: '밤', icon: '🌙', lines: ['밤 산책은 조금 무섭지만 신나요 🌙', '가로등 불빛이 예뻐요 💡', '졸리지만 조금만 더 걸어요 😪', '별이 보이는 것 같아요 ⭐', '조용해서 발소리가 크게 들려요 👣', '창문에 불 켜진 방이 많아요 🏠'] },
   };
 
   function timeOfDay(date = new Date()) {
@@ -1517,6 +1727,7 @@ const Walk = (() => {
   function endWalk() {
     $('#walk-guide').hidden = true;   // 안내가 아직 남아 있어도 산책이 끝나면 닫는다 (다음 산책에 이어서 본다)
     saveWalkLog();
+    resetNote();
     setStep('summary');
     renderSummary();   // 요약에는 입고 나갔던 모습 그대로 보여 준다
     undressAll();
@@ -1557,6 +1768,8 @@ const Walk = (() => {
     hereSteps = 0;
     hereDone = false;
     setFriend(hereName);   // 이 장소에 사는 친구
+    // 선물 상자는 장소 이름이 붙은 사진이 아니어도, 장소에서 150m 안이면 나온다 (친구보다 쉽게 찾도록)
+    setGift(hereName || nearName());
     renderStats();
     if (hereName && !state.walkStamps[hereName]) {
       setTimeout(() => say(`여기서 ${STAMP_STEPS}걸음 걸으면 도장을 받아요 🏅`, 2600), 2600);
@@ -1659,6 +1872,7 @@ const Walk = (() => {
     { icon: '👣', text: '방향키나 아래 ▲◀▼▶ 버튼으로 우왕이를 걷게 해요. 화면을 드래그하면 둘러볼 수 있어요.' },
     { icon: '📍', text: '📍 목록에서 장소를 고르면 우왕이가 그곳까지 걸어가요. 🗺️ 지도로 바꿔 볼 수도 있어요.' },
     { icon: '💧', text: '목이 마르면 💧 물을 마셔요. 🎵 배경음과 🎧 헤드셋도 바꿀 수 있어요.' },
+    { icon: '🎁', text: '곳곳에 선물 상자가 숨어 있어요! 장소 근처에 가서 화면을 둘러보고, 반짝이는 상자를 누르면 열려요.' },
     { icon: '🤝', text: '숨은 친구를 찾고 📜 오늘의 퀘스트를 끝내면 코인이 쌓여요. 아프면 걷지 않으니 꼭 돌봐 주세요!' },
   ];
   let guideStep = 0;
@@ -1691,6 +1905,39 @@ const Walk = (() => {
   function closeGuide() {
     $('#walk-guide').hidden = true;
     if (!state.walkGuideSeen) { state.walkGuideSeen = true; saveState(); }
+  }
+
+  // ---------- 사진 찍기 ----------
+  // 찰칵 찍는 시늉만 한다 (저장하지 않는다). 카메라 플래시가 번쩍이고 우왕이가 활짝 웃으며, 기분이 좋아져 행복 하트가 찬다.
+  // 하트는 1분에 한 번만 찬다.
+  const PHOTO_HEART_COOLDOWN = 60000;
+  let photoAt = 0;
+
+  function takePhoto() {
+    if (!inWalk) return;
+    if (!walkingAway) {
+      fade.classList.add('on');   // 카메라 플래시
+      setTimeout(() => fade.classList.remove('on'), 160);
+    }
+    Sound.sfx('ding');
+    playMascot(mascot, 'joy', 700);
+    const now = Date.now();
+    if (now - photoAt < PHOTO_HEART_COOLDOWN) {
+      say('찰칵! 📸 조금 이따 또 찍어요', 2000);
+      return;
+    }
+    photoAt = now;
+    if (state.pet.happy < MAX_HEARTS) {
+      addHearts('happy', 1);
+      if (session) session.hearts += 1;
+      saveState();
+      renderStats();
+      const el = $('#walk-happy');
+      el.classList.remove('up');
+      void el.offsetWidth;
+      el.classList.add('up');
+    }
+    say('찰칵! 📸 기분 최고예요 💗', 2600);
   }
 
   // ---------- 헤드셋 ----------
