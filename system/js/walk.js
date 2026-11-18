@@ -68,11 +68,13 @@ const Walk = (() => {
     $('#walk-note-save').addEventListener('click', saveNote);
     $('#walk-log-prev').addEventListener('click', () => { logPage--; renderWalkLog(); });
     $('#walk-log-next').addEventListener('click', () => { logPage++; renderWalkLog(); });
-    $('#btn-summary-booth').addEventListener('click', takeBooth);
-    $('#booth-again').addEventListener('click', takeBooth);
+    $('#btn-summary-booth').addEventListener('click', openBooth);
+    $('#booth-again').addEventListener('click', openBooth);
     $('#booth-close').addEventListener('click', () => { $('#booth').hidden = true; });
     $('#walk-note-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveNote(); });
     $('#walk-talk-btn').addEventListener('click', talkFriend);
+    $('#walk-cafe-btn').addEventListener('click', restAtCafe);
+    $('#cafe-stand').addEventListener('click', standUpCafe);
     $('#guide-next').addEventListener('click', nextGuide);
     $('#guide-skip').addEventListener('click', closeGuide);
     $('#walk-quests').addEventListener('click', (e) => {
@@ -594,7 +596,7 @@ const Walk = (() => {
   function nudge(dir) {
     if (!pano) return;
     if (!canWalk()) {   // 못 걷는 이유를 말해 준다 (알, 아픔, 여행 중)
-      say(state.pet.sick ? '아파서 걸을 수 없어요 🤒' : '지금은 걸을 수 없어요', 1600);
+      say(state.pet.sick ? '아파서 걸을 수 없어요 🤒' : cafeSitting ? '카페에서 쉬는 중이에요' : '지금은 걸을 수 없어요', 1600);
       return;
     }
     if (traveling) return;   // 다른 곳으로 걸어가는 중이면 잠깐 기다린다
@@ -823,6 +825,103 @@ const Walk = (() => {
     return Boolean(t && t.day === todayKey() && t.names.includes(name));
   }
 
+  // ---------- 카페에서 쉬기 (씨비앤유스타) ----------
+  // 씨비앤유스타에 도착하면 "카페에서 쉬기" 버튼이 뜬다. 누르면 행복도가 조금 오르고, 떠나면 다음 방문 때 다시 뜬다.
+  const CAFE_PLACE = '씨비앤유스타';
+  const CAFE_HAPPY = 5;   // 일어날 때 적립되는 행복도
+  let cafeRestedHere = false;   // 이번 방문에서 이미 쉬었는지
+  let cafeSitting = false;      // 지금 카페 테이블에 앉아 있는지 (앉아 있는 동안은 걷지 않는다)
+  let cafeSince = 0;            // 앉은 시각 (시계에 쉬고 있는 시간을 보여 준다)
+
+  // 카페 시계: 앉은 뒤로 흐른 시간 (분:초)
+  function renderCafeClock() {
+    const el = $('#cafe-time');
+    if (!el || !cafeSitting) return;
+    const s = Math.floor((Date.now() - cafeSince) / 1000);
+    el.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  // 카페 화면을 연다: 우왕이가 테이블에 앉는다
+  // 뒤쪽 테이블의 손님: 우왕이 학생 둘과 안경 낀 교수님 (교수님은 털을 바래고 안경·흰 눈썹·콧수염을 얹는다)
+  function cafeGuestsHTML() {
+    const src = mapMeSrc();
+    // 두 학생은 마주 보고 이야기하고, 교수님도 옆자리와 대화 중이다 (말풍선으로 표시)
+    const student = (x, line, face) => `<div class="cafe-guest" style="left:${x}%">
+        <img class="cafe-guest-img ${face}" src="${src}" alt="">
+        <span class="cafe-talk">${line}</span>
+      </div>`;
+    const prof = `<div class="cafe-guest prof-guest" style="left:84%">
+        <img class="cafe-guest-img prof" src="${src}" alt="">
+        <span class="prof-brow l"></span><span class="prof-brow r"></span>
+        <span class="prof-glasses">${HORN_GLASSES_SVG}</span>
+        <span class="prof-stache"></span>
+        <span class="cafe-talk">흠흠, 날씨가 좋네요</span>
+      </div>`;
+    // 음료: 두 학생 사이 테이블과 교수님 테이블 위에 놓는다 (사람들 앞쪽, 테이블 위에 보인다)
+    const cup = (x, kind) => `<span class="cafe-cup ${kind}" style="left:${x}%"></span>`;
+    return `<div class="cafe-table cafe-table-l"></div><div class="cafe-table cafe-table-r"></div>`
+      + '<div class="cafe-sofa" style="left:9%"><i></i><i></i></div>' + student(9, '하하, 진짜요?', '') + student(31, '그래서 어떻게 됐어요?', '') + prof
+      + cup(15, 'latte') + cup(25, 'iced') + cup(82, 'iced');
+  }
+
+  function openCafeScene() {
+    cafeSitting = true;
+    cafeSince = Date.now();
+    renderCafeClock();
+    $('#cafe-guests').innerHTML = cafeGuestsHTML();
+    $('#cafe-uwang').src = mapMeSrc();
+    $('#cafe-scene').hidden = false;
+    renderCafe();
+  }
+
+  // 일어나기: 다시 걸을 수 있다
+  function standUpCafe() {
+    if (!cafeSitting) return;
+    cafeSitting = false;
+    $('#cafe-scene').hidden = true;
+    const before = state.pet.happy;
+    addHearts('happy', CAFE_HAPPY);
+    const gained = state.pet.happy - before;
+    if (gained && session) session.hearts += gained;
+    if (gained) saveState();
+    renderStats();
+    renderCafe();
+    toast(gained ? `카페에서 쉬고 일어났어요 행복 +${gained}` : '카페에서 쉬고 일어났어요 (행복도가 가득 찼어요)');
+  }
+
+  // 씨비앤유스타 주변(CAFE_NEAR_METERS 안)에 있는지: 친구처럼 그 자리 근처에서만 보인다
+  const CAFE_NEAR_METERS = 60;
+  function nearCafe() {
+    if (!pano || !spherical || !places.length) return false;
+    const p = places.find((x) => x.name === CAFE_PLACE);
+    const s = p && nearestSpot(p);
+    return Boolean(s && s.meters <= CAFE_NEAR_METERS);
+  }
+
+  function renderCafe() {
+    const btn = $('#walk-cafe-btn');
+    if (!btn) return;
+    const near = inWalk && canWalk() && nearCafe();
+    // 자리를 떠나면 다음에 다시 올 때 쉴 수 있다
+    if (!nearCafe()) cafeRestedHere = false;
+    btn.hidden = !(near && !cafeRestedHere);
+    if (btn.hidden) return;
+    // 말걸기 버튼처럼 우왕이 머리 위에 붙는다 (카페 앞에서만 보인다)
+    const w = $('#walk-walker').getBoundingClientRect();
+    const o = overlay.getBoundingClientRect();
+    btn.style.left = `${w.left + w.width / 2 - o.left}px`;
+    btn.style.top = `${w.top - o.top - 6}px`;
+  }
+
+  // 앉으면 이번 방문의 쉬기가 끝나고, 행복도는 일어날 때 적립된다
+  function restAtCafe() {
+    if (!nearCafe() || !canWalk() || cafeRestedHere) return;
+    cafeRestedHere = true;
+    renderCafe();
+    Sound.sfx('ding');
+    openCafeScene();
+  }
+
   function renderTalk() {
     const btn = $('#walk-talk-btn');
     if (!btn) return;
@@ -931,7 +1030,7 @@ const Walk = (() => {
   function canWalk() {
     // 산책 중에는 밤이거나 불이 꺼져 있어도 깨어서 걷는다
     // 아프면 걷지 않는다 (걸음·하트·코인이 쌓이지 않는다)
-    return state.pet.stage !== 'egg' && !state.flight && !state.pet.sick;
+    return state.pet.stage !== 'egg' && !state.flight && !state.pet.sick && !cafeSitting;
   }
 
   // ---------- 걸음 수 · 산책 시간 · 행복 ----------
@@ -1077,6 +1176,7 @@ const Walk = (() => {
 
   function tick() {
     if ($('#screen-walk').hidden) return;
+    renderCafe();   // 산책 중이 아니면 카페 버튼을 숨긴다 (씨비앤유스타에서만 보인다)
     if (!inWalk) { renderCheck(); updateMusic(); return; }   // 산책 전 체크 화면 (음악은 끈다)
     // 산책 중에 아파지면 한 번 알려 주고 걸음을 멈춘다
     if (state.pet.sick) {
@@ -1086,6 +1186,8 @@ const Walk = (() => {
     if (pano && stampedPano === '') checkStamp();
     renderWarmth();
     renderTalk();
+    renderCafe();
+    renderCafeClock();
     // 지도가 떠 있고 우왕이가 같이 걸을 수 있을 때만 산책 시간이 흐른다
     if (pano && canWalk()) {
       walkSeconds++;
@@ -1397,7 +1499,7 @@ const Walk = (() => {
     const q = ensureQuests();
     q.progress[kind] = (q.progress[kind] || 0) + n;
     // 걸음마다 저장하지 않는다: app.js가 10초마다와 탭을 숨길 때 저장하고, 산책을 끝낼 때도 저장한다
-    if (!inWalk) renderQuests();
+    renderQuests();   // 산책 중에도 화면 안의 퀘스트 카드가 바로 바뀌도록 그린다
   }
 
   function claimQuest(id) {
@@ -1421,7 +1523,7 @@ const Walk = (() => {
     const defs = q.ids.map((id) => QUEST_POOL.find((x) => x.id === id)).filter(Boolean);
     const doneCount = defs.filter((d) => q.claimed.includes(d.id)).length;
     $('#walk-quest-count').textContent = `${doneCount} / ${defs.length}`;
-    box.innerHTML = defs.map((d) => {
+    const html = defs.map((d) => {
       const now = Math.min(q.progress[d.kind] || 0, d.goal);
       const claimed = q.claimed.includes(d.id);
       const ready = !claimed && now >= d.goal;
@@ -1431,6 +1533,7 @@ const Walk = (() => {
         : `<small class="quest-reward">🪙 ${d.reward}</small>`;
       return `<li class="${claimed ? 'is-done' : ''}"><span class="quest-what">${d.label}<small>${now} / ${d.goal} ${d.unit}</small></span>${action}</li>`;
     }).join('');
+    box.innerHTML = html;
   }
 
   // ---------- 산책 기록 ----------
@@ -1666,7 +1769,7 @@ const Walk = (() => {
   let session = null;
 
   function newSession() {
-    session = { coins: 0, hearts: 0, drinks: 0, stamps: [], friends: [], places: new Set(), time: timeOfDay() };
+    session = { coins: 0, hearts: 0, drinks: 0, stamps: [], friends: [], places: new Set(), time: timeOfDay(), booths: 0 };
   }
 
   function fmtTime(sec) {
@@ -1680,7 +1783,7 @@ const Walk = (() => {
   let summaryStage = null;
 
   function renderSummary() {
-    const s = session || { coins: 0, hearts: 0, stamps: [], friends: [], places: new Set(), time: timeOfDay() };
+    const s = session || { coins: 0, hearts: 0, stamps: [], friends: [], places: new Set(), time: timeOfDay(), booths: 0 };
     const t = TIMES[s.time];
     $('#ws-title').textContent = `${t.label} 산책 끝! ${t.icon}`;
     $('#ws-sub').textContent = steps > 0
@@ -1705,11 +1808,15 @@ const Walk = (() => {
     if (steps > 0) setTimeout(() => playMascot(box, 'joy', 600), 300);
     // 이번 산책에서 친구를 만났을 때만 인생네컷 버튼을 보여 준다
     // 인생네컷은 항상 찍을 수 있다 (친구가 있으면 함께, 없으면 우왕이 혼자)
+    // 산책 한 번에 인생네컷은 BOOTH_PER_WALK번까지 찍을 수 있다
+    const left = BOOTH_PER_WALK - (s.booths || 0);
     $('#btn-summary-booth').hidden = false;
+    $('#btn-summary-booth').disabled = left <= 0;
     $('#booth-help').hidden = false;
-    $('#booth-help').textContent = s.friends.length
-      ? '오늘 만난 친구들과 함께 인생네컷을 찍을 수 있어요 📸'
-      : '우왕이 혼자서도 인생네컷을 찍을 수 있어요 📸';
+    const base = s.friends.length
+      ? '오늘 만난 친구들과 인생네컷 한 장 어때요? 프레임도 골라 보세요!'
+      : '우왕이가 인생네컷 찍고 싶대요~!';
+    $('#booth-help').textContent = left > 0 ? `${base} (찍을 수 있는 횟수: ${left}번)` : '이번 산책의 인생네컷을 모두 찍었어요';
   }
 
   function startWalk() {
@@ -1938,10 +2045,17 @@ const Walk = (() => {
   }
 
   // ---------- 인생네컷 (우왕이와 이번 산책에서 만난 친구) ----------
-  // 네 컷을 그림으로 그려서 보여 준다. 스트리트 뷰 사진을 쓰지 않으니, 저장은 하지 않고 화면에만 보여 준다.
-  const BOOTH_FRAMES = 4;
-  const BOOTH_BG = ['#fde8ee', '#e6f4ff', '#fff4d6', '#e9f7e8'];
-  const BOOTH_REACTIONS = ['💗', '✨', '🐾', '😊'];
+  // 프레임(기본·프리미엄) → 컷 수(네컷·여섯컷)를 고르고, 그림으로 찍어서 출력 화면에 보여 준다.
+  // 스트리트 뷰 사진을 쓰지 않으니, 저장은 하지 않고 화면에만 보여 준다.
+  const BOOTH_CELL_W = 240;
+  const BOOTH_CELL_H = 180;
+  const BOOTH_HEAD_H = 40;   // 위쪽 제목 띠
+  const BOOTH_FOOT_H = 44;   // 아래쪽 날짜 띠
+  const BOOTH_POND_IMG = 'assets/solmot.png'; // 실제 솔못 사진이 있으면 이 파일을 쓴다
+  const BOOTH_HAPPY = 5;                      // 인생네컷을 다 찍으면 올라가는 행복도
+  const BOOTH_PER_WALK = 2;                   // 산책 한 번에 찍을 수 있는 인생네컷 수
+  const BOOTH_MARGIN_BASIC = 8;               // 기본 프레임: 검정 테두리 두께
+  const BOOTH_MARGIN_PREMIUM = 22;            // 프리미엄 프레임: 우왕이 그림이 들어가는 테두리 두께
   let boothBusy = false;
 
   // 친구 그림을 이미지로 바꾼다 (파일 그림이면 그대로, SVG 그림이면 이미지로 만든다)
@@ -1974,28 +2088,113 @@ const Walk = (() => {
     });
   }
 
+  // 컷 배치: 네컷은 한 줄로 네 장, 여섯컷은 두 칸씩 세 줄
+  function boothLayout(count) {
+    const cols = count === 6 ? 2 : 1;
+    const rows = Math.ceil(count / cols);
+    return { cols, rows, W: cols * BOOTH_CELL_W, H: BOOTH_HEAD_H + rows * BOOTH_CELL_H + BOOTH_FOOT_H };
+  }
+
+  function todayText() {
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}.${mm}.${dd}`;
+  }
+
   function drawBoothHeader(g, W) {
     g.fillStyle = '#f4ead6';
-    g.fillRect(0, 0, W, 40);
+    g.fillRect(0, 0, W, BOOTH_HEAD_H);
     g.fillStyle = '#8c1d40';
     g.font = '16px "Galmuri11", "Malgun Gothic", sans-serif';
     g.textAlign = 'center';
     g.fillText('우왕이 인생네컷', W / 2, 26);
   }
 
-  // 컷마다 다른 연출: 기울기, 좌우 반전, 크기, 머리 위 표정, 말풍선, 반응 스티커
+  // 아래 띠: 오늘 날짜
+  function drawBoothFoot(g, W, H) {
+    g.fillStyle = '#f4ead6';
+    g.fillRect(0, H - BOOTH_FOOT_H, W, BOOTH_FOOT_H);
+    g.fillStyle = '#8c1d40';
+    g.font = '16px "Galmuri11", "Malgun Gothic", sans-serif';
+    g.textAlign = 'center';
+    g.fillText(todayText(), W / 2, H - 16);
+  }
+
+  // 말풍선 문구: 컷마다 겹치지 않게 골라 쓴다 (글자 수가 많아도 칸 안에 들어가게 말풍선 위치를 조정한다)
+  const BOOTH_SAYS = ['같이 찍어요!', '헤헤, 신나요!', '아 찍힌다!', '오늘 최고!', '봄이다~', '반짝반짝!', '노래 듣는 중!', '고마워요!',
+    '오늘 학식은 뭘까?', '이천원의 저녁밥 먹자~', '오늘 하루도 수고했어', '커피 한 잔 하고 갈까?', '과제는 언제 끝나지…',
+    '월요일이 또 왔어', '주말엔 뭐 하지?', '배고파요 밥 줘!', '산책 최고다~', '친구가 최고야!', '집에 가기 싫다…', '오늘도 맑음!', '체력 충전 완료!'];
+
+  // 컷마다 다른 연출: 기울기, 좌우 반전, 크기, 말풍선
+  // bg는 기본 프레임(색만 있는 화면)의 배경색, ink는 글자색이다
   const BOOTH_VARIANTS = [
-    { bg: '#fde8ee', tilt: 0, flip: false, scale: 1, face: '😊', reaction: '💗', say: '같이 찍어요!', bounce: 0 },
-    { bg: '#e6f4ff', tilt: -9, flip: false, scale: 1, face: '😆', reaction: '✨', say: '헤헤, 신나요!', bounce: 14 },
-    { bg: '#fff4d6', tilt: 0, flip: true, scale: 1.06, face: '😳', reaction: '🐾', say: '아 찍힌다!', bounce: 6 },
-    { bg: '#e9f7e8', tilt: 7, flip: false, scale: 0.95, face: '😎', reaction: '😊', say: '오늘 최고!', bounce: 0 },
+    { bg: '#fde8ee', tilt: 0, flip: false, scale: 1, bounce: 0 },
+    { bg: '#e6f4ff', tilt: -9, flip: false, scale: 1, bounce: 14, ink: '#1d3b5c' },
+    { bg: '#fff4d6', tilt: 0, flip: true, scale: 1.06, bounce: 6, ink: '#6b4a00' },
+    { bg: '#e9f7e8', tilt: 7, flip: false, scale: 0.95, bounce: 0, ink: '#1e4d2b' },
+    { bg: '#ffeef5', tilt: 4, flip: false, scale: 1, bounce: 4 },
+    { bg: '#2b2d55', tilt: -4, flip: false, scale: 1.02, bounce: 10, ink: '#ffffff' },
+    { bg: '#f3eaff', tilt: -5, flip: true, scale: 1, bounce: 0 },
+    { bg: '#fff0e0', tilt: 0, flip: false, scale: 1.04, bounce: 8 },
   ];
+
+  // 프리미엄 프레임 배경: 솔못(연못)을 그린다 (실제 사진 파일이 있으면 그것을 쓴다)
+  function drawPond(g, y, W, H) {
+    const sky = g.createLinearGradient(0, y, 0, y + 90);
+    sky.addColorStop(0, '#9fd8ff');
+    sky.addColorStop(1, '#e8f7ff');
+    g.fillStyle = sky;
+    g.fillRect(0, y, W, 90);
+    // 멀리 나무 줄
+    g.fillStyle = '#8fca8a';
+    for (let xx = -10; xx < W + 20; xx += 26) {
+      g.beginPath(); g.arc(xx, y + 84, 22, 0, Math.PI * 2); g.fill();
+    }
+    // 연못 물
+    const water = g.createLinearGradient(0, y + 80, 0, y + H);
+    water.addColorStop(0, '#7fc9e6');
+    water.addColorStop(1, '#4fa6cc');
+    g.fillStyle = water;
+    g.fillRect(0, y + 80, W, H - 80);
+    // 물결 무늬
+    g.strokeStyle = 'rgba(255, 255, 255, .45)';
+    g.lineWidth = 1.5;
+    for (let yy = y + 98; yy < y + H; yy += 22) {
+      for (let xx = 10; xx < W; xx += 46) {
+        g.beginPath();
+        g.moveTo(xx, yy);
+        g.quadraticCurveTo(xx + 11, yy - 4, xx + 22, yy);
+        g.stroke();
+      }
+    }
+    // 연잎
+    g.fillStyle = '#5fb36a';
+    [[30, y + 150, 10], [196, y + 124, 9], [212, y + 166, 11]].forEach(([x, yy, r]) => {
+      g.beginPath(); g.arc(x, yy, r, 0.2, Math.PI * 2 - 0.2); g.lineTo(x, yy); g.fill();
+    });
+    // 물가 둑
+    g.fillStyle = '#a8dd8f';
+    g.beginPath();
+    g.moveTo(0, y + 76); g.lineTo(W, y + 76); g.lineTo(W, y + 84); g.lineTo(0, y + 92);
+    g.fill();
+  }
+
+  // 프리미엄 배경 사진을 칸에 꽉 차게 맞춘다 (가운데 기준으로 잘린다)
+  function drawPondFrame(g, y, W, H, img) {
+    if (!img) { drawPond(g, y, W, H); return; }
+    const s = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+    const dw = img.naturalWidth * s;
+    const dh = img.naturalHeight * s;
+    g.drawImage(img, (W - dw) / 2, y + (H - dh) / 2, dw, dh);
+  }
 
   // 말풍선: 흰 바탕, 버건디 도트 테두리, 꼬리 한 칸
   function drawBubble(g, text, x, y) {
     g.font = '12px "Galmuri11", "Malgun Gothic", sans-serif';
     g.textAlign = 'left';
     const w = g.measureText(text).width + 14;
+    x = Math.max(6, Math.min(x, BOOTH_CELL_W - w - 6));
     g.fillStyle = '#fffaf0';
     g.fillRect(x, y, w, 22);
     g.strokeStyle = '#4a0d22';
@@ -2005,25 +2204,31 @@ const Walk = (() => {
     g.fillText(text, x + 7, y + 15);
   }
 
-  // 한 컷: 배경, 친구들(뒤, 번갈아 튐), 우왕이(기울기·반전·크기), 머리 위 표정, 말풍선, 반응 스티커
-  function drawBoothFrame(g, y, uImg, friends, v) {
-    const W = 240;
-    const H = 180;
-    g.fillStyle = v.bg;
-    g.fillRect(0, y, W, H);
-    g.fillStyle = 'rgba(74, 13, 34, .05)';
-    for (let yy = y; yy < y + H; yy += 3) g.fillRect(0, yy, W, 1);
+  // 한 컷 (cellX, cellY 자리에 240x180으로 그린다)
+  function drawBoothFrame(g, cellX, cellY, uImg, friends, v, frame, pondImg, label) {
+    const W = BOOTH_CELL_W;
+    const H = BOOTH_CELL_H;
+    const y = 0;
+    const premium = frame === 'premium';
+    // 프리미엄 배경은 밝은 편이라 글자색을 어두운 버건디로 통일한다
+    const ink = premium ? '#4a0d22' : (v.ink || '#4a0d22');
+    g.save();
+    g.translate(cellX, cellY);
+    g.beginPath();
+    g.rect(0, y, W, H);
+    g.clip();
+    if (premium) {
+      drawPondFrame(g, y, W, H, pondImg);
+    } else {
+      g.fillStyle = v.bg;
+      g.fillRect(0, y, W, H);
+    }
 
     friends.forEach((f, i) => {
       const size = 66;
       const x = 118 + i * 36;
       const top = y + 58 - (i % 2) * 14 - (i % 2 === 0 ? v.bounce : 0);
       if (f.img) g.drawImage(f.img, x, top, size, size);
-      else {
-        g.font = '40px sans-serif';
-        g.textAlign = 'center';
-        g.fillText('🐾', x + size / 2, top + size * 0.7);
-      }
     });
 
     const baseH = 118;
@@ -2038,38 +2243,122 @@ const Walk = (() => {
     if (uImg) g.drawImage(uImg, -uW / 2, -uH / 2, uW, uH);
     g.restore();
 
-    // 머리 위 표정 이모지
-    g.font = '26px sans-serif';
-    g.textAlign = 'center';
-    g.fillText(v.face, cx, y + 52);
-
-    g.textAlign = 'left';
-    g.font = '24px sans-serif';
-    g.fillText(v.reaction, 12, y + 36);
     drawBubble(g, v.say, 96, y + 10);
 
-    g.fillStyle = '#4a0d22';
+    g.fillStyle = ink;
     g.font = '12px "Galmuri11", "Malgun Gothic", sans-serif';
     g.textAlign = 'right';
-    g.fillText(`${(y - 40) / 180 + 1} / ${BOOTH_FRAMES}`, W - 10, y + H - 8);
+    g.fillText(label, W - 10, y + H - 8);
+    g.restore();
 
     g.strokeStyle = '#4a0d22';
     g.lineWidth = 2;
-    g.strokeRect(1, y + 1, W - 2, H - 2);
+    g.strokeRect(cellX + 1, cellY + 1, W - 2, H - 2);
   }
 
-  async function takeBooth() {
+  // ----- 단계별 선택 (같은 자리에 버튼 두 개씩 바꿔 보여 준다) -----
+  function askBooth(title, options, onPick) {
+    const box = $('#booth-frames');
+    box.innerHTML = '';
+    options.forEach((o) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `booth-frame-btn tone-${o.tone || 'pink'}`;
+      b.innerHTML = `<span>${o.label}</span><small>${o.sub}</small>`;
+      b.addEventListener('click', () => onPick(o.value));
+      box.appendChild(b);
+    });
+    box.hidden = false;
+    $('#booth-status').textContent = title;
+  }
+
+  // 찍기 전 화면: 프레임 고르기. 찍는 중·출력 중에는 숨긴다.
+  function openBooth() {
+    if (boothBusy) return;
+    if (session && (session.booths || 0) >= BOOTH_PER_WALK) {
+      toast(`이번 산책에서는 인생네컷을 ${BOOTH_PER_WALK}번 찍었어요`);
+      return;
+    }
+    $('#booth').hidden = false;
+    $('#booth-title').hidden = true;
+    $('#booth-paper').hidden = true;
+    $('#booth-again').hidden = true;
+    askBooth('프레임을 골라 주세요', [
+      { label: '기본 프레임', sub: '색만 있는 화면', value: 'basic', tone: 'pink' },
+      { label: '프리미엄 프레임', sub: `솔못 배경 · 코인 ${BOOTH_PREMIUM_COST}개`, value: 'premium', tone: 'mint' },
+    ], pickFrame);
+  }
+
+  // 프리미엄 프레임은 코인을 쓴다. 모자라면 알려 주고, 고르는 순간 뺀다.
+  const BOOTH_PREMIUM_COST = 3;
+
+  // 프레임을 고르면 바로 네컷을 찍는다
+  function pickFrame(frame) {
+    if (frame === 'premium') {
+      if (state.coins < BOOTH_PREMIUM_COST) {
+        toast(`코인이 부족해요 (프리미엄 프레임 🪙${BOOTH_PREMIUM_COST}, 가진 코인 🪙${state.coins})`);
+        return;
+      }
+      state.coins -= BOOTH_PREMIUM_COST;
+      saveState();
+      renderTop();
+    }
+    if (session) session.booths = (session.booths || 0) + 1;   // 이번 산책에서 찍은 횟수
+    takeBooth(frame, 4);
+  }
+
+  // 찍기: 카운트다운 → 찰칵 → 전부 찍으면 출력 모션
+  // 출력용 테두리: 기본은 검정 테두리, 프리미엄은 분홍·민트 체크 테두리
+  function drawBoothBorder(g, CW, CH, M, frame) {
+    if (frame !== 'premium') return;   // 기본 프레임은 채워 둔 검정 바탕이 테두리가 된다
+    // 프리미엄: 솔못(연못) 느낌의 물결 무늬와 연잎. 안쪽 사진판은 나중에 그 위에 그려서 가장자리만 보인다.
+    const water = g.createLinearGradient(0, 0, 0, CH);
+    water.addColorStop(0, '#7fc9e6');
+    water.addColorStop(1, '#4fa6cc');
+    g.fillStyle = water;
+    g.fillRect(0, 0, CW, CH);
+    g.strokeStyle = 'rgba(255, 255, 255, .5)';
+    g.lineWidth = 1.5;
+    for (let y = 6; y < CH; y += 10) {
+      for (let x = 0; x < CW; x += 20) {
+        g.beginPath();
+        g.moveTo(x, y);
+        g.quadraticCurveTo(x + 5, y - 3, x + 10, y);
+        g.quadraticCurveTo(x + 15, y + 3, x + 20, y);
+        g.stroke();
+      }
+    }
+    // 연잎: 네 모서리에 하나씩
+    g.fillStyle = '#5fb36a';
+    [[M / 2, M / 2], [CW - M / 2, M / 2], [M / 2, CH - M / 2], [CW - M / 2, CH - M / 2]].forEach(([x, y]) => {
+      g.beginPath(); g.arc(x, y, M / 3, 0.2, Math.PI * 2 - 0.2); g.lineTo(x, y); g.fill();
+    });
+    g.strokeStyle = '#4a0d22';
+    g.lineWidth = 1;
+    g.strokeRect(M - 0.5, M - 0.5, CW - 2 * M + 1, CH - 2 * M + 1);
+  }
+
+  async function takeBooth(frame, count) {
     if (boothBusy) return;
     boothBusy = true;
-    const booth = $('#booth');
     const cv = $('#booth-canvas');
     const status = $('#booth-status');
+    const paper = $('#booth-paper');
+    const { cols, rows, W, H } = boothLayout(count);
+    const M = frame === 'premium' ? BOOTH_MARGIN_PREMIUM : BOOTH_MARGIN_BASIC;   // 테두리 두께
     const g = cv.getContext('2d');
     g.imageSmoothingEnabled = false;
-    booth.hidden = false;
-    g.fillStyle = '#fffaf0';
+    cv.width = W + M * 2;
+    cv.height = H + M * 2;
+    cv.style.width = count === 6 ? '240px' : '200px';
+    $('#booth-frames').hidden = true;
+    $('#booth-title').hidden = true;
+    paper.hidden = false;
+    paper.classList.remove('printing');
+    $('#booth-again').hidden = true;
+
+    g.fillStyle = frame === 'premium' ? '#fffaf0' : '#111111';
     g.fillRect(0, 0, cv.width, cv.height);
-    drawBoothHeader(g, cv.width);
 
     const names = session ? [...new Set(session.friends)] : [];
     const friends = await Promise.all(names.slice(0, 3).map(async (n) => {
@@ -2077,10 +2366,18 @@ const Walk = (() => {
       return { name: n, img: await friendArtImage(f) };
     }));
     const uImg = await loadBoothImage(mapMeSrc());
+    const pondImg = frame === 'premium' ? await loadBoothImage(BOOTH_POND_IMG) : null;
+    drawBoothBorder(g, cv.width, cv.height, M, frame);
+    // 안쪽 사진판은 테두리 안쪽에 그린다
+    g.save();
+    g.translate(M, M);
+    drawBoothHeader(g, W);
+    drawBoothFoot(g, W, H);
 
-    // 찍을 때마다 컷 순서를 섞는다
+    // 연출 8가지 중 필요한 만큼 골라 순서를 섞는다
     const order = BOOTH_VARIANTS.slice().sort(() => Math.random() - 0.5);
-    for (let i = 0; i < BOOTH_FRAMES; i++) {
+    const says = BOOTH_SAYS.slice().sort(() => Math.random() - 0.5);
+    for (let i = 0; i < count; i++) {
       for (const n of [3, 2, 1]) {
         status.textContent = `${n}…`;
         await wait(450);
@@ -2088,11 +2385,44 @@ const Walk = (() => {
       fade.classList.add('on');   // 찰칵 플래시
       setTimeout(() => fade.classList.remove('on'), 160);
       Sound.sfx('ding');
-      status.textContent = `찰칵! (${i + 1} / ${BOOTH_FRAMES})`;
-      drawBoothFrame(g, 40 + i * 180, uImg, friends, order[i]);
+      status.textContent = `찰칵! (${i + 1} / ${count})`;
+      const col = cols === 2 ? i % 2 : 0;
+      const row = Math.floor(i / cols);
+      drawBoothFrame(g, col * BOOTH_CELL_W, BOOTH_HEAD_H + row * BOOTH_CELL_H, uImg, friends,
+        { ...order[i % order.length], say: says[i % says.length] }, frame, pondImg, `${i + 1} / ${count}`);
       await wait(250);
     }
-    status.textContent = '네 컷 완성! 💗 (사진은 저장되지 않아요)';
+    g.restore();
+
+    // 마지막 컷을 잠깐 보여 준 뒤, "조금만 기다려주세요!" 창을 띄우고 기계가 출력하기 시작한다
+    await wait(1400);
+    const waitBox = $('#booth-wait');
+    waitBox.hidden = false;
+    status.textContent = '출력 준비 중…';
+    await wait(1600);
+    waitBox.hidden = true;
+
+    // 출력: 종이가 슬롯에서 천천히 나온다
+    status.textContent = '출력 중…';
+    Sound.sfx('ding');
+    paper.classList.add('printing');
+    await wait(1900);
+    paper.classList.remove('printing');
+    // 인생네컷을 찍으면 우왕이가 행복해진다 (최대치를 넘지 않는다)
+    const happyBefore = state.pet.happy;
+    addHearts('happy', BOOTH_HAPPY);
+    const happyGained = state.pet.happy - happyBefore;
+    if (happyGained > 0) {
+      if (session) session.hearts += happyGained;
+      saveState();
+      renderStats();
+    }
+    // 찍는 창이 떠 있어서 화면 아래의 알림은 가려진다. 그래서 행복도 결과를 창 안에 적는다.
+    const happyText = happyGained > 0
+      ? `행복도 +${happyGained} 올랐어요!`
+      : `행복도가 이미 가득 찼어요 (최대 ${MAX_HEARTS})`;
+    status.textContent = `${happyText} (사진은 저장되지 않아요)`;
+    $('#booth-again').hidden = false;
     boothBusy = false;
   }
 
@@ -2131,6 +2461,7 @@ const Walk = (() => {
   function stop() {
     if (inWalk) undressAll();   // 산책 중에 다른 탭으로 가도 산책을 다녀온 것으로 본다
     inWalk = false;
+    if (cafeSitting) standUpCafe();   // 카페에 앉은 채로 산책을 끝내면 자리에서 일어난다
     Sound.bgm('');
   }
 
