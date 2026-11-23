@@ -419,13 +419,22 @@ const Pet = (() => {
       ? `방에서 ${STUDY_MINUTES}분 공부해요 · 경험치 +8, 수업을 들은 과목이면 복습이라 +4 더`
       : `${majorNote()} · 한 번에 ${LECTURE_MINUTES}분 · 끝나면 경험치 +15와 복습 퀴즈`;
     $('#major-select').value = currentMajor();
-    $('#lecture-years').innerHTML = [1, 2, 3, 4].map((y) =>
+    // 학년 수는 학과마다 다르다 (약학과 6학년, 수의학과·건축학과 5학년)
+    const maxYear = Math.max(4, ...currentCourses().map((c) => c.year));
+    if (lectureYear > maxYear) lectureYear = 1;
+    $('#lecture-years').style.gridTemplateColumns = `repeat(${maxYear}, 1fr)`;
+    $('#lecture-years').innerHTML = Array.from({ length: maxYear }, (_, i) => i + 1).map((y) =>
       `<button data-year="${y}" aria-pressed="${y === lectureYear}">${y}학년</button>`).join('');
-    $('#lecture-list').innerHTML = currentCourses().filter((c) => c.year === lectureYear).map((c) => {
+    const yearCourses = currentCourses().filter((c) => c.year === lectureYear);
+    if (!yearCourses.length) {
+      $('#lecture-list').innerHTML = `<p class="lecture-note">${lectureYear}학년 전공 과목이 없어요. 다른 학년을 골라 보세요.</p>`;
+      return;
+    }
+    $('#lecture-list').innerHTML = yearCourses.map((c) => {
       const n = state.courses[c.id] || 0;
       const s = state.studied[c.id] || 0;
       const tag = study ? [n ? '복습' : '', s ? `공부 ${s}회` : ''].filter(Boolean).join(' · ') : (n ? `${n}회` : '');
-      return `<button data-course="${c.id}"><span>${c.icon}</span><span class="lecture-name">${c.name}<em>${c.tag || `${c.sem}학기 · ${c.type}`}</em></span>${tag ? `<small>${tag}</small>` : ''}</button>`;
+      return `<button data-course="${c.id}"><span>${c.icon}</span><span class="lecture-name">${c.name}<em>${c.tag || [c.sem && `${c.sem}학기`, c.type].filter(Boolean).join(' · ')}</em></span>${tag ? `<small>${tag}</small>` : ''}</button>`;
     }).join('');
   }
 
@@ -644,8 +653,9 @@ const Pet = (() => {
   // 수업 고르기 판의 안내: 경영정보학과는 실제 교육과정, 다른 학과는 공통 과목
   function majorNote() {
     const major = currentMajor();
-    return major === DEFAULT_MAJOR
-      ? `충북대 ${major} 교육과정`
+    if (major === DEFAULT_MAJOR) return `충북대 ${major} 교육과정`;
+    return hasCurriculum(major)
+      ? `충북대 ${collegeOf(major).name} ${major} 2026학년도 교육과정`
       : `충북대 ${collegeOf(major).name} ${major} · 학년별 공통 과목`;
   }
 

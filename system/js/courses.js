@@ -1,6 +1,6 @@
 // 우왕이가 듣는 수업. 전공은 사용자가 고른다 (majors.js, state.major).
 // 경영정보학과: 충북대학교 경영정보학과 2026학년도 학부 교육과정 (mis.chungbuk.ac.kr 학부 > 교육과정)
-// 다른 학과: 학과 이름으로 학년별 공통 과목 8개를 만든다 (makeMajorCourses). 퀴즈는 충북대 학과 소속 문제.
+// 다른 학과: js/curricula/의 충북대 2026학년도 학과 교육과정. 교육과정을 못 구한 학과만 학과 이름으로 공통 과목 8개를 만든다 (makeMajorCourses).
 // 인턴십(일반선택)은 수업이 아니라서 뺐다. 1·2학기 모두 열리는 과목은 한 번만 넣었다.
 // sem: 개설 학기, type: 전필(전공필수)/전선(전공선택)
 // learned: 수업이 끝나고 우왕이가 말해 주는 배운 것 (하나를 골라 말한다)
@@ -209,16 +209,36 @@ function makeMajorCourses(dept) {
   return MAJOR_COURSE_SLOTS.map((t) => makeMajorCourse(dept, t));
 }
 
-// 지금 전공의 과목 목록. 전공이 바뀌면 새로 만든다.
+// ---------- 학과별 실제 교육과정 (js/curricula/*.js) ----------
+// 각 파일이 addCurriculum(학과, 출처, 과목들)로 학과 교육과정을 등록한다.
+// 과목 한 줄: [교과목번호, 학년, 학기, 이수구분, 아이콘, 과목명, [배운 것, 배운 것], [퀴즈 문장, 정답(true=O), 풀이]]
+// 과목 id는 '학과:교과목번호' (예: '국어국문학과:5512001')라서 순서가 바뀌어도 기록이 유지된다.
+const CURRICULA = {};
+function addCurriculum(dept, source, rows) {
+  CURRICULA[dept] = {
+    source,
+    list: rows.map(([code, year, sem, type, icon, name, learned, quiz]) => ({
+      id: `${dept}:${code}`, year, sem, type, icon, name, learned,
+      quiz: { q: quiz[0], answer: quiz[1], why: quiz[2] },
+    })),
+  };
+}
+function hasCurriculum(dept) {
+  return dept === DEFAULT_MAJOR || Boolean(CURRICULA[dept]);
+}
+
+// 지금 전공의 과목 목록. 실제 교육과정이 있으면 그것을, 없으면 공통 과목을 쓴다.
 let courseCache = { major: DEFAULT_MAJOR, list: MIS_COURSES };
 function currentMajor() {
   return isMajor(state.major) ? state.major : DEFAULT_MAJOR;
 }
+function coursesOf(major) {
+  if (major === DEFAULT_MAJOR) return MIS_COURSES;
+  return CURRICULA[major] ? CURRICULA[major].list : makeMajorCourses(major);
+}
 function currentCourses() {
   const major = currentMajor();
-  if (courseCache.major !== major) {
-    courseCache = { major, list: major === DEFAULT_MAJOR ? MIS_COURSES : makeMajorCourses(major) };
-  }
+  if (courseCache.major !== major) courseCache = { major, list: coursesOf(major) };
   return courseCache.list;
 }
 
@@ -227,7 +247,11 @@ function courseById(id) {
   if (!id) return undefined;
   const mis = MIS_COURSES.find((c) => c.id === id);
   if (mis) return mis;
-  const [dept, slot] = String(id).split(':');
-  const t = MAJOR_COURSE_SLOTS.find((x) => x.slot === slot);
+  const [dept, key] = String(id).split(':');
+  if (CURRICULA[dept]) {
+    const real = CURRICULA[dept].list.find((c) => c.id === id);
+    if (real) return real;
+  }
+  const t = MAJOR_COURSE_SLOTS.find((x) => x.slot === key);
   return isMajor(dept) && t ? makeMajorCourse(dept, t) : undefined;
 }

@@ -161,6 +161,7 @@ system/
 │  ├─ pet.js               돌보기, 대화, 수업과 꾸미기
 │  ├─ mascot.js            캐릭터 표현과 움직임
 │  ├─ courses.js           과목과 복습 퀴즈 데이터
+│  ├─ curricula/           학과별 전공 교육과정 (단과대학별 11개 파일)
 │  ├─ data.js              여행지와 수집 아이템 데이터
 │  ├─ travel.js            발권, 탑승, 이동과 도착
 │  ├─ routes.js            경로와 요금 계산
