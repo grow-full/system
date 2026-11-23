@@ -439,7 +439,7 @@
               <div class="hearts-row"><span>🥱 심심함</span><span class="hearts bored" id="wc-bored"></span></div>
               <p class="walk-check-verdict" id="wc-verdict"></p>
             </div>
-            <button class="primary" id="btn-walk-next">📍 출발 장소 고르기</button>
+            <button class="primary" id="btn-walk-next">🎒 산책 준비하기</button>
             <button class="ghost" id="btn-walk-care" hidden>🐣 우왕이 돌보러 가기</button>
             <div class="card walk-quest-card">
               <div class="collection-head"><b>📜 오늘의 퀘스트</b><small id="walk-quest-count"></small></div>
@@ -461,25 +461,19 @@
             <div class="game-top">
               <button class="back" id="btn-walk-back">← 상태 체크</button>
             </div>
-            <h2>어디서 출발할까요? 📍</h2>
-            <p class="sub">고른 곳에서 우왕이와 산책을 시작해요.</p>
-            <p class="walk-cafe-tip">☕ 씨비앤유스타에는 카페가 있어요. 거기서 쉬어 갈 수 있어요.</p>
-            <p class="walk-friend-hint" id="wc-friend-hint"></p>
-            <div class="walk-pick-list" id="wc-places" role="radiogroup" aria-label="산책 출발 장소"></div>
-            <!-- 목록이 길어도 항상 보이게 화면 아래에 붙어 있는 막대 -->
-            <div class="walk-pick-bar">
-              <p class="walk-pick-line" id="wc-pick-line"></p>
-              <button class="primary" id="btn-walk-dress">👕 <span id="wc-pick-name">솔못</span>에 입고 갈 옷 고르기</button>
+            <h2>산책 준비 🎒</h2>
+            <p class="sub">장소를 고르고 옷도 입혀 보세요. 준비가 끝나면 아래 버튼으로 바로 산책을 나가요.</p>
+            <div class="walk-nav-tabs setup-tabs" role="tablist" aria-label="산책 준비">
+              <button role="tab" data-setup="place" aria-selected="true" aria-controls="setup-place">📍 장소 고르기</button>
+              <button role="tab" data-setup="dress" aria-selected="false" aria-controls="setup-dress">👕 옷 입히기</button>
             </div>
-          </div>
-  
-          <!-- 옷 입기: 옷장의 의상과 헤드셋을 골라 입고 나간다 -->
-          <div id="walk-dress" hidden>
-            <div class="game-top">
-              <button class="back" id="btn-walk-dress-back">← 장소 고르기</button>
+            <div id="setup-place" role="tabpanel">
+              <p class="walk-cafe-tip">☕ 씨비앤유스타에는 카페가 있어요. 거기서 쉬어 갈 수 있어요.</p>
+              <p class="walk-friend-hint" id="wc-friend-hint"></p>
+              <div class="pick-card" id="wc-card" aria-live="polite"></div>
+              <div class="walk-pick-list" id="wc-places" role="radiogroup" aria-label="산책 출발 장소"></div>
             </div>
-            <h2>뭐 입고 나갈까요? 👕</h2>
-            <p class="sub">옷장에서 골라 입혀요. 우왕이 탭 옷장과 같이 바뀌어요.</p>
+            <div id="setup-dress" role="tabpanel" hidden>
             <!-- 옷 갈아입는 방: 창문(바깥 시간대), 전신 거울, 러그 위의 우왕이 -->
             <div class="dress-room" id="dress-room">
               <div class="dress-window" aria-hidden="true"></div>
@@ -501,15 +495,25 @@
               <div class="wardrobe walk-dress-list" id="wd-list"></div>
               <p class="collection-note">✈️ 여행지에 처음 가면 그곳 의상이 여기에 들어와요.</p>
             </div>
-            <button class="primary" id="btn-walk-start">🐾 <span id="wd-place-name">솔못</span>에서 산책 나가기</button>
+            </div>
+            <!-- 항상 화면 아래에 붙어 있는 막대: 고른 장소를 확인하고 바로 산책을 나간다 -->
+            <div class="walk-pick-bar">
+              <p class="walk-pick-line" id="wc-pick-line"></p>
+              <button class="primary" id="btn-walk-start">🐾 <span id="wd-place-name">솔못</span>에서 산책 나가기</button>
+            </div>
           </div>
-  
+
           <!-- 산책 끝 요약 -->
           <div id="walk-summary" hidden>
             <h2 id="ws-title">오늘 산책 끝! 🐾</h2>
             <p class="sub" id="ws-sub"></p>
             <div class="card walk-summary-card">
-              <div class="walk-check-pet"><div id="walk-summary-mascot" class="mascot-wrap"></div></div>
+              <div class="summary-pet">
+                <!-- 말걸기 버튼처럼 우왕이 머리 위에 뜨고, 누르면 우왕이가 산책 소감을 말한다 -->
+                <button class="walk-talk-btn summary-ask-btn" id="btn-summary-ask" type="button">💬 소감 듣기</button>
+                <p class="summary-speech" id="ws-speech" hidden></p>
+                <div class="walk-check-pet"><div id="walk-summary-mascot" class="mascot-wrap"></div></div>
+              </div>
               <div class="walk-summary-stats">
                 <div><small>걸음</small><b id="ws-steps">0</b></div>
                 <div><small>시간</small><b id="ws-time">0:00</b></div>
@@ -525,10 +529,10 @@
                 <div class="walk-summary-icons" id="ws-friends"></div>
               </div>
             </div>
-            <p class="booth-help" id="booth-help" hidden>오늘 만난 친구들과 함께 인생네컷을 찍을 수 있어요 📸</p>
-            <button class="primary" id="btn-summary-booth" hidden>📸 우왕이 인생네컷 찍기</button>
+            <p class="booth-help" id="booth-help" hidden>우왕이와 사진 한컷 어때요?</p>
+            <button class="primary" id="btn-summary-booth" hidden>📸 우왕이와 추억 남기기</button>
             <div class="card walk-note-card" id="walk-note-card" hidden>
-              <label class="walk-note-label" for="walk-note-input">📝 오늘 산책은 어땠나요? 한 줄 소감</label>
+              <label class="walk-note-label" for="walk-note-input">📝 오늘 산책은 어땠나요? 한 줄 소감 <small class="note-reward">저장하면 🪙 5개</small></label>
               <p class="walk-note-help">저장하면 이 소감이 날짜와 함께 산책 기록에 남아요. 산책 첫 페이지의 📔 산책 기록에서 볼 수 있어요.</p>
               <div class="walk-note-row">
                 <input id="walk-note-input" type="text" maxlength="60" placeholder="예: 날씨가 좋아서 기분 최고였어요" autocomplete="off">
@@ -613,7 +617,7 @@
               <p class="walk-notice" id="walk-notice" hidden></p>
               <div class="walk-warm" id="walk-warm" hidden></div>
               <button class="walk-talk-btn" id="walk-talk-btn" hidden>💬 말걸기</button>
-              <button class="walk-cafe-btn" id="walk-cafe-btn" type="button" hidden>☕ 카페에서 쉬기</button>
+              <button class="walk-cafe-btn" id="walk-cafe-btn" type="button" hidden>☕ 카페로 들어가기</button>
               <!-- 첫 산책 안내 말풍선: 처음 한 번만 뜬다 -->
               <div class="walk-guide" id="walk-guide" hidden role="dialog" aria-label="산책 안내">
                 <div class="guide-bubble">
@@ -698,11 +702,11 @@
                   <ellipse cx="150" cy="206" rx="92" ry="14" fill="#c98f5e" stroke="#4a0d22" stroke-width="3"/>
                   <rect x="142" y="220" width="16" height="50" fill="#8a5a33"/>
                   <ellipse cx="150" cy="272" rx="34" ry="7" fill="#8a5a33" stroke="#4a0d22" stroke-width="2"/>
-                  <rect x="200" y="182" width="30" height="18" fill="#fffaf0" stroke="#4a0d22" stroke-width="3"/>
-                  <path d="M230 186 q10 2 0 12" fill="none" stroke="#4a0d22" stroke-width="3"/>
+                  <rect x="168" y="182" width="30" height="18" fill="#fffaf0" stroke="#4a0d22" stroke-width="3"/>
+                  <path d="M198 186 q10 2 0 12" fill="none" stroke="#4a0d22" stroke-width="3"/>
                   <g class="cafe-steam" fill="none" stroke="#9a8a7a" stroke-width="3" stroke-linecap="round">
-                    <path d="M208 172 q-6 -7 0 -14 q6 -7 0 -14"/>
-                    <path d="M222 170 q-6 -7 0 -14 q6 -7 0 -14"/>
+                    <path d="M176 172 q-6 -7 0 -14 q6 -7 0 -14"/>
+                    <path d="M190 170 q-6 -7 0 -14 q6 -7 0 -14"/>
                   </g>
                 </svg>
               </div>

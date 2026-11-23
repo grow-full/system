@@ -898,7 +898,40 @@ main { min-width: 0; height: 100vh; }
 .walk-check-verdict[data-level="stop"] { background: #ffe3e3; color: #b23a3a; }
 .walk-check-verdict[data-level="ok"] { background: #e7f6e9; color: #2f7a3d; }
 
+/* 산책 전 장면: 하늘과 잔디 위에 우왕이가 서 있다 */
+.check-scene {
+  position: relative; height: 210px; overflow: hidden; box-shadow: var(--px-border);
+  background: linear-gradient(#bfe6ff 0 58%, #e6f4ff 58% 62%, transparent 62%), #e6f4ff;
+}
+.check-sun {
+  position: absolute; right: 14%; top: 14%; width: 34px; height: 34px; border-radius: 50%;
+  background: #ffe27a; box-shadow: 0 0 0 3px #f5c84c, 0 0 0 5px rgba(255, 226, 122, .35);
+}
+.check-time {
+  position: absolute; left: 10px; top: 10px; z-index: 2; padding: 3px 8px; font-size: 13px; font-weight: 700;
+  background: #fffaf0; color: var(--ink); box-shadow: var(--px-border);
+}
+.check-ground {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 38%;
+  background: repeating-linear-gradient(90deg, #a8dd8f 0 28px, #97d17e 28px 30px);
+  border-top: 3px solid #5fb36a;
+}
+.check-pet { position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); }
+.check-pet .mascot-wrap { --size: 120px; }
+.check-meters { padding: 6px 14px; margin-bottom: 12px; }
+.check-meter { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; font-size: 15px; }
+.check-meter + .check-meter { border-top: 1px dashed var(--lcd-dark); }
+.check-meter b { font-size: 15px; }
+.check-verdict { position: relative; margin-top: 6px; }
+
 /* 출발 장소 고르기 */
+.pick-card { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; padding: 12px 14px; border: 2px solid var(--primary); border-radius: 16px; background: var(--tint); }
+.pick-card:empty { display: none; }
+.pc-icon { flex: none; font-size: 40px; line-height: 1; filter: drop-shadow(0 3px 0 var(--line)); }
+.pc-body { min-width: 0; flex: 1; }
+.pc-name { display: block; font-size: 17px; color: var(--ink); }
+.pc-line { margin: 4px 0; font-size: 13px; color: var(--ink); }
+.pc-meta { display: block; font-size: 12px; color: var(--sub); }
 .walk-pick-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
 .walk-pick-list button {
   position: relative;
@@ -1132,12 +1165,12 @@ main { min-width: 0; height: 100vh; }
 .walk-talk-btn[hidden] { display: none; }
 .walk-talk-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 .walk-cafe-btn {
-  position: absolute; left: 50%; top: 42%; z-index: 6; transform: translate(-50%, -100%); pointer-events: auto;
-  padding: 8px 12px; margin: 0; border: 0; border-radius: 0; background: #c98f5e; color: #fff;
-  font: inherit; font-size: 14px; font-weight: 700; white-space: nowrap;
+  position: absolute; left: 10px; top: 50px; z-index: 6; pointer-events: auto;
+  padding: 4px 9px; margin: 0; border: 0; border-radius: 0; background: #c98f5e; color: #fff;
+  font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap;
   box-shadow: 0 3px 0 0 #8a5a33; cursor: pointer;
 }
-.walk-cafe-btn:active { box-shadow: none; transform: translate(-50%, -97%); }
+.walk-cafe-btn:active { box-shadow: none; transform: translateY(3px); }
 .walk-cafe-btn[hidden] { display: none; }
 
 /* 카페에서 쉬기 화면: 배경 그림 위에 우왕이를 올리고, 테이블 앞판이 아래쪽을 가린다 */
@@ -1200,7 +1233,7 @@ main { min-width: 0; height: 100vh; }
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   background: rgba(255, 250, 240, .92); box-shadow: var(--px-border);
 }
-.cafe-bar p { margin: 0; font-size: 14px; font-weight: 700; color: var(--primary-dark); }
+.cafe-bar p { margin: 0; font-size: 11px; font-weight: 700; color: var(--primary-dark); }
 /* 바닥과 벽을 나눈다: 위는 벽, 아래는 나무 바닥 (수업 화면처럼 바닥 줄무늬) */
 .cafe-scene {
   background:
@@ -1214,7 +1247,7 @@ main { min-width: 0; height: 100vh; }
 .cafe-table { border-radius: 50%; background: #7a4a2a; border-color: #2b1d14; z-index: 2; }
 /* 음료 컵: 테이블 위에 놓인다 (바닥 기준 위치는 테이블 윗면과 같다) */
 .cafe-cup {
-  position: absolute; bottom: 40%; width: 4.5%; height: 7%; transform: translateX(-50%); z-index: 3;
+  position: absolute; bottom: 42%; width: 4.5%; height: 7%; transform: translateX(-50%); z-index: 3;
   background: #fffaf0; border: 2px solid #2b1d14; border-radius: 0 0 40% 40%;
 }
 .cafe-cup::before {
@@ -1241,7 +1274,7 @@ main { min-width: 0; height: 100vh; }
 .cafe-sofa i:last-child { right: 0; }
 
 /* 교수님 말풍선: 메뉴판 아래로 내려서 보이게 한다 */
-.prof-guest .cafe-talk { top: -6%; }
+.prof-guest .cafe-talk { top: -24%; }
 
 .cafe-cup.latte::before { background: #e8c39a; }
 .cafe-cup.iced::before { background: #6b4226; }
@@ -1254,18 +1287,46 @@ main { min-width: 0; height: 100vh; }
   position: absolute; left: 50%; top: -24%; transform: translateX(-50%); z-index: 1;
   padding: 2px 6px; background: #fffaf0; color: var(--ink); border: 2px solid #2b1d14;
   font-size: 10px; white-space: nowrap; box-shadow: var(--px-shadow);
-  animation: cafe-talk 2.4s steps(2, end) infinite;
 }
-.cafe-guest-img + .cafe-talk { animation-delay: 1.2s; }
-@keyframes cafe-talk {
-  0% { opacity: 1; }
-  50% { opacity: .55; }
-}
-.cafe-bar button { width: auto; min-width: 120px; margin: 0; padding: 10px 14px; }
+.cafe-bar button { width: auto; min-width: 84px; margin: 0; padding: 5px 8px; font-size: 12px; }
 
 /* 인생네컷: 화면 가운데 띄우는 도트 창 */
-.booth-help { margin: 0 0 6px; font-size: 13px; color: var(--primary-dark); text-align: center; }
+.booth-help { margin: 12px 0 2px; font-size: 13px; color: var(--primary-dark); text-align: center; }
 .booth-help[hidden] { display: none; }
+
+/* 산책 끝: 우왕이에게 물어보면 그 위에 말풍선이 뜬다 */
+/* 우왕이가 있는 집: 줄무늬 벽지 + 나무 바닥 */
+.summary-pet {
+  position: relative;
+  isolation: isolate;
+  padding-top: 52px;
+  padding-bottom: 14px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: repeating-linear-gradient(90deg, #fdf1e2 0 18px, #f9e6d0 18px 36px);
+}
+.summary-pet::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40px;
+  z-index: -1;
+  border-top: 4px solid #c48b55;
+  background: repeating-linear-gradient(90deg, #dcae78 0 58px, #d39f68 58px 60px);
+  pointer-events: none;
+}
+.summary-speech {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 2;
+  max-width: 88%; margin: 0; padding: 8px 12px; background: #fffaf0; color: var(--ink); font-size: 14px; line-height: 1.4;
+  box-shadow: var(--px-border), var(--px-shadow); text-align: center;
+}
+.summary-speech[hidden] { display: none; }
+.summary-pet > .summary-ask-btn { top: 6px; left: 50%; transform: translateX(-50%); }
+.summary-pet > .summary-ask-btn:active { transform: translate(-50%, 3px); }
+.summary-pet > .summary-ask-btn[hidden] { display: none; }
+
 .booth { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(74, 13, 34, .45); }
 .booth[hidden] { display: none; }
 .booth-card {
@@ -1315,6 +1376,7 @@ main { min-width: 0; height: 100vh; }
 .walk-note-card { margin: 12px 0; }
 .walk-note-card[hidden] { display: none; }
 .walk-note-label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 700; color: var(--primary-dark); }
+.walk-note-label .note-reward { margin-left: 4px; font-size: 12px; font-weight: 400; color: var(--sub); }
 .walk-note-row { display: flex; gap: 6px; }
 .walk-note-row input {
   flex: 1; min-width: 0; margin: 0; padding: 8px 10px; border: 0; border-radius: 0;
@@ -1440,6 +1502,9 @@ main { min-width: 0; height: 100vh; }
 .walk-nav-tabs button { padding: 6px 12px; border: 0; border-radius: 999px; background: none; font-size: 12px; font-weight: 700; color: var(--sub); }
 .walk-nav-tabs button[aria-selected="true"] { background: #fff; color: var(--primary-dark); box-shadow: 0 1px 3px rgba(90, 58, 30, .15); }
 .walk-nav-tabs button:disabled { opacity: .45; cursor: default; }
+/* 산책 준비 화면의 탭: 글씨가 잘 보이도록 조금 크게 */
+.setup-tabs { display: flex; gap: 6px; margin: 10px 0; padding: 4px; background: var(--lcd-dark); }
+.setup-tabs button { flex: 1; padding: 8px 10px; font-size: 14px; }
 .walk-nav-tabs button:focus-visible { outline: 3px solid var(--primary); outline-offset: 1px; }
 .walk-nav-help { margin: 8px 0 10px; font-size: 12px; color: var(--sub); }
 .walk-nav .walk-places { margin-top: 0; }

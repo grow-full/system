@@ -69,6 +69,7 @@ const Walk = (() => {
     $('#walk-log-prev').addEventListener('click', () => { logPage--; renderWalkLog(); });
     $('#walk-log-next').addEventListener('click', () => { logPage++; renderWalkLog(); });
     $('#btn-summary-booth').addEventListener('click', openBooth);
+    $('#btn-summary-ask').addEventListener('click', askUwangAboutWalk);
     $('#booth-again').addEventListener('click', openBooth);
     $('#booth-close').addEventListener('click', () => { $('#booth').hidden = true; });
     $('#walk-note-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveNote(); });
@@ -83,8 +84,7 @@ const Walk = (() => {
     });
     $('#btn-walk-next').addEventListener('click', () => { if (!blockReason()) setStep('pick'); });
     $('#btn-walk-back').addEventListener('click', () => setStep('check'));
-    $('#btn-walk-dress').addEventListener('click', () => { if (chosenName && !blockReason()) setStep('dress'); });
-    $('#btn-walk-dress-back').addEventListener('click', () => setStep('pick'));
+    document.querySelectorAll('[data-setup]').forEach((b) => b.addEventListener('click', () => setSetupTab(b.dataset.setup)));
     $('#btn-walk-random').addEventListener('click', randomOutfit);
     $('#wd-list').addEventListener('click', (e) => {
       const b = e.target.closest('[data-dress]');
@@ -241,6 +241,7 @@ const Walk = (() => {
     }));
     places = places.filter((p) => !p.hidden);
     renderPlaces();
+    renderPick();   // 불러온 위치로 약도를 다시 그린다
     await leaveBlockedStart();
     initMinimap();
     renderStamps();   // 뺀 사람 사진을 거른 뒤의 장소 목록으로 다시 그린다
@@ -832,13 +833,38 @@ const Walk = (() => {
   let cafeRestedHere = false;   // 이번 방문에서 이미 쉬었는지
   let cafeSitting = false;      // 지금 카페 테이블에 앉아 있는지 (앉아 있는 동안은 걷지 않는다)
   let cafeSince = 0;            // 앉은 시각 (시계에 쉬고 있는 시간을 보여 준다)
+  let cafeTalkAt = 0;           // 마지막으로 손님 말풍선을 바꾼 시각
 
-  // 카페 시계: 앉은 뒤로 흐른 시간 (분:초)
+  // 카페 손님들이 하는 말 (학생 / 교수님)
+  const CAFE_LINES = {
+    student: ['하하, 진짜요?', '그래서 어떻게 됐어요?', '오늘 학식은 뭘까?', '여기 커피 진짜 맛있어요!', '과제 어디까지 했어요?', '주말에 뭐 할 거예요?', '저 방금 웃겼죠 ㅎㅎ', '그 얘기 진짜예요?', '배고파요… 빵 시킬까?', '시험 끝나면 여행 가요!', '아 맞다, 그거 봤어요?', '음악 바꿔도 될까요?'],
+    prof: ['흠흠, 날씨가 좋네요', '이 자리 좋군요', '커피 한 잔의 여유가 필요하지요', '요즘 학생들 열심히 하네요', '오늘도 수고했어요', '책 한 권 읽기 좋은 날이에요', '창가 자리가 제일 좋아요', '조용히 쉬기 좋은 곳이에요'],
+  };
+  // 같은 종류 안에서 고르되, 지금 다른 손님이 하고 있는 말은 피한다 (두 학생이 같은 말을 하지 않게)
+  const pickCafeLine = (pool, taken = []) => {
+    const all = CAFE_LINES[pool];
+    const free = all.filter((l) => !taken.includes(l));
+    const list = free.length ? free : all;
+    return list[Math.floor(Math.random() * list.length)];
+  };
+
+  // 손님 한 명의 말풍선을 같은 종류의 다른 말로 바꾼다 (5초마다, 다른 손님과 겹치지 않게)
+  function rotateCafeTalk() {
+    const els = [...document.querySelectorAll('#cafe-guests .cafe-talk')];
+    if (!els.length) return;
+    const el = els[Math.floor(Math.random() * els.length)];
+    const taken = els.filter((x) => x !== el).map((x) => x.textContent);
+    el.textContent = pickCafeLine(el.dataset.pool, taken);
+  }
+
+  // 카페 시계: 앉은 뒤로 흐른 시간 (분:초), 손님 말풍선도 가끔 바뀐다
   function renderCafeClock() {
     const el = $('#cafe-time');
     if (!el || !cafeSitting) return;
-    const s = Math.floor((Date.now() - cafeSince) / 1000);
+    const now = Date.now();
+    const s = Math.floor((now - cafeSince) / 1000);
     el.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    if (now - cafeTalkAt > 5000) { cafeTalkAt = now; rotateCafeTalk(); }
   }
 
   // 카페 화면을 연다: 우왕이가 테이블에 앉는다
@@ -846,27 +872,31 @@ const Walk = (() => {
   function cafeGuestsHTML() {
     const src = mapMeSrc();
     // 두 학생은 마주 보고 이야기하고, 교수님도 옆자리와 대화 중이다 (말풍선으로 표시)
-    const student = (x, line, face) => `<div class="cafe-guest" style="left:${x}%">
+    const student = (x, face, line) => `<div class="cafe-guest" style="left:${x}%">
         <img class="cafe-guest-img ${face}" src="${src}" alt="">
-        <span class="cafe-talk">${line}</span>
+        <span class="cafe-talk" data-pool="student">${line}</span>
       </div>`;
     const prof = `<div class="cafe-guest prof-guest" style="left:84%">
         <img class="cafe-guest-img prof" src="${src}" alt="">
         <span class="prof-brow l"></span><span class="prof-brow r"></span>
         <span class="prof-glasses">${HORN_GLASSES_SVG}</span>
         <span class="prof-stache"></span>
-        <span class="cafe-talk">흠흠, 날씨가 좋네요</span>
+        <span class="cafe-talk" data-pool="prof">${pickCafeLine('prof')}</span>
       </div>`;
     // 음료: 두 학생 사이 테이블과 교수님 테이블 위에 놓는다 (사람들 앞쪽, 테이블 위에 보인다)
-    const cup = (x, kind) => `<span class="cafe-cup ${kind}" style="left:${x}%"></span>`;
+    // 두 학생은 서로 다른 말로 시작한다
+    const lineA = pickCafeLine('student');
+    const lineB = pickCafeLine('student', [lineA]);
+    const cup = (x, kind) =>`<span class="cafe-cup ${kind}" style="left:${x}%"></span>`;
     return `<div class="cafe-table cafe-table-l"></div><div class="cafe-table cafe-table-r"></div>`
-      + '<div class="cafe-sofa" style="left:9%"><i></i><i></i></div>' + student(9, '하하, 진짜요?', '') + student(31, '그래서 어떻게 됐어요?', '') + prof
-      + cup(15, 'latte') + cup(25, 'iced') + cup(82, 'iced');
+      + '<div class="cafe-sofa" style="left:9%"><i></i><i></i></div>' + student(9, '', lineA) + student(31, '', lineB) + prof
+      + cup(15, 'latte') + cup(23, 'iced') + cup(76, 'iced');
   }
 
   function openCafeScene() {
     cafeSitting = true;
     cafeSince = Date.now();
+    cafeTalkAt = Date.now();
     renderCafeClock();
     $('#cafe-guests').innerHTML = cafeGuestsHTML();
     $('#cafe-uwang').src = mapMeSrc();
@@ -904,13 +934,8 @@ const Walk = (() => {
     const near = inWalk && canWalk() && nearCafe();
     // 자리를 떠나면 다음에 다시 올 때 쉴 수 있다
     if (!nearCafe()) cafeRestedHere = false;
+    // 화면의 한 자리에 고정된다 (우왕이를 따라다니지 않는다, 카페 앞에서만 보인다)
     btn.hidden = !(near && !cafeRestedHere);
-    if (btn.hidden) return;
-    // 말걸기 버튼처럼 우왕이 머리 위에 붙는다 (카페 앞에서만 보인다)
-    const w = $('#walk-walker').getBoundingClientRect();
-    const o = overlay.getBoundingClientRect();
-    btn.style.left = `${w.left + w.width / 2 - o.left}px`;
-    btn.style.top = `${w.top - o.top - 6}px`;
   }
 
   // 앉으면 이번 방문의 쉬기가 끝나고, 행복도는 일어날 때 적립된다
@@ -945,9 +970,19 @@ const Walk = (() => {
     if (session) session.coins += TALK_COINS;
     saveState();
     renderTop();
-    $('#walk-friend-speech').textContent = friend.hello;
-    playMascot(mascot, 'joy', 600);
+    // 친구가 먼저 말하고, 잠시 뒤 우왕이가 대답한다 (대화는 여러 개 중 무작위)
+    const pool = WALK_TALKS[friend.art] || [{ f: friend.hello, u: friend.reply }];
+    const ex = pool[Math.floor(Math.random() * pool.length)];
+    const who = friend;
+    const fSpeech = $('#walk-friend-speech');
+    fSpeech.textContent = ex.f;
     Sound.sfx('ding');
+    setTimeout(() => {
+      if (friend !== who) return;
+      say(ex.u, 2600);
+      playMascot(mascot, 'joy', 600);
+    }, 1300);
+    setTimeout(() => { if (friend === who) fSpeech.textContent = ''; }, 4200);
     toast(`💬 ${friend.name}와 이야기했어요 🪙 +${TALK_COINS}`);
     renderTalk();
   }
@@ -983,14 +1018,16 @@ const Walk = (() => {
     const fSpeech = $('#walk-friend-speech');
     // 우왕이가 친구 쪽을 바라본다
     setMascot(mascot, { look: wrap(friendHeading - heading) < 0 ? 'left' : 'right' });
-    fSpeech.textContent = f.hello;
+    const greetPool = WALK_TALKS[f.art] || [{ f: f.hello, u: f.reply }];
+    const greetEx = greetPool[Math.floor(Math.random() * greetPool.length)];
+    fSpeech.textContent = greetEx.f;
     fEl.classList.remove('hop');
     void fEl.offsetWidth;
     fEl.classList.add('hop');
     Sound.sfx('ding');
     await wait(1700);
     if (friend !== f) { greeting = false; return; }   // 그새 다른 장소로 갔으면 그만
-    say(f.reply, 2400);
+    say(greetEx.u, 2400);
     playMascot(mascot, 'joy', 600);
     await wait(2400);
     fSpeech.textContent = '';
@@ -1128,8 +1165,8 @@ const Walk = (() => {
 
   // 텀블러 그림: 뚜껑 왼쪽의 마시는 구멍이 우왕이 입에 닿는다
   const TUMBLER_SVG = '<svg viewBox="0 0 26 48">'
-    + '<path d="M2.5 10 H23.5 L22 44 Q21.8 46.5 19 46.5 H7 Q4.2 46.5 4 44 Z" fill="#7cc4c0" stroke="#4f8f8b" stroke-width="1.5" stroke-linejoin="round"/>'
-    + '<path d="M3.3 22 H22.7 L22.45 28 H3.55 Z" fill="#5fa9a5"/>'
+    + '<path d="M2.5 10 H23.5 L22 44 Q21.8 46.5 19 46.5 H7 Q4.2 46.5 4 44 Z" fill="#2b9bd0" stroke="#15546f" stroke-width="1.5" stroke-linejoin="round"/>'
+    + '<path d="M3.3 22 H22.7 L22.45 28 H3.55 Z" fill="#1c7fb0"/>'
     + '<path d="M6.5 13 L7.4 41" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".55"/>'
     + '<rect x="1" y="3" width="24" height="7.5" rx="2.5" fill="#f6f2ec" stroke="#8a7f74" stroke-width="1.5"/>'
     + '<rect x="3" y="0.8" width="7" height="3.2" rx="1.3" fill="#e4ddd3" stroke="#8a7f74" stroke-width="1.2"/>'
@@ -1307,12 +1344,10 @@ const Walk = (() => {
     inWalk = step === 'walk';
     $('#walk-check').hidden = step !== 'check';
     $('#walk-pick').hidden = step !== 'pick';
-    $('#walk-dress').hidden = step !== 'dress';
     $('#walk-summary').hidden = step !== 'summary';
     $('#walk-main').hidden = step !== 'walk';
     if (step === 'check') { renderCheck(); renderQuests(); renderWalkLog(); }
-    if (step === 'pick') renderPick();
-    if (step === 'dress') { renderDress(); sayDress('오늘은 뭐 입고 나갈까요? 👕'); }
+    if (step === 'pick') { renderPick(); renderDress(); setSetupTab('place'); }
     renderFriendHint();
     if (step === 'walk') renderStamps();
     window.scrollTo(0, 0);
@@ -1358,9 +1393,26 @@ const Walk = (() => {
         + `<span class="pin">${placeIcon(name)}</span><b>${name}</b>${visited}</button>`;
     }).join('');
     const line = (comments[chosenName] && comments[chosenName][0]) || '우왕이와 걸어 볼까요?';
+    // 고른 장소를 크게 보여 주는 카드: 아이콘, 우왕이 한 줄, 도장 기록 (숨은 친구는 알려 주지 않는다)
+    const rec = chosenName ? state.walkStamps[chosenName] : null;
+    $('#wc-card').innerHTML = chosenName
+      ? `<span class="pc-icon">${placeIcon(chosenName)}</span>`
+        + `<div class="pc-body"><b class="pc-name">${chosenName}</b>`
+        + `<p class="pc-line">“${line}”</p>`
+        + `<small class="pc-meta">${rec ? `🏅 도장 ${rec.visits}번 방문` : '🏅 아직 도장이 없어요'}</small></div>`
+      : '';
     $('#wc-pick-line').textContent = chosenName ? `${placeIcon(chosenName)} ${chosenName} · ${line}` : '';
-    $('#wc-pick-name').textContent = chosenName;
-    $('#btn-walk-dress').disabled = !chosenName || Boolean(blockReason());
+    $('#wd-place-name').textContent = chosenName;
+    $('#btn-walk-start').disabled = !chosenName || Boolean(blockReason());
+  }
+
+  // 산책 준비 화면의 탭: 장소 / 옷 (한 번에 하나만 보이고, 아래 막대의 산책 버튼은 그대로다)
+  function setSetupTab(tab) {
+    const dress = tab === 'dress';
+    $('#setup-place').hidden = dress;
+    $('#setup-dress').hidden = !dress;
+    document.querySelectorAll('[data-setup]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.setup === tab)));
+    if (dress) { renderDress(); sayDress('오늘은 뭐 입고 나갈까요? 👕'); }
   }
 
   // ---------- 숨은 친구 안내 ----------
@@ -1567,6 +1619,8 @@ const Walk = (() => {
     $('#walk-note-msg').textContent = '';
   }
 
+  const NOTE_COINS = 5;   // 소감을 저장하면 주는 코인
+
   function saveNote() {
     const text = $('#walk-note-input').value.trim();
     const msg = $('#walk-note-msg');
@@ -1574,9 +1628,18 @@ const Walk = (() => {
     if (!entry) { msg.textContent = '저장할 산책 기록이 없어요.'; return; }
     if (!text) { msg.textContent = '소감을 한 줄 적어 주세요.'; return; }
     entry.note = text.slice(0, 60);
+    // 소감은 산책마다 한 번만 코인을 준다 (고쳐서 다시 저장해도 또 받지 않는다)
+    let reward = '';
+    if (!entry.noted) {
+      entry.noted = true;
+      state.coins += NOTE_COINS;
+      if (session) session.coins += NOTE_COINS;
+      renderTop();
+      reward = ` 🪙 +${NOTE_COINS}`;
+    }
     saveState();
     renderWalkLog();
-    msg.textContent = '산책 기록에 저장했어요 💗';
+    msg.textContent = `산책 기록에 저장했어요 💗${reward}`;
     say('소감 고마워요! 💗', 2000);
   }
 
@@ -1782,8 +1845,46 @@ const Walk = (() => {
 
   let summaryStage = null;
 
+  // 방금 끝낸 산책 요약 (우왕이에게 산책 어땠는지 물을 때 쓴다)
+  let lastWalk = null;
+
+  // 우왕이에게 산책 어땠는지 묻는다: 우왕이가 이번 산책에 맞는 말을 말풍선으로 한다
+  function askUwangAboutWalk() {
+    const w = lastWalk || { steps: 0, minutes: 0, friends: 0, places: 0, booths: 0, drinks: 0 };
+    const lines = [];
+    // 걸은 양
+    if (w.steps >= 2000) lines.push('학교가 넓어서 다리가 아파요… 그래도 풍경 보며 걸으니 재밌었어요!');
+    else if (w.steps >= 1500) lines.push('많이 걸어서 다리가 조금 뻐근해요! 그래도 정말 재밌었어요 😊');
+    else if (w.steps >= 500) lines.push(`${w.steps.toLocaleString()}걸음 걸었어요. 오늘 산책 꽤 괜찮았죠?`);
+    else lines.push('조금 걸었지만 바람 쐬니까 기분이 좋았어요!');
+    if (w.minutes >= 10) lines.push(`${w.minutes}분이나 걸었어요! 오늘 나 엄청 씩씩했죠?`);
+    if (w.minutes > 0 && w.minutes < 5) lines.push('짧게 걸었지만 기분 전환은 확실히 했어요!');
+    // 본 것과 들른 곳
+    if (w.places >= 5) lines.push('여기저기 많이 들러서 학교 구경을 제대로 한 기분이에요!');
+    else if (w.places >= 3) lines.push('여러 곳을 들러서 구경할 게 많았어요!');
+    if (w.places >= 2) lines.push('학교 안 풍경을 보며 걷다 보니 애교심이 생겨요! 🏫');
+    lines.push('캠퍼스 바람이 시원해서 좋았어요 🍃', '벤치 옆을 지날 때 잠깐 앉고 싶었어요');
+    // 사람들
+    if (w.friends) lines.push(`친구 ${w.friends}명이랑 인사해서 정말 즐거웠어요!`);
+    else lines.push('혼자 걸어도 나름 재밌었어요. 다음엔 친구를 찾아봐요!');
+    // 한 일
+    if (w.booths) lines.push('사진도 찍어서 오늘 추억이 하나 생겼어요 📸');
+    if (w.drinks) lines.push('목마를 때 물도 마셔서 개운해요 💧');
+    lines.push('다음 산책은 어디로 갈까요? 🐾', '오늘 산책 최고였어요! 또 같이 걸어요 🐾');
+    const text = lines[Math.floor(Math.random() * lines.length)];
+    const speech = $('#ws-speech');
+    speech.textContent = text;
+    speech.hidden = false;
+    $('#btn-summary-ask').hidden = true;   // 말걸기처럼, 누르면 버튼은 사라지고 말풍선이 남는다
+    playMascot($('#walk-summary-mascot'), 'joy', 600);
+    Sound.sfx('ding');
+  }
+
   function renderSummary() {
     const s = session || { coins: 0, hearts: 0, stamps: [], friends: [], places: new Set(), time: timeOfDay(), booths: 0 };
+    lastWalk = { steps, minutes: Math.floor(walkSeconds / 60), friends: s.friends.length, places: s.places.size, booths: s.booths || 0, drinks: s.drinks || 0 };
+    $('#ws-speech').hidden = true;
+    $('#btn-summary-ask').hidden = false;
     const t = TIMES[s.time];
     $('#ws-title').textContent = `${t.label} 산책 끝! ${t.icon}`;
     $('#ws-sub').textContent = steps > 0
@@ -1813,9 +1914,7 @@ const Walk = (() => {
     $('#btn-summary-booth').hidden = false;
     $('#btn-summary-booth').disabled = left <= 0;
     $('#booth-help').hidden = false;
-    const base = s.friends.length
-      ? '오늘 만난 친구들과 인생네컷 한 장 어때요? 프레임도 골라 보세요!'
-      : '우왕이가 인생네컷 찍고 싶대요~!';
+    const base = '우왕이와 사진 한컷 어때요?';
     $('#booth-help').textContent = left > 0 ? `${base} (찍을 수 있는 횟수: ${left}번)` : '이번 산책의 인생네컷을 모두 찍었어요';
   }
 
@@ -2380,7 +2479,7 @@ const Walk = (() => {
     for (let i = 0; i < count; i++) {
       for (const n of [3, 2, 1]) {
         status.textContent = `${n}…`;
-        await wait(450);
+        await wait(300);
       }
       fade.classList.add('on');   // 찰칵 플래시
       setTimeout(() => fade.classList.remove('on'), 160);
@@ -2390,7 +2489,7 @@ const Walk = (() => {
       const row = Math.floor(i / cols);
       drawBoothFrame(g, col * BOOTH_CELL_W, BOOTH_HEAD_H + row * BOOTH_CELL_H, uImg, friends,
         { ...order[i % order.length], say: says[i % says.length] }, frame, pondImg, `${i + 1} / ${count}`);
-      await wait(250);
+      await wait(150);
     }
     g.restore();
 
