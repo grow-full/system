@@ -10,6 +10,8 @@ create table if not exists public.community_posts (
   text text not null check (char_length(text) between 5 and 300),
   created_at timestamptz not null default now()
 );
+alter table public.community_posts add column if not exists pet_snapshot jsonb
+  check (pet_snapshot is null or (jsonb_typeof(pet_snapshot) = 'object' and octet_length(pet_snapshot::text) <= 1024));
 create table if not exists public.community_comments (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.community_posts(id) on delete cascade,
@@ -33,7 +35,7 @@ alter table public.community_likes enable row level security;
 
 revoke all on public.community_posts, public.community_comments, public.community_likes from anon, authenticated;
 grant select on public.community_posts, public.community_comments, public.community_likes to anon, authenticated;
-grant insert (user_id, author, dest_id, category, text) on public.community_posts to authenticated;
+grant insert (user_id, author, dest_id, category, text, pet_snapshot) on public.community_posts to authenticated;
 grant insert (post_id, user_id, author, text) on public.community_comments to authenticated;
 grant insert (post_id, user_id), update (post_id, user_id) on public.community_likes to authenticated;
 grant delete on public.community_posts, public.community_comments, public.community_likes to authenticated;

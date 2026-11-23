@@ -5,9 +5,15 @@ const Community = (() => {
   const LOCAL_KEY = 'wooang-community-v1';
   const MAX_LENGTH = 300;
   const MAX_COMMENT = 100;
+  const SHOWCASE_DEST = 'uwang-showcase';
+  const STAGES = { egg: '알', baby: '아기', child: '어린이', adult: '어른' };
 
   let store = null;
   let posts = [];
+  let board = 'tips';
+  let refreshId = 0;
+  let draftPortrait = null;
+  let submitting = false;
   let filter = 'all';
   let sort = 'new';
   let deleteArmed = null;          // 글 id 또는 'c:댓글 id'
@@ -31,18 +37,22 @@ const Community = (() => {
 
   const supabaseStore = {
     shared: true,
-    async list() {
+    async list(showcase) {
       await Cloud.ready;
       const client = Cloud.getClient();
       if (!client) throw new Error('Supabase 연결 실패');
-      const rows = checked(await client.from('community_posts').select('*, community_comments(*), community_likes(user_id)').order('created_at', { ascending: false }).limit(200));
-      accountLikes = new Set(rows.filter((p) => p.community_likes.some((l) => l.user_id === Cloud.userId())).map((p) => p.id));
+      const query = client.from('community_posts').select('*, community_comments(*), community_likes(user_id)');
+      const scoped = showcase ? query.eq('dest_id', SHOWCASE_DEST) : query.neq('dest_id', SHOWCASE_DEST);
+      const rows = checked(await scoped.order('created_at', { ascending: false }).limit(200));
       return rows.map((p) => ({ id: p.id, author: p.author, authorKey: p.user_id, destId: p.dest_id, category: p.category, text: p.text,
-        createdAt: Date.parse(p.created_at), likes: p.community_likes.length,
+        petSnapshot: p.pet_snapshot, createdAt: Date.parse(p.created_at), likes: p.community_likes.length,
+        likedByAccount: p.community_likes.some((l) => l.user_id === Cloud.userId()),
         comments: p.community_comments.map((c) => ({ id: c.id, author: c.author, authorKey: c.user_id, text: c.text, createdAt: Date.parse(c.created_at) })) }));
     },
     async add(post) {
-      checked(await Cloud.getClient().from('community_posts').insert({ user_id: Cloud.userId(), author: post.author, dest_id: post.destId, category: post.category, text: post.text }));
+      const row = { user_id: Cloud.userId(), author: post.author, dest_id: post.destId, category: post.category, text: post.text };
+      if (post.petSnapshot) row.pet_snapshot = post.petSnapshot;
+      checked(await Cloud.getClient().from('community_posts').insert(row));
     },
     async like(id, delta) {
       const table = Cloud.getClient().from('community_likes');
@@ -187,6 +197,11 @@ const Community = (() => {
     $('#tip-filter').innerHTML = `<option value="all">🌏 전체 여행지</option>${destOptionsHtml()}`;
     $('#w-dest').innerHTML = destOptionsHtml();
     $('#w-cat').innerHTML = CATEGORIES.map((c) => `<option>${c}</option>`).join('');
+    document.querySelectorAll('[data-community-board]').forEach((button) => {
+      button.addEventListener('click', () => {
+        if (setBoard(button.dataset.communityBoard)) refresh();
+      });
+    });
 
     $('#tip-filter').addEventListener('change', (e) => { filter = e.target.value; renderList(); });
     document.querySelectorAll('[data-sort]').forEach((b) => b.addEventListener('click', () => {
@@ -227,10 +242,15 @@ const Community = (() => {
 
   async function refresh() {
     if (!store) return;
+    const id = ++refreshId;
     try {
-      posts = await store.list();
+      const next = await store.list(board === 'showcase');
+      if (id !== refreshId) return;
+      posts = next;
+      if (store === supabaseStore) accountLikes = new Set(posts.filter((post) => post.likedByAccount).map((post) => post.id));
       if (store === supabaseStore) $('#community-mode').textContent = '🌐 계정으로 공유하는 게시판이에요. 글·댓글·좋아요는 로그인 후 이용해 주세요.';
     } catch (e) {
+      if (id !== refreshId) return;
       console.error(e);
       $('#community-mode').textContent = '게시판을 불러오지 못했어요. 연결 상태를 확인한 뒤 커뮤니티 탭을 다시 열어 주세요.';
       toast('글을 불러오지 못했어요. 잠시 후 다시 시도해 주세요');
@@ -242,14 +262,60 @@ const Community = (() => {
     refresh();
   }
 
+  function setBoard(next) {
+    if (board === next) return false;
+    board = next;
+    const showcase = board === 'showcase';
+    closeForm();
+    document.querySelectorAll('[data-community-board]').forEach((button) => {
+      const active = button.dataset.communityBoard === board;
+      button.classList.toggle('on', active);
+      button.setAttribute('aria-pressed', active);
+    });
+    $('#tip-filter').hidden = showcase;
+    $('#w-trip').hidden = showcase;
+    $('#btn-write').textContent = showcase ? '내 우왕이 자랑하기' : '꿀팁 쓰기';
+    $('#w-text-label').textContent = showcase ? '우왕이 소개' : '꿀팁';
+    $('#w-text').placeholder = showcase ? '우리 우왕이를 소개해 주세요' : '직접 다녀와서 알게 된 팁을 알려 주세요';
+    $('#post-list').innerHTML = '<p class="empty">글을 불러오는 중이에요.</p>';
+    return true;
+  }
+
+  function petSnapshot() {
+    const { stage, form, bodyShape } = state.pet;
+    return { stage, form: form || '', bodyShape: bodyShape || 'normal', equipped: { ...state.equipped } };
+  }
+
+  function renderPortrait(container, snapshot) {
+    if (!snapshot || !Object.hasOwn(STAGES, snapshot.stage)) return;
+    const { stage } = snapshot;
+    const form = Object.hasOwn(FORM_MARKS, snapshot.form) ? snapshot.form : '';
+    const pet = { stage, form, bodyShape: snapshot.bodyShape === 'thin' ? 'thin' : 'normal' };
+    const equipped = {};
+    for (const slot of ['head', 'face', 'neck', 'hand']) {
+      const id = snapshot.equipped?.[slot];
+      if (typeof id === 'string' && Object.hasOwn(OUTFITS, id) && OUTFITS[id].slot === slot) equipped[slot] = id;
+    }
+    const mascot = document.createElement('div');
+    mascot.className = 'mascot-wrap tiny';
+    mascot.setAttribute('role', 'img');
+    mascot.setAttribute('aria-label', `${STAGES[stage]} 우왕이`);
+    mountMascot(mascot, stage, pet);
+    setMascot(mascot, { mood: 'normal' });
+    dressMascot(mascot, false, pet, equipped);
+    container.replaceChildren(mascot);
+    container.hidden = false;
+  }
+
   function renderList() {
+    const showcase = board === 'showcase';
     const list = posts
-      .filter((p) => filter === 'all' || p.destId === filter)
+      .filter((p) => showcase ? p.destId === SHOWCASE_DEST : p.destId !== SHOWCASE_DEST && (filter === 'all' || p.destId === filter))
       .sort((a, b) => (sort === 'top' ? b.likes - a.likes || b.createdAt - a.createdAt : b.createdAt - a.createdAt));
 
     if (!list.length) {
       const d = filter === 'all' ? null : destById(filter);
-      $('#post-list').innerHTML = `<p class="empty">${d ? `아직 ${d.name} 꿀팁이 없어요.<br>첫 번째 꿀팁을 남겨 주세요! ✏️` : '아직 글이 없어요.'}</p>`;
+      $('#post-list').innerHTML = `<p class="empty">${showcase ? '아직 올라온 우왕이가 없어요.' : d ? `아직 ${d.name} 꿀팁이 없어요.<br>첫 번째 꿀팁을 남겨 주세요! ✏️` : '아직 글이 없어요.'}</p>`;
       return;
     }
 
@@ -261,10 +327,10 @@ const Community = (() => {
       const open = openComments.has(p.id);
       return `
         <article class="post">
-          <div class="post-tags">
+          ${showcase ? '<div class="community-portrait" hidden></div>' : `<div class="post-tags">
             <span class="tag">${d.icon} ${d.name}</span>
             <span class="tag cat">${escapeHtml(p.category)}</span>
-          </div>
+          </div>`}
           <p class="post-text">${escapeHtml(p.text)}</p>
           <div class="post-meta">
             <span>${p.guide ? '🐻 ' : ''}${escapeHtml(p.author)} · ${timeAgo(p.createdAt)}</span>
@@ -277,6 +343,9 @@ const Community = (() => {
           ${open ? commentsHtml(p.id, comments) : ''}
         </article>`;
     }).join('');
+    if (showcase) $('#post-list').querySelectorAll('.community-portrait').forEach((portrait, i) => {
+      renderPortrait(portrait, list[i].petSnapshot);
+    });
   }
 
   function commentsHtml(postId, comments) {
@@ -417,40 +486,52 @@ const Community = (() => {
     $('#btn-write').hidden = true;
     $('#w-name').value = state.nickname;
     $('#w-dest').value = filter !== 'all' ? filter : (state.arrival && state.arrival.destId) || DESTINATIONS[0].id;
+    if (board === 'showcase') {
+      draftPortrait = petSnapshot();
+      renderPortrait($('#w-uwang-preview'), draftPortrait);
+    }
     $('#w-text').focus();
   }
 
   function closeForm() {
     $('#write-form').hidden = true;
     $('#btn-write').hidden = false;
+    $('#w-uwang-preview').hidden = true;
+    draftPortrait = null;
     $('#w-text').value = '';
     $('#w-count').textContent = `0 / ${MAX_LENGTH}`;
   }
 
   async function submit(e) {
     e.preventDefault();
-    if (!canWrite()) return;
+    if (submitting || !canWrite()) return;
     const text = $('#w-text').value.trim();
-    if (text.length < 5) return toast('꿀팁을 5글자 이상 적어 주세요');
+    const showcase = board === 'showcase';
+    const portrait = draftPortrait;
+    if (text.length < 5) return toast(showcase ? '우왕이 소개를 5글자 이상 적어 주세요' : '꿀팁을 5글자 이상 적어 주세요');
     const author = $('#w-name').value.trim() || '익명 여행자';
     state.nickname = $('#w-name').value.trim();
     saveState();
+    submitting = true;
     try {
       await store.add({
         author,
-        destId: $('#w-dest').value,
-        category: $('#w-cat').value,
+        destId: showcase ? SHOWCASE_DEST : $('#w-dest').value,
+        category: showcase ? '기타' : $('#w-cat').value,
+        ...(showcase ? { petSnapshot: portrait || petSnapshot() } : {}),
         text: text.slice(0, MAX_LENGTH),
         authorKey: authorKey(),
       });
     } catch (err) {
       console.error(err);
       return toast('등록하지 못했어요. 잠시 후 다시 시도해 주세요');
+    } finally {
+      submitting = false;
     }
     rewardExp(5);
     renderTop();
-    toast('꿀팁이 등록되었어요! 고마워요 🙌');
-    closeForm();
+    toast(showcase ? '우왕이 자랑이 등록되었어요!' : '꿀팁이 등록되었어요! 고마워요 🙌');
+    if (showcase === (board === 'showcase') && portrait === draftPortrait) closeForm();
     sort = 'new';
     document.querySelectorAll('[data-sort]').forEach((x) => x.classList.toggle('on', x.dataset.sort === 'new'));
     refresh();
@@ -458,6 +539,7 @@ const Community = (() => {
 
   // 도착 화면에서 "꿀팁 보러 가기"를 눌렀을 때
   function openFor(destId) {
+    setBoard('tips');
     filter = destId;
     $('#tip-filter').value = destId;
     show('community');

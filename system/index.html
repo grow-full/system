@@ -387,7 +387,11 @@
       <!-- 커뮤니티 -->
       <section id="screen-community" class="screen" hidden>
         <div class="col-main">
-          <h2>여행 꿀팁 커뮤니티</h2>
+          <h2>커뮤니티</h2>
+          <div class="seg community-boards" role="group" aria-label="게시판">
+            <button type="button" data-community-board="tips" class="on" aria-pressed="true">여행 팁</button>
+            <button type="button" data-community-board="showcase" aria-pressed="false">우왕이 자랑하기</button>
+          </div>
           <div id="post-list"></div>
         </div>
 
@@ -405,7 +409,7 @@
           <form class="card form write-form" id="write-form" hidden>
             <label for="w-name">닉네임</label>
             <input id="w-name" maxlength="12" placeholder="익명 여행자" autocomplete="off">
-            <div class="row2">
+            <div class="row2" id="w-trip">
               <div>
                 <label for="w-dest">여행지</label>
                 <select id="w-dest"></select>
@@ -415,7 +419,8 @@
                 <select id="w-cat"></select>
               </div>
             </div>
-            <label for="w-text">꿀팁</label>
+            <div id="w-uwang-preview" class="community-portrait" hidden></div>
+            <label for="w-text" id="w-text-label">꿀팁</label>
             <textarea id="w-text" maxlength="300" rows="5" placeholder="직접 다녀와서 알게 된 팁을 알려 주세요"></textarea>
             <div class="form-foot">
               <small id="w-count">0 / 300</small>

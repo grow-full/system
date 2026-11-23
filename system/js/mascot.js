@@ -164,7 +164,7 @@ const UWANG_HTML = `<div class="uwang-art" aria-hidden="true"><div class="uwang-
  <div class="uwang-sleep-mark">Zzz</div><span class="uwang-form-mark"></span><div class="outfit"></div>
 </div></div></div></div></div>`;
 
-function mountMascot(el, stage) {
+function mountMascot(el, stage, pet = state.pet) {
   if (el._motion) el._motion.reset();
   el.innerHTML = stage === 'egg'
     ? `<div class="mascot-inner">${EGG_SVG}<div class="outfit"></div></div>`
@@ -174,7 +174,7 @@ function mountMascot(el, stage) {
   el.dataset.visualKey = '';
   el.dataset.face = '';
   el._visualLayer = undefined;
-  updateUwangVisual(el);
+  updateUwangVisual(el, pet);
 }
 
 function setMascot(el, props) {
@@ -183,11 +183,10 @@ function setMascot(el, props) {
 
 // 지금 우왕이의 어른 모습과 입은 의상을 그린다
 // 기본 옷(학사모, 뿔테 안경)은 산책 전용이라 walk가 true일 때만 보여 준다
-function dressMascot(el, walk = false) {
-  const pet = state.pet;
-  updateUwangVisual(el);
+function dressMascot(el, walk = false, pet = state.pet, equipped = state.equipped) {
+  updateUwangVisual(el, pet);
   el.dataset.form = pet.stage === 'adult' ? pet.form : '';
-  const worn = pet.stage === 'egg' ? [] : Object.entries(state.equipped).filter(([, id]) => id && OUTFITS[id] && (walk || !BASIC_OUTFITS[id]));   // 없어진 옷, 산책 밖의 기본 옷은 건너뛴다
+  const worn = pet.stage === 'egg' ? [] : Object.entries(equipped).filter(([, id]) => id && OUTFITS[id] && (walk || !BASIC_OUTFITS[id]));   // 없어진 옷, 산책 밖의 기본 옷은 건너뛴다
   const key = worn.map(([slot, id]) => `${slot}:${id}`).join(',');
   if (el.dataset.outfitKey === key) return;
   el.dataset.outfitKey = key;
@@ -213,9 +212,8 @@ function playMascot(el, anim, ms) {
 // 어른 모습마다 머리 위에 붙는 표시 (방과 도감에서 같이 쓴다)
 const FORM_MARKS = { shiny: '✨', traveler: '🧭', gamer: '🎧', messy: '💧', sturdy: '💪' };
 
-function updateUwangVisual(el) {
+function updateUwangVisual(el, pet = state.pet) {
   if (el.dataset.stage === 'egg' || !el.querySelector('.uwang-art')) return;
-  const pet = state.pet;
   const col = pet.bodyShape === 'thin' ? 0 : 1;
   const row = el.dataset.sleep === 'true' ? 1 : ({ normal: 0, tired: 1, exhausted: 2 }[pet.fatigueStage] || 0);
   el.dataset.bodyShape = pet.bodyShape || 'normal';

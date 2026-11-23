@@ -693,6 +693,10 @@ main { min-width: 0; height: 100vh; }
 .seg { display: flex; flex: none; background: #fff; }
 .seg button { padding: 0 10px; border: 0; background: none; }
 .seg button.on { background: var(--ink); color: #fff; }
+.community-boards { width: fit-content; max-width: 100%; margin-bottom: 14px; }
+.community-boards button { min-height: 40px; }
+.community-portrait { display: grid; place-items: center; padding: 10px; background: var(--tint); }
+.community-portrait .mascot-wrap.tiny { --size: 96px; cursor: default; }
 .write-form { margin-top: 18px; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .form-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
