@@ -991,8 +991,55 @@ main { min-width: 0; height: 100vh; }
   background: #dfeee0;
 }
 .walk-view { position: absolute; inset: 0; }
-/* 겹친 층은 터치를 지도로 넘기고, 우왕이만 누를 수 있다 */
-.walk-overlay { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; }
+/* 겹친 층은 우왕이와 빈 공간을 누를 수 있다 */
+.walk-overlay { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: auto; }
+/* 산책 화면 위에서는 일반 포인터 커서 */
+.walk-view, .walk-view * {
+  cursor: auto;
+}
+/* 1인칭 / 3인칭 바꾸기 버튼 (산책 화면 오른쪽 위) */
+.walk-view-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  margin: 0;
+  padding: 5px 10px;
+  border: 0;
+  background: #fffaf0;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: var(--px-border);
+  pointer-events: auto;
+  cursor: pointer;
+}
+.walk-view-toggle:active { transform: translateY(2px); }
+/* 1인칭: 우왕이 몸은 숨기고 말풍선만 남긴다 (자리는 JS가 화면 아래쪽 가운데로 옮긴다) */
+.walk-stage[data-view="first"] .walk-walker .mascot-wrap { display: none; }
+/* 1인칭 앞발굽: 화면 아래 가장자리에서 올라와 보이고, 걸을 때 번갈아 들썩인다 */
+.walk-hooves { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; height: 0; pointer-events: none; }
+.walk-hooves[hidden] { display: none; }
+.walk-hoof {
+  position: absolute;
+  bottom: -46px;
+  width: 64px;
+  height: 118px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.walk-hoof svg { display: block; width: 100%; height: 100%; }
+.walk-hoof.left { left: calc(36% - 32px); transform: rotate(8deg); }
+.walk-hoof.right { left: calc(64% - 32px); transform: rotate(-8deg); }
+.walk-stage[data-walking="true"] .walk-hoof.left { animation: hoof-left .3s ease-in-out infinite alternate; }
+.walk-stage[data-walking="true"] .walk-hoof.right { animation: hoof-right .3s ease-in-out infinite alternate-reverse; }
+@keyframes hoof-left { from { transform: rotate(8deg) translateY(0); } to { transform: rotate(8deg) translateY(-18px); } }
+@keyframes hoof-right { from { transform: rotate(-8deg) translateY(0); } to { transform: rotate(-8deg) translateY(-18px); } }
+@media (prefers-reduced-motion: reduce) { .walk-stage[data-walking="true"] .walk-hoof { animation: none; } }
 .walk-walker { --size: 150px; position: absolute; z-index: 2; top: 0; left: 0; display: flex; flex-direction: column; align-items: center; will-change: transform; }
 .walk-walker .mascot-wrap { --size: inherit; width: var(--size); height: var(--size); pointer-events: auto; cursor: pointer; }
 /* 발밑 그림자를 진하게 해서 바닥에 서 있는 느낌을 준다 */
@@ -1000,6 +1047,10 @@ main { min-width: 0; height: 100vh; }
 /* 걸을 때는 통통 튀면서 좌우로 흔들린다 */
 .walk-walker[data-walking="true"] .mascot-inner { animation: walk-bob .35s ease-in-out infinite alternate; }
 @keyframes walk-bob { from { transform: translateY(0) rotate(-3deg); } to { transform: translateY(-8px) rotate(3deg); } }
+/* 바닥 화살표로 걸어갈 때는 성큼성큼: 더 높이 튀고 더 크게 흔들린다 */
+.walk-walker[data-walking="true"][data-stride="true"] .mascot-inner { animation: walk-stride .28s ease-in-out infinite alternate; }
+@keyframes walk-stride { from { transform: translateY(0) rotate(-6deg); } to { transform: translateY(-14px) rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) { .walk-walker[data-stride="true"] .mascot-inner { animation: none; } }
 .walk-speech {
   position: absolute;
   bottom: 100%;
@@ -1013,8 +1064,14 @@ main { min-width: 0; height: 100vh; }
 }
 .walk-speech:empty { display: none; }
 /* 장소를 옮길 때 화면이 하얗게 부드럽게 넘어간다 */
-.walk-fade { position: absolute; inset: 0; background: #fff; opacity: 0; transition: opacity .35s; pointer-events: none; }
-.walk-fade.on { opacity: 1; }
+/* 다른 사진으로 넘어갈 때: 번쩍이지 않게 사진만 크림색으로 살짝 덮이고 흐려졌다가 돌아온다.
+   덮개는 우왕이 아래에 깔려서(z-index 0) 우왕이는 그대로 또렷하게 보인다 */
+.walk-fade { position: absolute; inset: 0; z-index: 0; background: #f4ead6; opacity: 0; transition: opacity .42s ease; pointer-events: none; }
+.walk-fade.on { opacity: .55; }
+.walk-fade.flash { background: #fff; opacity: 1; transition: none; }   /* 인생네컷 찰칵 */
+.walk-view { transition: filter .42s ease; }
+.walk-stage[data-moving="true"] .walk-view { filter: blur(6px); }
+@media (prefers-reduced-motion: reduce) { .walk-fade, .walk-view { transition: none; } }
 .walk-music {
   display: inline-flex;
   align-items: center;
@@ -1383,7 +1440,7 @@ main { min-width: 0; height: 100vh; }
 .booth-foot button { flex: 1; margin: 0; }
 
 /* 산책 소감 한 줄 */
-.walk-note-card { margin: 12px 0; }
+.walk-note-card { position: relative; margin: 12px 0; }
 .walk-note-card[hidden] { display: none; }
 .walk-note-label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 700; color: var(--primary-dark); }
 .walk-note-label .note-reward { margin-left: 4px; font-size: 12px; font-weight: 400; color: var(--sub); }
@@ -1393,7 +1450,10 @@ main { min-width: 0; height: 100vh; }
   background: #fffaf0; color: var(--ink); font: inherit; font-size: 14px; box-shadow: var(--px-border);
 }
 .walk-note-save { width: auto; margin: 0; padding: 8px 14px; }
-.walk-note-msg { min-height: 1em; margin: 6px 0 0; font-size: 12px; color: var(--sub); }
+.walk-note-msg-box { margin: 12px 0 0; font-size: 13px; color: var(--ink); line-height: 1.4; text-align: center; }
+.walk-note-msg-box[hidden] { display: none; }
+.walk-note-msg { margin: 0; display: inline; }
+.walk-note-close { width: auto; padding: 0; margin: 0 0 0 8px; font-size: 16px; border: 0; background: transparent; cursor: pointer; color: var(--sub); line-height: 1; }
 .walk-note-help { margin: 0 0 8px; font-size: 12px; line-height: 1.5; color: var(--sub); word-break: keep-all; }
 .walk-log-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
 .walk-log-pager[hidden] { display: none; }
@@ -1652,30 +1712,32 @@ main { min-width: 0; height: 100vh; }
   font-size: 13px;
   transform: translateY(-50%);
 }
+.walk-hint { pointer-events: auto; cursor: pointer; }   /* 누르면 화면이 우왕이 쪽으로 돈다 */
 .walk-hint[data-side="left"] { left: 10px; }
 .walk-hint[data-side="right"] { right: 10px; }
-.walk-pad {
+/* 바닥 화살표 (스트리트 뷰처럼): 바닥에 누운 하얀 원판 위의 꺾쇠. 누르면 그쪽으로 걸어간다 */
+.walk-arrows { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.walk-arrows[hidden] { display: none; }
+.walk-arrow {
   position: absolute;
-  right: 12px;
-  bottom: 12px;
-  z-index: 3;
-  display: grid;
-  grid-template: repeat(2, 44px) / repeat(3, 44px);
-  gap: 4px;
-}
-.walk-pad button {
+  width: 116px;
+  height: 58px;
+  margin: -29px 0 0 -58px;
+  padding: 0;
   border: 0;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, .85);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, .2);
-  font-size: 16px;
-  color: var(--ink);
+  background: none;
+  pointer-events: auto;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .35));
+  transition: transform .12s;
 }
-.walk-pad button:active { background: #fff; transform: scale(.94); }
-.walk-pad .up { grid-area: 1 / 2; }
-.walk-pad .left { grid-area: 2 / 1; }
-.walk-pad .down { grid-area: 2 / 2; }
-.walk-pad .right { grid-area: 2 / 3; }
+.walk-arrow svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.walk-arrow .arrow-disc { fill: rgba(232, 232, 232, .86); stroke: rgba(0, 0, 0, .15); stroke-width: 2; }
+.walk-arrow .arrow-chev { fill: #6d6d6d; }
+.walk-arrow:hover { transform: scale(1.08); }
+.walk-arrow:hover .arrow-disc { fill: rgba(255, 255, 255, .96); }
+.walk-arrow:hover .arrow-chev { fill: var(--primary); }
+.walk-arrow:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
 .walk-notice {
   position: absolute;
   inset: 0;
@@ -2031,13 +2093,13 @@ body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #
 #screen-walk:has(#walk-main[hidden]) .col-side { display: none; }
 #walk-check, #walk-pick, #walk-dress, #walk-summary { max-width: 720px; margin: 0 auto; }
 .walk-side .walk-stats, .walk-side .walk-nav, .walk-side .walk-rules, .walk-side .walk-stamps-card { margin-top: 0; margin-bottom: 18px; }
-.walk-stage { height: calc(100vh - 150px); min-height: 360px; box-shadow: var(--px-border); }
+/* 위쪽 제목·걸음 칸·버튼 줄(약 220px)을 빼서 산책 화면 아래쪽(방향 버튼·1인칭 발굽)이 창 밖으로 잘리지 않게 한다 */
+.walk-stage { height: calc(100vh - 240px); min-height: 360px; box-shadow: var(--px-border); }
 .walk-pick-bar { bottom: 0; background: linear-gradient(to bottom, rgba(244, 234, 214, 0), var(--lcd) 22%); }
 .walk-check-verdict, .walk-next-row, .walk-summary-stats div, .wr-gift, .walk-friend-hint { box-shadow: 0 0 0 2px var(--lcd-dark); }
 .walk-speech, .walk-place, .walk-dress-say { box-shadow: var(--px-border); border: 0; }
 .walk-dress-say::after { display: none; }
 .walk-stamp, .walk-friend-badge .face { border-width: 2px; }
-.walk-pad button { box-shadow: var(--px-border); background: #fffaf0; }
 .dress-room { border: 0; box-shadow: var(--px-border); }
 .walk-minimap { box-shadow: var(--px-border); }
 .wn-bar { box-shadow: var(--px-border); background: var(--lcd-dark); }
