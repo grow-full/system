@@ -107,6 +107,39 @@ Walk.init();
 Focus.init();
 Cloud.init();
 Visitors.init();
+
+const adminTab = document.querySelector('#tab-admin');
+let adminCheck = 0;
+
+async function updateAdminTab() {
+  const check = ++adminCheck;
+  adminTab.hidden = true;
+  const client = Cloud.getClient();
+  const userId = Cloud.userId();
+  if (!client || !userId) return;
+
+  // The same server-side permission check also protects the dashboard itself.
+  try {
+    const { data, error } = await client.rpc('site_admin_dashboard');
+    if (check === adminCheck && userId === Cloud.userId() && !error && typeof data === 'string') {
+      adminTab.hidden = false;
+    }
+  } catch {
+    // Keep the tab hidden if authorization could not be verified.
+  }
+}
+
+adminTab.addEventListener('click', () => location.assign('admin.html'));
+document.addEventListener('wooang-auth-change', updateAdminTab);
+Cloud.ready.then(() => {
+  Cloud.getClient()?.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') {
+      adminCheck++;
+      adminTab.hidden = true;
+    }
+  });
+  updateAdminTab();
+});
 // 집중 모드 중에 앱을 다시 열면 바로 집중 화면으로 간다.
 // 아니면 주소 끝에 #travel 처럼 붙인 탭으로, 없으면 우왕이 탭으로 시작한다
 const startTab = location.hash.slice(1);
