@@ -74,13 +74,27 @@ const Pet = (() => {
       }
     });
     $('#decor-remove').addEventListener('click', () => changeDecor());
-    $('#room-decor').addEventListener('click', (e) => {
+    const decorLayer = $('#room-decor');
+    decorLayer.addEventListener('pointerdown', startDecorDrag);
+    decorLayer.addEventListener('pointermove', moveDecorDrag);
+    decorLayer.addEventListener('pointerup', finishDecorDrag);
+    decorLayer.addEventListener('pointercancel', finishDecorDrag);
+    decorLayer.addEventListener('lostpointercapture', finishDecorDrag);
+    decorLayer.addEventListener('click', (e) => {
+      if (e.detail && suppressDecorClick) return;
       const slot = e.target.closest('[data-decor-slot]');
       if (slot && selectedDecor) return changeDecor(Number(slot.dataset.decorSlot));
       const b = e.target.closest('[data-decor]');
       const d = b && destById(b.dataset.decor);
       if (d && !gone() && !isAsleep()) say(`${d.souvenir.emoji} ${d.name}에서 사 온 ${josa(d.souvenir.name, "이에요", "예요")}!`, 2500);
     });
+    room.addEventListener('click', (e) => {
+      if (!selectedDecor || !e.detail || e.target.closest('[data-decor-slot]')) return;
+      const rect = decorLayer.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      e.stopPropagation();
+      changeDecor(undefined, decorPosition(rect, e.clientX, e.clientY));
+    }, true);
     $('#lecture-list').addEventListener('click', (e) => {
       const b = e.target.closest('[data-course]');
       if (b) (pickMode === "study" ? startStudy : startLecture)(b.dataset.course);
@@ -182,7 +196,7 @@ const Pet = (() => {
 
   // 방의 빈 곳을 누르면, 우왕이보다 오른쪽인지 왼쪽인지로 갈 방향을 정한다
   function startHold(e) {
-    if (e.button > 0 || e.target.closest('#mascot, button')) return;
+    if (selectedDecor || e.button > 0 || e.target.closest('#mascot, button')) return;
     endHold();
     if (!canMove()) return;
     const px = e.clientX - room.getBoundingClientRect().left;
@@ -1104,12 +1118,70 @@ const Pet = (() => {
   const DECOR_SLOTS = ['shelf-1', 'shelf-2', 'shelf-3', 'frame', 'floor-1', 'floor-2'];
   let decorKey = '';
   let selectedDecor = null;
+  let decorDrag = null;
+  let suppressDecorClick = false;
   const DECOR_SLOT_NAMES = ['선반 왼쪽', '선반 가운데', '선반 오른쪽', '창문 아래 액자', '바닥 왼쪽', '바닥 오른쪽'];
 
-  function changeDecor(slot) {
+  function startDecorDrag(e) {
+    if (decorDrag || e.button !== 0 || !e.isPrimary) return;
+    suppressDecorClick = false;
+    const item = e.target.closest('[data-decor]');
+    if (!item) return;
+    const rect = item.getBoundingClientRect();
+    decorDrag = {
+      item, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY,
+      offsetX: rect.left + rect.width / 2 - e.clientX,
+      offsetY: rect.top + rect.height / 2 - e.clientY,
+    };
+    item.setPointerCapture(e.pointerId);
+  }
+
+  function moveDecorDrag(e) {
+    if (!decorDrag || decorDrag.pointerId !== e.pointerId) return;
+    const drag = decorDrag;
+    if (!drag.position && Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < 5) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const { x, y } = drag.position = decorPosition(rect, e.clientX + drag.offsetX, e.clientY + drag.offsetY);
+    drag.item.classList.add('decor-free', 'decor-dragging');
+    drag.item.style.setProperty('--decor-x', `${x}%`);
+    drag.item.style.setProperty('--decor-y', `${y}%`);
+    e.currentTarget.classList.add('dragging');
+  }
+
+  function finishDecorDrag(e) {
+    if (!decorDrag || decorDrag.pointerId !== e.pointerId) return;
+    if (e.type === 'pointerup') moveDecorDrag(e);
+    const { item, position } = decorDrag;
+    decorDrag = null;
+    if (!position) return;
+    suppressDecorClick = true;
+    if (e.type === 'pointerup') {
+      state.decorPositions = { ...state.decorPositions, [item.dataset.decor]: position };
+      saveState();
+    }
+    decorKey = '';
+    renderDecor();
+  }
+
+  function decorPosition(rect, x, y) {
+    const percent = (value, size) => Math.min(100, Math.max(0, 100 * value / size));
+    return { x: percent(x - rect.left, rect.width), y: percent(y - rect.top, rect.height) };
+  }
+
+  function changeDecor(slot, position) {
     if (!selectedDecor || !state.souvenirs.includes(selectedDecor)) return;
     const decor = placedDecor();
     const from = decor.indexOf(selectedDecor);
+    if (position) {
+      slot = from >= 0 ? from : decor.indexOf(null);
+      if (slot < 0) return toast('장식은 6개까지 놓을 수 있어요. 먼저 하나를 치워 주세요.');
+    }
+    const positions = { ...state.decorPositions };
+    delete positions[selectedDecor];
+    if (slot !== undefined && decor[slot]) delete positions[decor[slot]];
+    if (position) positions[selectedDecor] = position;
+    state.decorPositions = positions;
     if (from >= 0) decor[from] = decor[slot] || null;
     if (slot !== undefined) decor[slot] = selectedDecor;
     selectedDecor = null;
@@ -1126,11 +1198,14 @@ const Pet = (() => {
   function renderDecor() {
     const decor = placedDecor();
     if (selectedDecor && !state.souvenirs.includes(selectedDecor)) selectedDecor = null;
-    const key = JSON.stringify([decor, state.souvenirs, selectedDecor]);
+    const positions = state.decorPositions || {};
+    const key = JSON.stringify([decor, state.souvenirs, selectedDecor, positions]);
     if (decorKey === key) return;
     decorKey = key;
     // 방 안
     const layer = $('#room-decor');
+    decorDrag = null;
+    layer.classList.remove('dragging');
     layer.classList.toggle('placing', Boolean(selectedDecor));
     layer.innerHTML = `<div class="decor-shelf"></div>` + DECOR_SLOTS.map((slot, i) => {
       const d = decor[i] && destById(decor[i]);
@@ -1138,13 +1213,17 @@ const Pet = (() => {
         const label = d ? `${DECOR_SLOT_NAMES[i]} (${d.souvenir.name})` : DECOR_SLOT_NAMES[i];
         return `<button type="button" class="decor decor-${slot} decor-target" data-decor-slot="${i}" aria-label="${label}" title="${label}">${d ? d.souvenir.emoji : '+'}</button>`;
       }
-      return d ? `<button class="decor decor-${slot}" data-decor="${d.id}" title="${d.souvenir.name}">${d.souvenir.emoji}</button>` : '';
+      if (!d) return '';
+      const position = positions[d.id];
+      const free = Number.isFinite(position?.x) && Number.isFinite(position?.y);
+      const style = free ? ` style="--decor-x:${position.x}%;--decor-y:${position.y}%"` : '';
+      return `<button type="button" class="decor decor-${slot}${free ? ' decor-free' : ''}" data-decor="${d.id}" title="${d.souvenir.name}"${style}>${d.souvenir.emoji}</button>`;
     }).join('') + (selectedDecor || decor[3] ? '' : '<div class="decor-frame-empty"></div>');
     // 방 꾸미기 카드
     const owned = DESTINATIONS.filter((d) => state.souvenirs.includes(d.id));
     const placed = decor.filter(Boolean).length;
     $('#decor-count').textContent = `장식 ${placed} / ${DECOR_SLOTS.length}`;
-    $('#decor-help').textContent = selectedDecor ? '방에서 놓을 자리를 누르세요.' : owned.length ? '배치하거나 옮길 기념품을 고르세요.' : '';
+    $('#decor-help').textContent = selectedDecor ? '방 안에서 원하는 위치를 누르세요.' : placed ? '방에 놓인 기념품을 끌어서 옮길 수 있어요.' : owned.length ? '배치할 기념품을 고르세요.' : '';
     $('#decor-remove').hidden = !selectedDecor || !decor.includes(selectedDecor);
     $('#decor-items').innerHTML = owned.length
       ? owned.map((d) => {

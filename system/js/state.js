@@ -112,6 +112,7 @@ function defaultState() {
     visited: {},
     souvenirs: [],
     decor: [],      // 방 꾸미기: 장식 자리마다 놓은 기념품(여행지 id 또는 null) (pet.js DECOR_SLOTS)
+    decorPositions: {}, // 자유 배치한 기념품의 방 안 상대 좌표
     outfits: [],    // 받은 의상 (여행지 id)
     equipped: { head: null, face: null, neck: null, hand: null, body: null },
     forms: [],      // 지금까지 키워 본 어른 모습 (다시 키워도 남는다)

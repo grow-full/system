@@ -2107,13 +2107,30 @@ body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #
 
   /* 우왕이: 방 → 하트·돌보기 → 옷장·도감 */
   #screen-pet .col-main { display: contents; }
-  #screen-pet .room { order: -2; margin: 14px 14px 0; height: 300px; }
+  #screen-pet .room {
+    order: -2;
+    margin: 14px clamp(10px, 3.5vw, 14px) 0;
+    height: clamp(220px, 76vw, 300px);
+    height: clamp(220px, min(76vw, 62svh), 300px);
+    container-type: inline-size;
+  }
   #screen-pet .col-side { order: -1; padding-bottom: 0; }
   #screen-pet .collections, #screen-pet .howto { margin-left: 14px; margin-right: 14px; }
   #btn-reset { width: auto; margin: 22px 14px 20px; }
   .mascot-wrap[data-stage="adult"]:not(.tiny) { --size: 160px; }
   .speech { max-width: 60%; font-size: 12px; }
-  .room-window { top: 18px; left: 18px; width: 72px; height: 60px; font-size: 22px; }
+  .room-window {
+    top: 18px; left: 18px;
+    width: clamp(54px, 20cqi, 72px);
+    height: auto;
+    aspect-ratio: 6 / 5;
+    font-size: clamp(18px, 6cqi, 22px);
+  }
+  #screen-pet .room .mascot-wrap[data-stage]:not(.tiny) {
+    width: min(var(--size), 43cqi);
+    height: min(var(--size), 43cqi);
+  }
+  input, select, textarea, .comment-form input { font-size: max(16px, 1em); }
   .collections { grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
   .actions { grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
   .actions button { flex-direction: column; justify-content: center; gap: 4px; min-height: 64px; padding: 8px 2px; font-size: 12px; text-align: center; }
@@ -2429,7 +2446,8 @@ body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #
 @media (prefers-reduced-motion: reduce) { .desk-pet .cls-uwang, .desk-pencil { animation: none; } }
 
 /* ---------- 방 꾸미기: 여행 기념품 장식 (pet.js renderDecor) ---------- */
-.room-decor { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.room-decor { position: absolute; inset: 0; pointer-events: none; }
+.room-decor > * { z-index: 1; }
 .decor-shelf { position: absolute; right: 26px; top: 176px; width: 168px; height: 10px; background: #a8713d; box-shadow: 0 0 0 3px var(--ink), 0 6px 0 0 rgba(74, 13, 34, .25); }
 .decor-shelf::before, .decor-shelf::after { content: ''; position: absolute; top: 100%; width: 8px; height: 14px; background: #8a5a2b; box-shadow: 0 0 0 2px var(--ink); }
 .decor-shelf::before { left: 16px; }
@@ -2451,7 +2469,22 @@ body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #
 .decor-floor-1 { left: 18px; bottom: 18px; font-size: 40px; }
 .decor-floor-2 { left: 70px; bottom: 26px; font-size: 36px; }
 .room[data-lights="off"] .decor { filter: brightness(.6); }
-.room-decor.placing { z-index: 5; }
+.room-decor.placing, .room-decor.dragging { z-index: 5; }
+.room:has(.room-decor.placing) { cursor: crosshair; }
+.decor[data-decor] { z-index: 3; cursor: grab; touch-action: none; user-select: none; }
+.decor.decor-free {
+  z-index: 3;
+  left: clamp(22px, var(--decor-x), calc(100% - 22px));
+  top: clamp(22px, var(--decor-y), calc(100% - 22px));
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+}
+.decor-frame.decor-free {
+  left: clamp(41px, var(--decor-x), calc(100% - 41px));
+  top: clamp(35px, var(--decor-y), calc(100% - 35px));
+}
+.decor.decor-dragging { cursor: grabbing; z-index: 4; }
 .decor-target { min-width: 32px; min-height: 28px; outline: 2px dashed var(--ink); background: #fffaf0; }
 .decor-target:focus-visible, .decor-item[aria-pressed="true"] { outline: 3px solid var(--primary); outline-offset: 2px; }
 #decor-help:empty { display: none; }
@@ -2470,10 +2503,11 @@ body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #
 .decor-item.on::after { content: '장식 중'; font-size: 10px; color: var(--primary); }
 
 @media (max-width: 899px) {
-  .decor-shelf { right: 16px; top: 124px; width: 128px; }
+  .room-decor { --shelf-step: clamp(34px, 11cqi, 42px); }
+  .decor-shelf { right: 16px; top: 124px; width: calc(var(--shelf-step) * 3 + 2px); }
   .decor { font-size: 26px; }
-  .decor-shelf-1 { right: 106px; top: 94px; }
-  .decor-shelf-2 { right: 64px; top: 94px; }
+  .decor-shelf-1 { right: calc(22px + var(--shelf-step) * 2); top: 94px; }
+  .decor-shelf-2 { right: calc(22px + var(--shelf-step)); top: 94px; }
   .decor-shelf-3 { right: 22px; top: 94px; }
   .decor-frame, .decor-frame-empty { left: 26px; top: 100px; width: 52px; height: 44px; font-size: 22px; }
   .decor-floor-1 { left: 12px; bottom: 14px; font-size: 30px; }
