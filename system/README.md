@@ -154,6 +154,14 @@
 - 이 두 주소가 아닌 곳(다른 포트, 다른 배포 주소)에서 열면 지도가 뜨지 않습니다. 그럴 때는 키 주인에게 웹사이트 제한에 그 주소를 추가해 달라고 하세요.
 - 제한을 풀거나, 제한 없는 다른 키를 이 파일에 넣지 마세요. 저장소가 공개라서 누구나 키를 가져다 쓸 수 있게 됩니다.
 
+## 관리자 방문 통계
+
+1. Supabase SQL Editor에서 [sql/visitors.sql](sql/visitors.sql)을 실행합니다. 기존 누적 방문 기록을 유지하면서 한국 시간 기준 일별 방문 집계를 시작합니다.
+2. Authentication → Users에서 `aaaa@wooang.app`이 본인의 기존 계정인지 확인한 뒤 [sql/admin-account.sql](sql/admin-account.sql)을 실행합니다. 이 스크립트는 계정의 UUID에 관리자 권한만 부여합니다.
+3. 배포한 게임에서 그 계정으로 로그인하고, 같은 사이트의 `admin.html` 주소를 직접 엽니다.
+
+공개 사이트에는 관리자 메뉴가 없습니다. `admin.html`은 로그인 및 권한 안내만 담고 있으며, 통계 화면은 Supabase가 관리자 UUID를 확인한 뒤에만 반환합니다. 관리자 권한을 회수하려면 Supabase SQL Editor에서 해당 UUID를 `public.site_admins`에서 삭제합니다.
+
 ## 커뮤니티를 모두와 공유하려면 (Supabase)
 
 기존 Supabase 로그인과 동일한 계정을 사용합니다. Supabase 설정이 있으면 Firebase보다 우선합니다.
