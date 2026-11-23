@@ -6,6 +6,7 @@ const Pet = (() => {
   const PHRASES = ['오늘은 어디로 여행 갈까? ✈️', '방 안을 산책 중이에요', '콧노래가 나와요 ♪', '창밖 구경 중이에요 ☁️'];
   const HOLD_MS = 300;    // 이만큼 누르고 있으면 걷기 시작
   const GAZE_MS = 2000;   // 톡 누른 곳을 쳐다보는 시간
+  const DRAG_COMPLAINT_CHANCE = 0.05;
 
   let room, walker, mascot, fx;
   let motion;            // 우왕이 몸 동작 (mascot.js의 createUwangMotion)
@@ -23,6 +24,9 @@ const Pet = (() => {
   const STUDY_PHRASES = ['열심히 공부 중… ✏️', '음… 이게 무슨 뜻이지? 🤔', '아하! 알겠다 💡', '필기 꼼꼼히! 📝'];
   let quizResult = null; // 복습 퀴즈를 풀었으면 결과 글
   let hold = null;       // 누르고 있는 상태 { dir, px, py, timer, raf, last, walking }
+  let petDrag = null;
+  let suppressPetClick = false;
+  let stayUntil = 0;
   let gazeTimer = 0;     // 톡 누른 곳을 쳐다보는 중이면 정면으로 돌아오기까지의 타이머
   let lastPoop = null;   // 지난번 화면을 그릴 때의 똥 개수
   let hatching = false;
@@ -38,7 +42,14 @@ const Pet = (() => {
     motion = createUwangMotion(mascot, walker, room);
     document.querySelectorAll('[data-action]').forEach((b) => b.addEventListener('click', () => act(b.dataset.action)));
     document.querySelectorAll('[data-guess]').forEach((b) => b.addEventListener('click', () => guess(b.dataset.guess)));
-    mascot.addEventListener('click', tapMascot);
+    mascot.addEventListener('click', (e) => {
+      if (!e.detail || !suppressPetClick) tapMascot(e);
+    });
+    mascot.addEventListener('pointerdown', startPetDrag);
+    mascot.addEventListener('pointermove', movePetDrag);
+    mascot.addEventListener('pointerup', endPetDrag);
+    mascot.addEventListener('pointercancel', endPetDrag);
+    mascot.addEventListener('lostpointercapture', endPetDrag);
     document.querySelectorAll('[data-talk]').forEach((b) => b.addEventListener('click', () => talk(b.dataset.talk)));
     $('#btn-talk-close').addEventListener('click', () => { talking = false; render(); });
     $('#talk-form').addEventListener('submit', (e) => {
@@ -173,7 +184,7 @@ const Pet = (() => {
   }
 
   function walk() {
-    if (busy || Date.now() < reactingUntil || play || hold || gazeTimer || gone() || state.study || state.pet.stage === 'egg' || isAsleep()) return;
+    if (busy || Date.now() < Math.max(reactingUntil, stayUntil) || play || hold || petDrag || gazeTimer || gone() || state.study || state.pet.stage === 'egg' || isAsleep()) return;
     // 대기 동작(기지개·꾸벅 등)이 끝나기 전에 걷기 시작해서 동작이 뚝 끊기지 않게 한다
     if (motion.walking() || motion.acting() || motion.idling() || uwangReducedMotion()) return;
     const size = mascot.offsetWidth;
@@ -184,7 +195,7 @@ const Pet = (() => {
   }
 
   function idleTwitch() {
-    if (busy || play || hold || gazeTimer || gone() || state.study || state.pet.stage === 'egg' || isAsleep() || Date.now() < reactingUntil) return;
+    if (busy || play || hold || petDrag || gazeTimer || gone() || state.study || state.pet.stage === 'egg' || isAsleep() || Date.now() < reactingUntil) return;
     if (motion.walking() || motion.acting() || motion.idling()) return; // 진행 중인 동작을 끊지 않는다
     motion.twitch();
   }
@@ -192,6 +203,37 @@ const Pet = (() => {
   // ---------- 톡 누르면 쳐다보기 / 꾹 누르면 걷기 ----------
   function canMove() {
     return state.pet.stage !== 'egg' && !hatching && !busy && !play && !gone() && !state.study && !isAsleep();
+  }
+
+  function startPetDrag(e) {
+    if (!e.isPrimary || e.button !== 0) return;
+    suppressPetClick = false;
+    if (selectedDecor || !canMove() || motion.acting()) return;
+    petDrag = { pointerId: e.pointerId, startX: e.clientX, roomX: motion.x(), moved: false };
+    mascot.setPointerCapture(e.pointerId);
+  }
+
+  function movePetDrag(e) {
+    if (!petDrag || petDrag.pointerId !== e.pointerId || !canMove() || motion.acting()) return;
+    const delta = e.clientX - petDrag.startX;
+    if (!petDrag.moved) {
+      if (Math.abs(delta) < 6) return;
+      petDrag.moved = true;
+      suppressPetClick = true;
+      endHold();
+      stopGaze();
+      mascot.classList.add('being-dragged');
+      if (Math.random() < DRAG_COMPLAINT_CHANCE) say('으음… 지금은 움직이기 싫어!');
+    }
+    motion.place(Math.min(maxX(), petDrag.roomX + delta));
+  }
+
+  function endPetDrag(e) {
+    if (!petDrag || petDrag.pointerId !== e.pointerId) return;
+    if (e.type === 'pointerup') movePetDrag(e);
+    if (petDrag.moved) stayUntil = Date.now() + 4000;
+    petDrag = null;
+    mascot.classList.remove('being-dragged');
   }
 
   // 방의 빈 곳을 누르면, 우왕이보다 오른쪽인지 왼쪽인지로 갈 방향을 정한다
@@ -1243,6 +1285,10 @@ const Pet = (() => {
   }
 
   function resetView() {
+    petDrag = null;
+    suppressPetClick = false;
+    stayUntil = 0;
+    mascot.classList.remove('being-dragged');
     endHold();
     stopGaze();
     lastPoop = null;

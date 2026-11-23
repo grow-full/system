@@ -2180,6 +2180,8 @@ body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #
    ========================================================= */
 /* 돌보기 상호작용 */
 #mascot { position: relative; cursor: pointer; touch-action: manipulation; }
+#mascot:not([data-stage="egg"]) { cursor: grab; touch-action: pan-y; }
+#mascot.being-dragged { cursor: grabbing; }
 #mascot:focus-visible { outline: 3px solid #e69c46; outline-offset: 8px; border-radius: 45%; }
 .interaction-heart { position: absolute; left: 65%; top: 15%; z-index: 6; color: #ee7195; font-size: 26px; pointer-events: none; animation: rise 1s forwards; }
 @media (prefers-reduced-motion: reduce) {
