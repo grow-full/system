@@ -541,7 +541,10 @@
                 <input id="walk-note-input" type="text" maxlength="60" placeholder="예: 날씨가 좋아서 기분 최고였어요" autocomplete="off">
                 <button class="primary walk-note-save" id="walk-note-save" type="button">저장</button>
               </div>
-              <p class="walk-note-msg" id="walk-note-msg" aria-live="polite"></p>
+              <p class="walk-note-msg-box" id="walk-note-msg-box" hidden>
+                <span id="walk-note-msg"></span>
+                <button class="walk-note-close" id="walk-note-close" type="button" aria-label="닫기">×</button>
+              </p>
             </div>
             <!-- 인생네컷: 이번 산책에서 만난 친구와 함께 찍는다 (화면에만 보이고 저장하지 않는다) -->
             <div class="booth" id="booth" hidden>
@@ -569,7 +572,7 @@
   
           <div id="walk-main" hidden>
           <h2>산책 🐾</h2>
-          <p class="sub">방향키(또는 오른쪽 아래 버튼)로 우왕이를 한 걸음씩 움직여요. 끝까지 멀리 간 뒤 ↑를 한 번 더 누르면 다음 장소를 찾아가요. 화면을 끌어서 둘러볼 수도 있어요.</p>
+          <p class="sub">바닥의 화살표를 누르면 그쪽으로 걸어가요. 화면을 끌어서 둘러보고, 키보드 방향키로도 움직일 수 있어요.</p>
           <div class="card walk-stats">
             <div><small>🐾 걸음</small><b id="walk-steps">0</b></div>
             <div><small>⏱ 산책 시간</small><b id="walk-time">00:00</b></div>
@@ -611,10 +614,22 @@
                 <span class="friend-body" id="walk-friend-body"></span>
                 <small class="friend-name" id="walk-friend-name"></small>
               </button>
+              <!-- 바닥 화살표: 갈 수 있는 쪽마다 하나씩 (누르면 그쪽으로 걸어간다) -->
+              <div class="walk-arrows" id="walk-arrows" hidden></div>
               <div class="walk-walker" id="walk-walker">
                 <div class="walk-speech" id="walk-speech"></div>
                 <div id="walk-mascot" class="mascot-wrap"></div>
               </div>
+              <!-- 1인칭일 때 화면 아래쪽에 보이는 우왕이 앞발굽 (걸으면 번갈아 움직인다) -->
+              <div class="walk-hooves" id="walk-hooves" hidden>
+                <button class="walk-hoof left" type="button" aria-label="우왕이 쓰다듬기">
+                  <svg viewBox="0 0 60 110" aria-hidden="true"><rect x="8" y="28" width="44" height="90" rx="16" fill="#f7a23b" stroke="#4a0d22" stroke-width="3"/><rect x="15" y="46" width="6" height="34" rx="3" fill="#fff" opacity=".35"/><path d="M8 38 Q8 6 30 6 Q52 6 52 38 Z" fill="#6b3f22" stroke="#4a0d22" stroke-width="3" stroke-linejoin="round"/><path d="M30 8 V36" stroke="#4a0d22" stroke-width="2.5"/></svg>
+                </button>
+                <button class="walk-hoof right" type="button" aria-label="우왕이 쓰다듬기">
+                  <svg viewBox="0 0 60 110" aria-hidden="true"><rect x="8" y="28" width="44" height="90" rx="16" fill="#f7a23b" stroke="#4a0d22" stroke-width="3"/><rect x="15" y="46" width="6" height="34" rx="3" fill="#fff" opacity=".35"/><path d="M8 38 Q8 6 30 6 Q52 6 52 38 Z" fill="#6b3f22" stroke="#4a0d22" stroke-width="3" stroke-linejoin="round"/><path d="M30 8 V36" stroke="#4a0d22" stroke-width="2.5"/></svg>
+                </button>
+              </div>
+              <button class="walk-view-toggle" id="walk-view-toggle" type="button" aria-pressed="false">👀 1인칭 보기</button>
               <div class="walk-hint" id="walk-hint" hidden></div>
               <div class="walk-place" id="walk-place" hidden></div>
               <p class="walk-notice" id="walk-notice" hidden></p>
@@ -728,12 +743,6 @@
                 <button class="primary" id="cafe-stand" type="button">일어나기</button>
               </div>
             </div>
-            <div class="walk-pad" id="walk-pad">
-              <button data-move="forward" class="up" aria-label="앞으로 한 걸음">▲</button>
-              <button data-move="left" class="left" aria-label="왼쪽으로 한 걸음">◀</button>
-              <button data-move="back" class="down" aria-label="뒤로 한 걸음">▼</button>
-              <button data-move="right" class="right" aria-label="오른쪽으로 한 걸음">▶</button>
-            </div>
           </div>
           <p class="sub center" id="walk-status"></p>
           </div>
@@ -782,7 +791,7 @@
           <ul class="walk-rule-list">
             <li><span class="wr-icon">⏱</span><span class="wr-what">10분 산책하기</span><span class="wr-gift">🪙 5</span></li>
             <li><span class="wr-icon">🐾</span><span class="wr-what">100걸음 걷기</span><span class="wr-gift">💗 +1</span></li>
-            <li><span class="wr-icon">🏅</span><span class="wr-what">한 장소에서 50걸음<small>도장을 모두 모으면 🪙 30 더</small></span><span class="wr-gift">첫 도장 🪙 3</span></li>
+            <li><span class="wr-icon">🏅</span><span class="wr-what">이름 있는 장소에서 10초 둘러보기<small>도장을 모두 모으면 🪙 30 더</small></span><span class="wr-gift">첫 도장 🪙 3</span></li>
             <li><span class="wr-icon">🤝</span><span class="wr-what">숨은 친구와 인사하기<small>5명을 모두 찾으면 🪙 25 더</small></span><span class="wr-gift">처음 🪙 5</span></li>
             <li><span class="wr-icon">💧</span><span class="wr-what">목마를 때 물 마시기<small>80걸음쯤 걸으면 목말라해요. 다음 💗까지 30걸음을 채워 줘요</small></span><span class="wr-gift">💗 +30걸음</span></li>
           </ul>
