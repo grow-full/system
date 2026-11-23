@@ -821,15 +821,9 @@ main { min-width: 0; height: 100vh; }
 @keyframes vanish { to { transform: scale(0); opacity: 0; } }
 
 /* 짐 싸기 블록 퍼즐 */
-.blk-board, .blk-tray {
-  box-sizing: border-box;
-  width: min(100%, clamp(224px, 48vh, 300px));
-  width: min(100%, clamp(224px, 48svh, 300px));
-  margin-inline: auto;
-}
 .blk-board {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: repeat(8, 1fr);
   gap: 2px;
   padding: 6px;
   border-radius: 16px;
@@ -839,8 +833,8 @@ main { min-width: 0; height: 100vh; }
 .blk-board span { aspect-ratio: 1; border-radius: 5px; background: #a8754a; }
 .blk-board span.on { box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .18); }
 .blk-board span.clear { animation: vanish .3s ease-in forwards; }
-.blk-tray { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; touch-action: none; user-select: none; }
-.blk-slot { display: grid; place-items: center; height: 68px; border: 1px solid var(--line); border-radius: 14px; background: #fff; cursor: grab; }
+.blk-tray { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; touch-action: none; user-select: none; }
+.blk-slot { display: grid; place-items: center; height: 104px; border: 1px solid var(--line); border-radius: 14px; background: #fff; cursor: grab; }
 .blk-slot.lifted { opacity: .25; }
 .blk-slot.stuck { filter: grayscale(1); opacity: .5; }
 .blk-mini { display: grid; gap: 2px; }
@@ -1889,6 +1883,9 @@ body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #
 .lecture-panel, .lecture-quiz { margin-top: 18px; text-align: center; }
 .lecture-note { margin: -4px 0 12px; color: var(--sub); font-size: 12px; word-break: keep-all; }
 .lecture-list { display: grid; gap: 6px; margin-bottom: 12px; text-align: left; max-height: 420px; overflow-y: auto; padding: 2px; }
+.major-pick { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; color: var(--sub); text-align: left; }
+.major-pick span { flex: none; }
+.major-pick select { flex: 1; min-width: 0; padding: 7px 8px; border: 0; border-radius: 0; background: #fff; box-shadow: var(--px-border); font: inherit; font-size: 13px; color: var(--ink); cursor: pointer; }
 .lecture-years { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
 .lecture-years button { padding: 6px 0; border: 0; border-radius: 0; background: #fff; box-shadow: var(--px-border); font: inherit; font-size: 12px; color: var(--ink); cursor: pointer; }
 .lecture-years button[aria-pressed="true"] { background: var(--primary); color: #fff; }
@@ -2037,10 +2034,6 @@ body.focus-mode .card, body.focus-mode .announce { background: #1b2045; color: #
 .decor-floor-1 { left: 18px; bottom: 18px; font-size: 40px; }
 .decor-floor-2 { left: 70px; bottom: 26px; font-size: 36px; }
 .room[data-lights="off"] .decor { filter: brightness(.6); }
-.room-decor.placing { z-index: 5; }
-.decor-target { min-width: 32px; min-height: 28px; outline: 2px dashed var(--ink); background: #fffaf0; }
-.decor-target:focus-visible, .decor-item[aria-pressed="true"] { outline: 3px solid var(--primary); outline-offset: 2px; }
-#decor-help:empty { display: none; }
 
 /* 방 꾸미기 카드 */
 .decor-card { grid-column: 1 / -1; }

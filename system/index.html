@@ -74,14 +74,12 @@
 
             <div class="card collection-card decor-card">
               <div class="collection-head"><b>방 꾸미기</b><small id="decor-count"></small></div>
-              <p id="decor-help" aria-live="polite"></p>
-              <button type="button" id="decor-remove" hidden>선택한 기념품 치우기</button>
               <div class="decor-items" id="decor-items"></div>
               <p class="collection-note">여행지에서 받은 기념품을 누르면 방의 선반·액자·바닥에 놓고, 한 번 더 누르면 치워요. 새 기념품은 빈자리가 있으면 바로 장식돼요. 방의 장식을 누르면 우왕이가 소개해 줘요.</p>
             </div>
 
             <div class="card collection-card lecture-card">
-              <div class="collection-head"><b>수강 기록 · 경영정보학과</b><small id="lecture-count"></small></div>
+              <div class="collection-head"><b>수강 기록 · <span id="major-label">경영정보학과</span></b><small id="lecture-count"></small></div>
               <div class="lecture-record" id="lecture-record"></div>
             </div>
           </div>
@@ -97,7 +95,7 @@
               <li>밤 12시부터 아침 8시까지는 잠을 자요. 불을 꺼 주지 않으면 돌봄 실수가 돼요. 낮에 불을 끄면 낮잠을 자요.</li>
               <li>말풍선으로 우왕이가 지금 필요한 것을 알려 줘요. 오래 내버려 두면 돌봄 실수가 쌓여요.</li>
               <li>여행 중에는 기내에서 돌봐 줘서 배가 고프지 않아요.</li>
-              <li>"수업 듣기"로 경영정보학과 과목을 골라 수업에 보낼 수 있어요. 2분 뒤 돌아와 배운 것을 말해 주고, 복습 퀴즈를 맞히면 코인을 받아요. 아프거나 너무 배고프면 수업에 못 가요.</li>
+              <li>"수업 듣기"로 우왕이 전공 과목을 골라 수업에 보낼 수 있어요. 전공은 과목 고르기 판에서 충북대 단과대학별 모든 학과 중에서 바꿀 수 있어요. 2분 뒤 돌아와 배운 것을 말해 주고, 복습 퀴즈를 맞히면 코인을 받아요. 아프거나 너무 배고프면 수업에 못 가요.</li>
               <li>"공부하기"를 누르고 과목을 고르면 우왕이가 방에서 1분 동안 책을 펴고 공부해요. 경험치 +8, 수업을 들은 과목이면 복습이라 +4를 더 받아요.</li>
             </ul>
           </details>
@@ -135,6 +133,7 @@
           <div class="card lecture-panel" id="lecture-panel" hidden>
             <p class="play-text" id="lecture-title">어떤 수업을 들을까요?</p>
             <p class="lecture-note" id="lecture-note"></p>
+            <label class="major-pick"><span>우왕이 전공</span><select id="major-select" aria-label="우왕이 전공 학과 고르기"></select></label>
             <div class="lecture-years" id="lecture-years"></div>
             <div class="lecture-list" id="lecture-list"></div>
             <button class="ghost" id="btn-lecture-close">닫기</button>
@@ -640,6 +639,7 @@
   <script src="js/pixel-icons.js"></script>
   <script src="js/mascot.js"></script>
   <script src="js/buddy.js"></script>
+  <script src="js/majors.js"></script>
   <script src="js/courses.js"></script>
   <script src="js/pet.js"></script>
   <script src="js/travel.js"></script>

@@ -67,16 +67,9 @@ const Pet = (() => {
     $('#cost-medicine').textContent = `코인 ${MEDICINE_COST}`;
     $('#decor-items').addEventListener('click', (e) => {
       const b = e.target.closest('[data-souvenir]');
-      if (b) {
-        selectedDecor = selectedDecor === b.dataset.souvenir ? null : b.dataset.souvenir;
-        renderDecor();
-        if (selectedDecor) $('#room-decor [data-decor-slot]').focus();
-      }
+      if (b) toggleDecor(b.dataset.souvenir);
     });
-    $('#decor-remove').addEventListener('click', () => changeDecor());
     $('#room-decor').addEventListener('click', (e) => {
-      const slot = e.target.closest('[data-decor-slot]');
-      if (slot && selectedDecor) return changeDecor(Number(slot.dataset.decorSlot));
       const b = e.target.closest('[data-decor]');
       const d = b && destById(b.dataset.decor);
       if (d && !gone() && !isAsleep()) say(`${d.souvenir.emoji} ${d.name}에서 사 온 ${josa(d.souvenir.name, "이에요", "예요")}!`, 2500);
@@ -90,6 +83,9 @@ const Pet = (() => {
       if (b) { lectureYear = Number(b.dataset.year); renderLectureList(); }
     });
     $('#btn-lecture-close').addEventListener('click', () => { picking = false; render(); });
+    $('#major-select').innerHTML = COLLEGES.map((c) =>
+      `<optgroup label="${c.icon} ${c.name}">${c.depts.map((d) => `<option value="${d}">${d}</option>`).join('')}</optgroup>`).join('');
+    $('#major-select').addEventListener('change', (e) => changeMajor(e.target.value));
     document.querySelectorAll('[data-ox]').forEach((b) => b.addEventListener('click', () => answerQuiz(b.dataset.ox)));
     $('#btn-quiz-done').addEventListener('click', closeQuiz);
     renderLectureList();
@@ -351,21 +347,22 @@ const Pet = (() => {
     if (quizzing) renderQuiz();
   }
 
-  // ---------- 수업 듣기 (경영정보학과) ----------
+  // ---------- 수업 듣기 (전공은 사용자가 고른다: majors.js, courses.js) ----------
   // 과목이 많아서 학년 하나씩 골라 보여 준다
   function renderLectureList() {
     const study = pickMode === 'study';
     $('#lecture-title').textContent = study ? '어떤 과목을 공부할까요?' : '어떤 수업을 들을까요?';
     $('#lecture-note').textContent = study
       ? `방에서 ${STUDY_MINUTES}분 공부해요 · 경험치 +8, 수업을 들은 과목이면 복습이라 +4 더`
-      : `충북대 경영정보학과 교육과정 · 한 번에 ${LECTURE_MINUTES}분 · 끝나면 경험치 +15와 복습 퀴즈`;
+      : `${majorNote()} · 한 번에 ${LECTURE_MINUTES}분 · 끝나면 경험치 +15와 복습 퀴즈`;
+    $('#major-select').value = currentMajor();
     $('#lecture-years').innerHTML = [1, 2, 3, 4].map((y) =>
       `<button data-year="${y}" aria-pressed="${y === lectureYear}">${y}학년</button>`).join('');
-    $('#lecture-list').innerHTML = COURSES.filter((c) => c.year === lectureYear).map((c) => {
+    $('#lecture-list').innerHTML = currentCourses().filter((c) => c.year === lectureYear).map((c) => {
       const n = state.courses[c.id] || 0;
       const s = state.studied[c.id] || 0;
       const tag = study ? [n ? '복습' : '', s ? `공부 ${s}회` : ''].filter(Boolean).join(' · ') : (n ? `${n}회` : '');
-      return `<button data-course="${c.id}"><span>${c.icon}</span><span class="lecture-name">${c.name}<em>${c.sem}학기 · ${c.type}</em></span>${tag ? `<small>${tag}</small>` : ''}</button>`;
+      return `<button data-course="${c.id}"><span>${c.icon}</span><span class="lecture-name">${c.name}<em>${c.tag || `${c.sem}학기 · ${c.type}`}</em></span>${tag ? `<small>${tag}</small>` : ''}</button>`;
     }).join('');
   }
 
@@ -581,12 +578,35 @@ const Pet = (() => {
     render();
   }
 
-  // 수업을 듣거나 공부한 과목을 모아 보여 준다 (출석 횟수 · 공부 횟수)
+  // 수업 고르기 판의 안내: 경영정보학과는 실제 교육과정, 다른 학과는 공통 과목
+  function majorNote() {
+    const major = currentMajor();
+    return major === DEFAULT_MAJOR
+      ? `충북대 ${major} 교육과정`
+      : `충북대 ${collegeOf(major).name} ${major} · 학년별 공통 과목`;
+  }
+
+  // 전공을 바꾼다. 다른 전공에서 들은 기록은 지워지지 않고, 그 전공으로 돌아오면 다시 보인다.
+  function changeMajor(dept) {
+    if (!isMajor(dept) || dept === currentMajor()) return;
+    state.major = dept;
+    saveState();
+    lectureYear = 1;
+    renderLectureList();
+    renderLectureRecord();
+    Sound.sfx('beep');
+    toast(`🎓 우왕이 전공이 ${josa(dept, '으로', '로')} 바뀌었어요!`);
+    if (!gone() && !isAsleep() && state.pet.stage !== 'egg') say(`이제 ${dept} 학생이에요! 열심히 할게요 📚`, 3000);
+  }
+
+  // 수업을 듣거나 공부한 과목을 모아 보여 준다 (출석 횟수 · 공부 횟수). 지금 전공의 과목만 센다.
   function renderLectureRecord() {
-    const done = COURSES.filter((c) => state.courses[c.id] || state.studied[c.id]);
-    const attend = COURSES.reduce((s, c) => s + (state.courses[c.id] || 0), 0);
-    const studied = COURSES.reduce((s, c) => s + (state.studied[c.id] || 0), 0);
-    $('#lecture-count').textContent = `${done.length}/${COURSES.length}과목 · 출석 ${attend}회 · 공부 ${studied}회`;
+    const courses = currentCourses();
+    const done = courses.filter((c) => state.courses[c.id] || state.studied[c.id]);
+    const attend = courses.reduce((s, c) => s + (state.courses[c.id] || 0), 0);
+    const studied = courses.reduce((s, c) => s + (state.studied[c.id] || 0), 0);
+    $('#major-label').textContent = currentMajor();
+    $('#lecture-count').textContent = `${done.length}/${courses.length}과목 · 출석 ${attend}회 · 공부 ${studied}회`;
     $('#lecture-record').innerHTML = done.length
       ? done.map((c) => {
           const parts = [state.courses[c.id] ? `출석 ${state.courses[c.id]}` : '', state.studied[c.id] ? `공부 ${state.studied[c.id]}` : ''].filter(Boolean).join(' · ');
@@ -1075,20 +1095,6 @@ const Pet = (() => {
   // 자리: 벽 선반 3칸, 창문 아래 액자, 바닥 2곳 (DECOR_SLOTS). state.decor[i] = 그 자리에 놓은 여행지 id
   const DECOR_SLOTS = ['shelf-1', 'shelf-2', 'shelf-3', 'frame', 'floor-1', 'floor-2'];
   let decorKey = '';
-  let selectedDecor = null;
-  const DECOR_SLOT_NAMES = ['선반 왼쪽', '선반 가운데', '선반 오른쪽', '창문 아래 액자', '바닥 왼쪽', '바닥 오른쪽'];
-
-  function changeDecor(slot) {
-    if (!selectedDecor || !state.souvenirs.includes(selectedDecor)) return;
-    const decor = placedDecor();
-    const from = decor.indexOf(selectedDecor);
-    if (from >= 0) decor[from] = decor[slot] || null;
-    if (slot !== undefined) decor[slot] = selectedDecor;
-    selectedDecor = null;
-    state.decor = decor;
-    saveState();
-    renderDecor();
-  }
 
   function placedDecor() {
     const decor = DECOR_SLOTS.map((_, i) => state.decor[i] || null);
@@ -1097,33 +1103,45 @@ const Pet = (() => {
 
   function renderDecor() {
     const decor = placedDecor();
-    if (selectedDecor && !state.souvenirs.includes(selectedDecor)) selectedDecor = null;
-    const key = JSON.stringify([decor, state.souvenirs, selectedDecor]);
+    const key = decor.join(',') + '|' + state.souvenirs.join(',');
     if (decorKey === key) return;
     decorKey = key;
     // 방 안
-    const layer = $('#room-decor');
-    layer.classList.toggle('placing', Boolean(selectedDecor));
-    layer.innerHTML = `<div class="decor-shelf"></div>` + DECOR_SLOTS.map((slot, i) => {
+    $('#room-decor').innerHTML = `<div class="decor-shelf"></div>` + DECOR_SLOTS.map((slot, i) => {
       const d = decor[i] && destById(decor[i]);
-      if (selectedDecor) {
-        const label = d ? `${DECOR_SLOT_NAMES[i]} (${d.souvenir.name})` : DECOR_SLOT_NAMES[i];
-        return `<button type="button" class="decor decor-${slot} decor-target" data-decor-slot="${i}" aria-label="${label}" title="${label}">${d ? d.souvenir.emoji : '+'}</button>`;
-      }
       return d ? `<button class="decor decor-${slot}" data-decor="${d.id}" title="${d.souvenir.name}">${d.souvenir.emoji}</button>` : '';
-    }).join('') + (selectedDecor || decor[3] ? '' : '<div class="decor-frame-empty"></div>');
+    }).join('') + (decor[3] ? '' : '<div class="decor-frame-empty"></div>');
     // 방 꾸미기 카드
     const owned = DESTINATIONS.filter((d) => state.souvenirs.includes(d.id));
     const placed = decor.filter(Boolean).length;
     $('#decor-count').textContent = `장식 ${placed} / ${DECOR_SLOTS.length}`;
-    $('#decor-help').textContent = selectedDecor ? '방에서 놓을 자리를 누르세요.' : owned.length ? '배치하거나 옮길 기념품을 고르세요.' : '';
-    $('#decor-remove').hidden = !selectedDecor || !decor.includes(selectedDecor);
     $('#decor-items').innerHTML = owned.length
       ? owned.map((d) => {
           const on = decor.includes(d.id);
-          return `<button class="decor-item${on ? ' on' : ''}" data-souvenir="${d.id}" aria-pressed="${selectedDecor === d.id}" title="${d.name} 기념품"><span>${d.souvenir.emoji}</span><small>${d.souvenir.name}</small></button>`;
+          return `<button class="decor-item${on ? ' on' : ''}" data-souvenir="${d.id}" aria-pressed="${on}" title="${d.name} 기념품"><span>${d.souvenir.emoji}</span><small>${d.souvenir.name}</small></button>`;
         }).join('')
       : '<p class="collection-note">아직 기념품이 없어요. 여행지에 처음 가면 기념품을 받아 와요 ✈️</p>';
+  }
+
+  // 기념품을 누르면 빈자리에 놓고, 이미 놓여 있으면 치운다
+  function toggleDecor(id) {
+    const d = destById(id);
+    if (!d || !state.souvenirs.includes(id)) return;
+    const decor = placedDecor();
+    const at = decor.indexOf(id);
+    if (at >= 0) {
+      decor[at] = null;
+      toast(`${d.souvenir.emoji} ${josa(d.souvenir.name, "을", "를")} 치웠어요`);
+    } else {
+      const free = decor.indexOf(null);
+      if (free < 0) return toast(`장식 자리가 꽉 찼어요 (${DECOR_SLOTS.length}곳). 먼저 하나를 치워 주세요`);
+      decor[free] = id;
+      toast(`${d.souvenir.emoji} ${josa(d.souvenir.name, "으로", "로")} 방을 꾸몄어요!`);
+      if (!gone() && !isAsleep() && state.pet.stage !== 'egg') say('우와, 방이 예뻐졌어요! ✨', 2200);
+    }
+    state.decor = decor;
+    saveState();
+    renderDecor();
   }
 
   function refresh() {
