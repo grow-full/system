@@ -802,19 +802,19 @@ const Arcade = (() => {
 
     function renderTray() {
       trayEl.innerHTML = pieces.map((p, i) => `
-        <div class="blk-slot${p && !canPlaceAnywhere(p.shape) ? ' stuck' : ''}" data-piece="${i}">${p ? miniHtml(p, 16) : ''}</div>`).join('');
+        <div class="blk-slot${p && !canPlaceAnywhere(p.shape) ? ' stuck' : ''}" data-piece="${i}">${p ? miniHtml(p, 10) : ''}</div>`).join('');
     }
 
     function anchorAt(e) {
-      const rect = boardEl.getBoundingClientRect();
-      const cell = rect.width / N;
+      const first = cells[0].getBoundingClientRect();
+      const step = cells[1].getBoundingClientRect().left - first.left;
       const { w, h } = size(drag.piece.shape);
       // 손가락에 가리지 않게 블록을 손가락 위쪽에 띄운다
-      const left = e.clientX - (w * cell) / 2;
-      const top = e.clientY - h * cell - 30;
+      const left = e.clientX - ((w - 1) * step + first.width) / 2;
+      const top = e.clientY - (h - 1) * step - first.height - 20;
       drag.ghost.style.left = `${left}px`;
       drag.ghost.style.top = `${top}px`;
-      return { col: Math.round((left - rect.left) / cell), row: Math.round((top - rect.top) / cell) };
+      return { col: Math.round((left - first.left) / step), row: Math.round((top - first.top) / step) };
     }
 
     function place(index, col, row) {
@@ -866,10 +866,10 @@ const Arcade = (() => {
       e.preventDefault();
       const index = Number(slot.dataset.piece);
       const piece = pieces[index];
-      const cell = boardEl.getBoundingClientRect().width / N;
+      const cell = cells[0].getBoundingClientRect().width;
       const ghost = document.createElement('div');
       ghost.className = 'blk-ghost';
-      ghost.innerHTML = miniHtml(piece, cell - 2);
+      ghost.innerHTML = miniHtml(piece, cell);
       document.body.appendChild(ghost);
       drag = { index, piece, ghost, slot };
       slot.classList.add('lifted');

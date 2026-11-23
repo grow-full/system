@@ -67,9 +67,16 @@ const Pet = (() => {
     $('#cost-medicine').textContent = `코인 ${MEDICINE_COST}`;
     $('#decor-items').addEventListener('click', (e) => {
       const b = e.target.closest('[data-souvenir]');
-      if (b) toggleDecor(b.dataset.souvenir);
+      if (b) {
+        selectedDecor = selectedDecor === b.dataset.souvenir ? null : b.dataset.souvenir;
+        renderDecor();
+        if (selectedDecor) $('#room-decor [data-decor-slot]').focus();
+      }
     });
+    $('#decor-remove').addEventListener('click', () => changeDecor());
     $('#room-decor').addEventListener('click', (e) => {
+      const slot = e.target.closest('[data-decor-slot]');
+      if (slot && selectedDecor) return changeDecor(Number(slot.dataset.decorSlot));
       const b = e.target.closest('[data-decor]');
       const d = b && destById(b.dataset.decor);
       if (d && !gone() && !isAsleep()) say(`${d.souvenir.emoji} ${d.name}에서 사 온 ${josa(d.souvenir.name, "이에요", "예요")}!`, 2500);
@@ -1068,6 +1075,20 @@ const Pet = (() => {
   // 자리: 벽 선반 3칸, 창문 아래 액자, 바닥 2곳 (DECOR_SLOTS). state.decor[i] = 그 자리에 놓은 여행지 id
   const DECOR_SLOTS = ['shelf-1', 'shelf-2', 'shelf-3', 'frame', 'floor-1', 'floor-2'];
   let decorKey = '';
+  let selectedDecor = null;
+  const DECOR_SLOT_NAMES = ['선반 왼쪽', '선반 가운데', '선반 오른쪽', '창문 아래 액자', '바닥 왼쪽', '바닥 오른쪽'];
+
+  function changeDecor(slot) {
+    if (!selectedDecor || !state.souvenirs.includes(selectedDecor)) return;
+    const decor = placedDecor();
+    const from = decor.indexOf(selectedDecor);
+    if (from >= 0) decor[from] = decor[slot] || null;
+    if (slot !== undefined) decor[slot] = selectedDecor;
+    selectedDecor = null;
+    state.decor = decor;
+    saveState();
+    renderDecor();
+  }
 
   function placedDecor() {
     const decor = DECOR_SLOTS.map((_, i) => state.decor[i] || null);
@@ -1076,45 +1097,33 @@ const Pet = (() => {
 
   function renderDecor() {
     const decor = placedDecor();
-    const key = decor.join(',') + '|' + state.souvenirs.join(',');
+    if (selectedDecor && !state.souvenirs.includes(selectedDecor)) selectedDecor = null;
+    const key = JSON.stringify([decor, state.souvenirs, selectedDecor]);
     if (decorKey === key) return;
     decorKey = key;
     // 방 안
-    $('#room-decor').innerHTML = `<div class="decor-shelf"></div>` + DECOR_SLOTS.map((slot, i) => {
+    const layer = $('#room-decor');
+    layer.classList.toggle('placing', Boolean(selectedDecor));
+    layer.innerHTML = `<div class="decor-shelf"></div>` + DECOR_SLOTS.map((slot, i) => {
       const d = decor[i] && destById(decor[i]);
+      if (selectedDecor) {
+        const label = d ? `${DECOR_SLOT_NAMES[i]} (${d.souvenir.name})` : DECOR_SLOT_NAMES[i];
+        return `<button type="button" class="decor decor-${slot} decor-target" data-decor-slot="${i}" aria-label="${label}" title="${label}">${d ? d.souvenir.emoji : '+'}</button>`;
+      }
       return d ? `<button class="decor decor-${slot}" data-decor="${d.id}" title="${d.souvenir.name}">${d.souvenir.emoji}</button>` : '';
-    }).join('') + (decor[3] ? '' : '<div class="decor-frame-empty"></div>');
+    }).join('') + (selectedDecor || decor[3] ? '' : '<div class="decor-frame-empty"></div>');
     // 방 꾸미기 카드
     const owned = DESTINATIONS.filter((d) => state.souvenirs.includes(d.id));
     const placed = decor.filter(Boolean).length;
     $('#decor-count').textContent = `장식 ${placed} / ${DECOR_SLOTS.length}`;
+    $('#decor-help').textContent = selectedDecor ? '방에서 놓을 자리를 누르세요.' : owned.length ? '배치하거나 옮길 기념품을 고르세요.' : '';
+    $('#decor-remove').hidden = !selectedDecor || !decor.includes(selectedDecor);
     $('#decor-items').innerHTML = owned.length
       ? owned.map((d) => {
           const on = decor.includes(d.id);
-          return `<button class="decor-item${on ? ' on' : ''}" data-souvenir="${d.id}" aria-pressed="${on}" title="${d.name} 기념품"><span>${d.souvenir.emoji}</span><small>${d.souvenir.name}</small></button>`;
+          return `<button class="decor-item${on ? ' on' : ''}" data-souvenir="${d.id}" aria-pressed="${selectedDecor === d.id}" title="${d.name} 기념품"><span>${d.souvenir.emoji}</span><small>${d.souvenir.name}</small></button>`;
         }).join('')
       : '<p class="collection-note">아직 기념품이 없어요. 여행지에 처음 가면 기념품을 받아 와요 ✈️</p>';
-  }
-
-  // 기념품을 누르면 빈자리에 놓고, 이미 놓여 있으면 치운다
-  function toggleDecor(id) {
-    const d = destById(id);
-    if (!d || !state.souvenirs.includes(id)) return;
-    const decor = placedDecor();
-    const at = decor.indexOf(id);
-    if (at >= 0) {
-      decor[at] = null;
-      toast(`${d.souvenir.emoji} ${josa(d.souvenir.name, "을", "를")} 치웠어요`);
-    } else {
-      const free = decor.indexOf(null);
-      if (free < 0) return toast(`장식 자리가 꽉 찼어요 (${DECOR_SLOTS.length}곳). 먼저 하나를 치워 주세요`);
-      decor[free] = id;
-      toast(`${d.souvenir.emoji} ${josa(d.souvenir.name, "으로", "로")} 방을 꾸몄어요!`);
-      if (!gone() && !isAsleep() && state.pet.stage !== 'egg') say('우와, 방이 예뻐졌어요! ✨', 2200);
-    }
-    state.decor = decor;
-    saveState();
-    renderDecor();
   }
 
   function refresh() {

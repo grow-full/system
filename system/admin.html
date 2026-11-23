@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>계정 확인</title>
+  <style>
+    body { margin: 0; font: 1rem/1.5 system-ui, sans-serif; }
+    nav { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding: .75rem 1rem; }
+    #status { margin: 0; }
+    iframe { display: block; width: 100%; height: calc(100dvh - 4rem); border: 0; }
+    [hidden] { display: none; }
+  </style>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="js/supabase-config.js"></script>
+  <script defer src="js/admin.js"></script>
+</head>
+<body>
+  <nav>
+    <a href="./">게임으로 돌아가기</a>
+    <button id="reload" type="button" hidden>새로고침</button>
+    <p id="status" role="status">계정을 확인하는 중입니다.</p>
+  </nav>
+  <iframe id="dashboard" title="방문 통계" sandbox hidden></iframe>
+</body>
+</html>
