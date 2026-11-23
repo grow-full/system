@@ -676,7 +676,7 @@ const Walk = (() => {
 
   function onKey(e) {
     if ($('#screen-walk').hidden || !pano || !inWalk || e.target.closest('input, textarea, select')) return;
-    const keys = { ArrowUp: 'back', ArrowDown: 'forward', ArrowLeft: 'left', ArrowRight: 'right' };
+    const keys = { ArrowUp: 'forward', ArrowDown: 'back', ArrowLeft: 'left', ArrowRight: 'right' };
     if (!keys[e.key]) return;
     e.preventDefault();   // 화면이 스크롤되지 않게
     nudge(keys[e.key], e.repeat);
@@ -684,11 +684,29 @@ const Walk = (() => {
 
   // ---------- 방향키로 우왕이를 한 걸음씩 ----------
   const SIDE_STEP = 15;       // ←/→ 한 번에 옆으로 가는 각도 (예전 12)
-  const DEPTH_STEP = 0.22;    // ↑/↓ 한 번에 멀어지거나 다가오는 정도 (←/→ 15도처럼 한 번에 크게 움직인다)
-  const MAX_DEPTH = 0.85;     // 이보다 멀리 가면 다음 장소를 찾아간다 (예전 0.72)
-  const MIN_DEPTH = -1.5;     // 이보다 가까이(화면 아래쪽) 가면 뒤쪽 사진으로 간다: 사진 아래쪽까지 걸을 수 있다
+  const DEPTH_STEP = 0.3;     // ↑/↓ 한 번에 멀어지거나 다가오는 정도 (0.2보다 조금 크게, 눌렀을 때 바로 움직이도록)
+  const MAX_DEPTH = 0.95;     // 이보다 멀리 가면 다음 장소를 찾아간다 (지평선 가까이까지)
+  const MIN_DEPTH = -1.7;     // 이보다 가까이(화면 맨 아래) 가면 뒤쪽 사진으로 간다
   let targetDepth = 0;
   let followUntil = 0;        // 이 시각까지는 화면이 우왕이를 따라 돈다
+
+  // 끝에 닿았을 때: 처음 누르면 말풍선으로 알려 주고 멈춘다. 2.5초 안에 한 번 더 누르면 다음 장소로 간다.
+  // 누르고 있어서 반복된 입력이면 멈춘 채로 말풍선만 띄운다.
+  let edgeArmedUntil = 0;
+  let edgeArmedDir = '';
+  function edgeHint(dir, repeated) {
+    const key = dir === 'forward' ? '↑' : '↓';
+    if (repeated) return;   // 길게 누르는 중에는 아무것도 하지 않는다 (말풍선은 처음 한 번만)
+    if (edgeArmedDir === dir && Date.now() < edgeArmedUntil) {
+      edgeArmedUntil = 0;
+      edgeArmedDir = '';
+      go(dir === 'back');
+      return;
+    }
+    edgeArmedDir = dir;
+    edgeArmedUntil = Date.now() + 2500;
+    say(`더 가려면 ${key}를 한 번 더 눌러요`, 2000);
+  }
 
   // repeated: 누르고 있어서 자동으로 반복된 입력이면 true (끝까지 간 뒤에 다음 장소로 넘어가지 않는다)
   function nudge(dir, repeated = false) {
@@ -704,17 +722,15 @@ const Walk = (() => {
       target = wrap(target + (dir === 'left' ? -SIDE_STEP : SIDE_STEP));
       setMascot(mascot, { look: dir });
     } else if (dir === 'forward') {
-      if (targetDepth >= MAX_DEPTH - 0.01) {   // 끝까지 갔으면 다음 장소로 (누르고 있을 때는 넘어가지 않는다)
-        if (!repeated) go();
-        else say('더 가려면 ↑를 한 번 더 눌러요', 1400);
+      if (targetDepth >= MAX_DEPTH - 0.01) {   // 끝까지 갔으면 한 번 멈추고, 한 번 더 누르면 다음 장소로
+        edgeHint('forward', repeated);
         return;
       }
       targetDepth = Math.min(MAX_DEPTH, targetDepth + DEPTH_STEP);
       setMascot(mascot, { look: '' });
     } else {
-      if (targetDepth <= MIN_DEPTH + 0.01) {   // 가장 가까이 와 있으면 뒤쪽 사진으로 간다 (누르고 있을 때는 넘어가지 않는다)
-        if (!repeated) go(true);
-        else say('여기가 제일 가까워요', 1200);
+      if (targetDepth <= MIN_DEPTH + 0.01) {   // 가장 가까이 와 있으면 한 번 멈추고, 한 번 더 누르면 뒤쪽 장소로
+        edgeHint('back', repeated);
         return;
       }
       targetDepth = Math.max(MIN_DEPTH, targetDepth - DEPTH_STEP);
@@ -745,7 +761,8 @@ const Walk = (() => {
     // depth: 0이면 바로 앞, 1이면 저 멀리 (멀어질수록 작아지고 수평선 쪽으로 올라간다)
     // 원근감: 가까울수록 확 커지고 멀어질수록 천천히 작아진다 (눈에 보이는 거리처럼)
     // 발밑(음수 depth)은 화면 아래쪽까지 내려와 조금 더 크게 보인다
-    const size = BASE_SIZE * 2 ** (zoom - 1) * (depth >= 0 ? 1 / (1 + 2.2 * depth) : 1 - 0.5 * depth);
+    // 멀어질수록 눈에 띄게 작아지고(가장 멀 때 절반 가까이), 가까이 가면 조금 커진다
+    const size = BASE_SIZE * 2 ** (zoom - 1) * (depth >= 0 ? 1 / (1 + 1.2 * depth) : 1 - 0.3 * depth);
     const x = w / 2 + wrap(heading - pov.heading) * pxPerDeg;
     const y = h * (FOOT_AT + (HORIZON_AT - FOOT_AT) * depth);   // 화면 중간보다 조금 아래에 서 있는다
     walker.style.setProperty('--size', `${size}px`);
@@ -1146,7 +1163,7 @@ const Walk = (() => {
 
   // 걷는 속도 (프레임마다 움직이는 양): 방향을 돌 때(도), 앞뒤로 걸을 때(깊이 비율)
   const WALK_TURN_SPEED = 0.4;
-  const WALK_DEPTH_SPEED = 0.01;
+  const WALK_DEPTH_SPEED = 0.02;   // 앞뒤로 움직이는 속도 (예전 0.01: 누르고 나서 반응이 늦게 보였다)
 
   // 부드럽게 걸어가기
   function loop() {
