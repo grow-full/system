@@ -106,6 +106,7 @@ function defaultState() {
     courses: {},    // 수강 기록: { 과목 id: 출석 횟수 }
     study: null,    // 방에서 공부하는 중 { courseId, start, duration } (pet.js)
     studied: {},    // 공부 기록: { 과목 id: 공부 횟수 }
+    major: '경영정보학과', // 우왕이 전공 학과 이름 (majors.js에서 고른다)
     trips: 0,
     gamesPlayed: 0,
     visited: {},

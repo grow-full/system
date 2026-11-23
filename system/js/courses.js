@@ -1,4 +1,6 @@
-// 우왕이가 듣는 수업: 충북대학교 경영정보학과 2026학년도 학부 교육과정 (mis.chungbuk.ac.kr 학부 > 교육과정)
+// 우왕이가 듣는 수업. 전공은 사용자가 고른다 (majors.js, state.major).
+// 경영정보학과: 충북대학교 경영정보학과 2026학년도 학부 교육과정 (mis.chungbuk.ac.kr 학부 > 교육과정)
+// 다른 학과: 학과 이름으로 학년별 공통 과목 8개를 만든다 (makeMajorCourses). 퀴즈는 충북대 학과 소속 문제.
 // 인턴십(일반선택)은 수업이 아니라서 뺐다. 1·2학기 모두 열리는 과목은 한 번만 넣었다.
 // sem: 개설 학기, type: 전필(전공필수)/전선(전공선택)
 // learned: 수업이 끝나고 우왕이가 말해 주는 배운 것 (하나를 골라 말한다)
@@ -6,7 +8,7 @@
 const LECTURE_MINUTES = 2; // 수업 한 번의 길이 (실제 시간, 분)
 const STUDY_MINUTES = 1;   // 공부하기 한 번의 길이 (실제 시간, 분)
 
-const COURSES = [
+const MIS_COURSES = [
   // ---------- 1학년 ----------
   { id: 'acct', year: 1, sem: '1·2', type: '전필', icon: '🧾', name: '회계원리',
     learned: ['자산 = 부채 + 자본, 이게 회계의 기본이래요', '거래는 차변과 대변에 나눠 적어요'],
@@ -136,6 +138,96 @@ const COURSES = [
     quiz: { q: 'API는 프로그램끼리 데이터를 주고받는 약속(창구)이다', answer: true, why: '정해진 방식으로 요청하면 데이터를 돌려줘요' } },
 ];
 
+// ---------- 다른 학과의 공통 과목 ----------
+// 과목 id는 '학과이름:칸' (예: '국어국문학과:1a'). id만 보고도 과목을 다시 만들 수 있다.
+const MAJOR_COURSE_SLOTS = [
+  { slot: '1a', year: 1, icon: '📘', tag: '전공 입문', name: (s) => `${s} 입문`,
+    learned: (s) => [`${josa(s, '이', '가')} 무엇을 배우는 학문인지 처음 알게 됐어요`, `선배들이 ${s} 공부 요령을 알려 줬어요`] },
+  { slot: '1b', year: 1, icon: '🗂️', tag: '전공 입문', name: (s) => `${s} 기초 세미나`,
+    learned: () => ['같은 과 친구들과 처음으로 조별 토론을 했어요', '모르는 건 바로 질문하는 게 제일 빠르대요'] },
+  { slot: '2a', year: 2, icon: '📗', tag: '전공 기초', name: (s) => `${s} 기초 이론`,
+    learned: (s) => [`${s}의 기본 개념을 정리해 봤어요`, '어려운 용어는 내 말로 바꿔 써 보면 오래 기억된대요'] },
+  { slot: '2b', year: 2, icon: '🔍', tag: '전공 기초', name: (s) => `${s} 연구 방법`,
+    learned: () => ['자료를 모으고 정리하는 방법을 배웠어요', '좋은 질문이 좋은 연구의 시작이래요'] },
+  { slot: '3a', year: 3, icon: '📙', tag: '전공 심화', name: (s) => `${s} 심화 이론`,
+    learned: (s) => [`${s}에서 요즘 많이 연구하는 주제를 들었어요`, '이론끼리 비교해 보니 더 잘 이해됐어요'] },
+  { slot: '3b', year: 3, icon: '🧪', tag: '전공 심화', name: (s) => `${s} 현장 실습`,
+    learned: () => ['배운 걸 실제 현장에서 써 봤어요', '현장에서는 꼼꼼한 기록이 제일 중요하대요'] },
+  { slot: '4a', year: 4, icon: '🏗️', tag: '졸업 과정', name: (s) => `${s} 캡스톤 디자인`,
+    learned: () => ['팀원들과 작품을 처음부터 끝까지 만들어 봤어요', '발표할 땐 결론부터 말하래요'] },
+  { slot: '4b', year: 4, icon: '🎓', tag: '졸업 과정', name: (s) => `${s} 졸업 연구`,
+    learned: () => ['졸업 논문 주제를 정했어요', '참고한 자료는 빠짐없이 출처를 적어야 한대요'] },
+];
+
+// 이름 문자열로 고르는 고정 난수: 같은 학과·같은 칸이면 늘 같은 문제가 나온다
+function pickBy(key, list) {
+  let h = 0;
+  for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return list[h % list.length];
+}
+
+// 충북대 학과 소속 OX 문제 (majors.js의 목록이 정답 근거)
+function majorQuiz(dept, slot) {
+  const college = collegeOf(dept);
+  const others = COLLEGES.filter((c) => c !== college);
+  const key = `${dept}:${slot}`;
+  const deptIs = (d) => josa(d, '은', '는');
+  const siblings = college.depts.filter((d) => d !== dept);
+  const kinds = {
+    mine: () => ({ q: `${deptIs(dept)} ${college.name} 소속이다`, answer: true, why: `${deptIs(dept)} ${college.name}에 있어요` }),
+    notMine: () => {
+      const c = pickBy(key, others);
+      return { q: `${deptIs(dept)} ${c.name} 소속이다`, answer: false, why: `${deptIs(dept)} ${college.name} 소속이에요` };
+    },
+    sibling: () => {
+      if (!siblings.length) return kinds.count();
+      const d = pickBy(key, siblings);
+      return { q: `${college.name}에는 ${d}도 있다`, answer: true, why: `${d}도 ${college.name}에 있어요` };
+    },
+    stranger: () => {
+      // 이름이 비슷해 헷갈리는 학과(예: 인문학자율전공학부와 자율전공학부, 수의학과와 의학과)는 문제로 내지 않는다
+      const pool = others.flatMap((c) => c.depts.filter((x) => !college.depts.some((y) => y.includes(x))).map((x) => [x, c]));
+      const [d, c] = pickBy(key, pool);
+      return { q: `${college.name}에는 ${josa(d, '이', '가')} 있다`, answer: false, why: `${deptIs(d)} ${c.name} 소속이에요` };
+    },
+    count: () => {
+      const n = college.depts.length;
+      return { q: `충북대 ${college.name}에는 학과·학부가 ${n}개 있다`, answer: true, why: `${college.name}에는 학과·학부 ${n}곳이 있어요. 전공 고르기 목록에서 모두 볼 수 있어요` };
+    },
+  };
+  const order = { '1a': 'mine', '1b': 'notMine', '2a': 'sibling', '2b': 'stranger', '3a': 'count', '3b': 'notMine', '4a': 'sibling', '4b': 'stranger' };
+  return kinds[order[slot]]();
+}
+
+function makeMajorCourse(dept, t) {
+  const s = majorSubject(dept);
+  return { id: `${dept}:${t.slot}`, year: t.year, tag: t.tag, icon: t.icon, name: t.name(s),
+    learned: t.learned(s), quiz: majorQuiz(dept, t.slot) };
+}
+
+function makeMajorCourses(dept) {
+  return MAJOR_COURSE_SLOTS.map((t) => makeMajorCourse(dept, t));
+}
+
+// 지금 전공의 과목 목록. 전공이 바뀌면 새로 만든다.
+let courseCache = { major: DEFAULT_MAJOR, list: MIS_COURSES };
+function currentMajor() {
+  return isMajor(state.major) ? state.major : DEFAULT_MAJOR;
+}
+function currentCourses() {
+  const major = currentMajor();
+  if (courseCache.major !== major) {
+    courseCache = { major, list: major === DEFAULT_MAJOR ? MIS_COURSES : makeMajorCourses(major) };
+  }
+  return courseCache.list;
+}
+
+// 전공을 바꾼 뒤에도 듣던 수업·풀던 퀴즈는 그대로 찾을 수 있어야 한다
 function courseById(id) {
-  return COURSES.find((c) => c.id === id);
+  if (!id) return undefined;
+  const mis = MIS_COURSES.find((c) => c.id === id);
+  if (mis) return mis;
+  const [dept, slot] = String(id).split(':');
+  const t = MAJOR_COURSE_SLOTS.find((x) => x.slot === slot);
+  return isMajor(dept) && t ? makeMajorCourse(dept, t) : undefined;
 }
