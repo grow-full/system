@@ -53,10 +53,21 @@ const Walk = (() => {
     mascot.addEventListener('click', tap);
     $('#walk-friend').addEventListener('click', () => { if (canWalk()) greet(); });
     document.addEventListener('keydown', onKey);
-    $('#walk-pad').addEventListener('click', (e) => {
+    // 방향 버튼은 누르고 있으면 계속 걸어간다 (처음 0.4초 뒤부터 0.12초마다)
+    let holdDelay = null;
+    let holdRepeat = null;
+    const stopHold = () => { clearTimeout(holdDelay); clearInterval(holdRepeat); holdDelay = holdRepeat = null; };
+    $('#walk-pad').addEventListener('pointerdown', (e) => {
       const b = e.target.closest('[data-move]');
-      if (b) nudge(b.dataset.move);
+      if (!b) return;
+      e.preventDefault();
+      stopHold();
+      const dir = b.dataset.move;
+      nudge(dir);
+      holdDelay = setTimeout(() => { holdRepeat = setInterval(() => nudge(dir, true), 120); }, 400);
     });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((t) => $('#walk-pad').addEventListener(t, stopHold));
+    setupClickToWalk();
     $('#btn-walk-start').addEventListener('click', startWalk);
     $('#btn-walk-end').addEventListener('click', endWalk);
     $('#btn-walk-music').addEventListener('click', toggleMusic);
@@ -523,7 +534,7 @@ const Walk = (() => {
   // 보고 있는 방향으로 조금씩 멀리 찾아보며 가장 가까운 사진으로 건너뛴다.
   const SEARCH_STEPS = [20, 40, 80, 150];   // 앞쪽으로 몇 m 지점에서 찾을지
 
-  function findAhead(direction) {
+  function findAhead(direction, spread = 50) {
     const from = pano.getPosition();
     const currentId = pano.getPano();
     let i = 0;
@@ -537,7 +548,7 @@ const Walk = (() => {
           if (status !== 'OK' || !data || data.location.pano === currentId || isBlocked(data)) { next(); return; }
           // 보는 방향에서 너무 옆으로 벗어난 사진은 건너뛴다
           const bearing = spherical.computeHeading(from, data.location.latLng);
-          if (Math.abs(wrap(bearing - direction)) > 50) { next(); return; }
+          if (Math.abs(wrap(bearing - direction)) > spread) { next(); return; }
           resolve({ id: data.location.pano, meters: Math.round(spherical.computeDistanceBetween(from, data.location.latLng)) });
         });
       };
@@ -557,44 +568,130 @@ const Walk = (() => {
   }
 
   async function goInner(backward = false) {
-    traveling = true;
     const look = pano.getPov().heading;
-    const direction = backward ? wrap(look + 180) : look;
     target = look;                    // 우왕이가 앞장선다
     say('저쪽으로 가 볼까요?', 1200);
-    const found = await findAhead(direction);
-    if (found) {
-      pano.setPano(found.id);
-      pano.setPov({ heading: look, pitch: pano.getPov().pitch });
-      heading = target = look;        // 새 장소에서도 바로 앞에 서 있는다
-      depth = targetDepth = 0;
-      lastMove = Date.now();
-      say(`${found.meters}m 걸어왔어요 🐾`, 1800);
-      setTimeout(() => say(placeComment(), 3200), 1800);
-      addSteps(found.meters);
-    } else {
-      say('이쪽으로는 길이 없어요 🤔', 1800);
-      playMascot(mascot, 'refuse', 600);
+    await walkDirection(backward ? wrap(look + 180) : look, look);
+  }
+
+  // 한 방향의 다음 사진으로 건너간다. look: 도착해서 바라볼 방향
+  async function walkDirection(direction, look) {
+    traveling = true;
+    try {
+      const found = await findNext(direction);
+      if (found) {
+        pano.setPano(found.id);
+        pano.setPov({ heading: look, pitch: pano.getPov().pitch });
+        heading = target = look;        // 새 장소에서도 바로 앞에 서 있는다
+        depth = targetDepth = 0;
+        lastMove = Date.now();
+        say(`${found.meters}m 걸어왔어요 🐾`, 1800);
+        setTimeout(() => say(placeComment(), 3200), 1800);
+        addSteps(found.meters);
+      } else {
+        say('이쪽으로는 길이 없어요 🤔', 1800);
+        playMascot(mascot, 'refuse', 600);
+      }
+    } finally {
+      traveling = false;
     }
-    traveling = false;
+  }
+
+  // 방향에 맞는 다음 사진: 먼저 길(링크) 중 누른 방향에 가장 가까운 것, 없으면 근처를 찾아본다
+  async function findNext(direction) {
+    const link = linkToward(direction);
+    if (link) {
+      const hit = await linkInfo(link.pano);
+      if (hit) return hit;
+    }
+    return findAhead(direction, 70);
+  }
+
+  // 지금 사진에서 이어진 길 가운데 방향이 60도 안에서 가장 가까운 것
+  function linkToward(direction) {
+    const links = (pano.getLinks && pano.getLinks()) || [];
+    let best = null;
+    let bestDiff = 60;
+    links.forEach((l) => {
+      const d = Math.abs(wrap(Number(l.heading) - direction));
+      if (d < bestDiff) { bestDiff = d; best = l; }
+    });
+    return best;
+  }
+
+  function linkInfo(id) {
+    return new Promise((resolve) => {
+      service.getPanorama({ pano: id }, (data, status) => {
+        if (status !== 'OK' || !data || isBlocked(data)) { resolve(null); return; }
+        const from = pano.getPosition();
+        resolve({ id: data.location.pano, meters: from ? Math.round(spherical.computeDistanceBetween(from, data.location.latLng)) : 10 });
+      });
+    });
+  }
+
+  // ---------- 화면을 누르면 그쪽으로 걸어간다 ----------
+  let downAt = null;
+  function setupClickToWalk() {
+    view.addEventListener('pointerdown', (e) => { downAt = { x: e.clientX, y: e.clientY }; });
+    view.addEventListener('pointerup', (e) => {
+      if (!downAt) return;
+      const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
+      downAt = null;
+      if (moved > 6) return;   // 끌어서 시점을 돌린 것이면 걷지 않는다
+      walkToPoint(e.clientX, e.clientY);
+    });
+  }
+
+  function walkToPoint(clientX, clientY) {
+    if (!pano || !inWalk) return;
+    if (!canWalk()) {
+      say(state.pet.sick ? '아파서 걸을 수 없어요 🤒' : cafeSitting ? '카페에서 쉬는 중이에요' : '지금은 걸을 수 없어요', 1600);
+      return;
+    }
+    if (traveling) return;   // 다른 곳으로 걸어가는 중이면 기다린다
+    const rect = overlay.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const fov = 180 / 2 ** (pano.getZoom() || 1);
+    const pxPerDeg = rect.width / fov;
+    const dir = wrap(pano.getPov().heading + (x - rect.width / 2) / pxPerDeg);   // 누른 곳의 방향
+    const r = y / rect.height;   // 0이 맨 위, 1이 맨 아래
+    lastMove = Date.now() + 4000;
+    followUntil = Date.now() + 1500;
+    if (r < HORIZON_AT) {
+      // 지평선 너머: 멀리 있는 곳이라 그 방향의 다음 사진까지 걸어간다
+      say('저쪽으로 가 볼까요?', 1200);
+      target = dir;
+      walkDirection(dir, dir).catch((e) => { console.error('걷기 실패', e); traveling = false; });
+      return;
+    }
+    // 발 근처면 그 자리로, 지평선 쪽이면 더 멀리 걸어간다
+    target = dir;
+    setMascot(mascot, { look: wrap(dir - heading) < 0 ? 'left' : 'right' });
+    const want = Math.min(MAX_DEPTH, Math.max(MIN_DEPTH, (FOOT_AT - r) / (FOOT_AT - HORIZON_AT)));
+    const moved = Math.abs(want - targetDepth);
+    targetDepth = want;
+    if (moved > 0.01) stepHere(addSteps(moved * 10.5));   // 한 번 누를 때 2.1m씩 가는 것과 같은 비율로 걸음을 센다
   }
 
   function onKey(e) {
     if ($('#screen-walk').hidden || !pano || !inWalk || e.target.closest('input, textarea, select')) return;
-    const keys = { ArrowUp: 'forward', ArrowDown: 'back', ArrowLeft: 'left', ArrowRight: 'right' };
+    const keys = { ArrowUp: 'back', ArrowDown: 'forward', ArrowLeft: 'left', ArrowRight: 'right' };
     if (!keys[e.key]) return;
     e.preventDefault();   // 화면이 스크롤되지 않게
-    nudge(keys[e.key]);
+    nudge(keys[e.key], e.repeat);
   }
 
   // ---------- 방향키로 우왕이를 한 걸음씩 ----------
-  const SIDE_STEP = 12;       // ←/→ 한 번에 옆으로 가는 각도
-  const DEPTH_STEP = 0.2;     // ↑/↓ 한 번에 멀어지거나 다가오는 정도
-  const MAX_DEPTH = 0.72;     // 이보다 멀리 가면 다음 장소를 찾아간다
+  const SIDE_STEP = 15;       // ←/→ 한 번에 옆으로 가는 각도 (예전 12)
+  const DEPTH_STEP = 0.22;    // ↑/↓ 한 번에 멀어지거나 다가오는 정도 (←/→ 15도처럼 한 번에 크게 움직인다)
+  const MAX_DEPTH = 0.85;     // 이보다 멀리 가면 다음 장소를 찾아간다 (예전 0.72)
+  const MIN_DEPTH = -1.5;     // 이보다 가까이(화면 아래쪽) 가면 뒤쪽 사진으로 간다: 사진 아래쪽까지 걸을 수 있다
   let targetDepth = 0;
   let followUntil = 0;        // 이 시각까지는 화면이 우왕이를 따라 돈다
 
-  function nudge(dir) {
+  // repeated: 누르고 있어서 자동으로 반복된 입력이면 true (끝까지 간 뒤에 다음 장소로 넘어가지 않는다)
+  function nudge(dir, repeated = false) {
     if (!pano) return;
     if (!canWalk()) {   // 못 걷는 이유를 말해 준다 (알, 아픔, 여행 중)
       say(state.pet.sick ? '아파서 걸을 수 없어요 🤒' : cafeSitting ? '카페에서 쉬는 중이에요' : '지금은 걸을 수 없어요', 1600);
@@ -607,14 +704,24 @@ const Walk = (() => {
       target = wrap(target + (dir === 'left' ? -SIDE_STEP : SIDE_STEP));
       setMascot(mascot, { look: dir });
     } else if (dir === 'forward') {
-      if (targetDepth >= MAX_DEPTH - 0.01) { go(); return; }   // 끝까지 갔으면 다음 장소로
+      if (targetDepth >= MAX_DEPTH - 0.01) {   // 끝까지 갔으면 다음 장소로 (누르고 있을 때는 넘어가지 않는다)
+        if (!repeated) go();
+        else say('더 가려면 ↑를 한 번 더 눌러요', 1400);
+        return;
+      }
       targetDepth = Math.min(MAX_DEPTH, targetDepth + DEPTH_STEP);
       setMascot(mascot, { look: '' });
     } else {
-      targetDepth = Math.max(0, targetDepth - DEPTH_STEP);
+      if (targetDepth <= MIN_DEPTH + 0.01) {   // 가장 가까이 와 있으면 뒤쪽 사진으로 간다 (누르고 있을 때는 넘어가지 않는다)
+        if (!repeated) go(true);
+        else say('여기가 제일 가까워요', 1200);
+        return;
+      }
+      targetDepth = Math.max(MIN_DEPTH, targetDepth - DEPTH_STEP);
       setMascot(mascot, { look: '' });
     }
-    const added = addSteps(2.1);   // 한 번 누를 때 세 걸음
+    // 앞뒤로 한 번 누를 때는 그만큼의 거리만 센다 (옆으로 돌 때는 예전처럼 세 걸음)
+    const added = addSteps(dir === 'left' || dir === 'right' ? 2.1 : DEPTH_STEP * 10.5);
     stepHere(added);               // 이 장소에서 걸은 걸음 (도장)
     // 걸을 때마다 이 장소에 대한 감상을 말한다 (앞의 말이 끝난 뒤에 다음 말)
     if (Date.now() > speechUntil || idleSpeech) say(placeComment(), 2600);
@@ -636,7 +743,9 @@ const Walk = (() => {
     const h = overlay.clientHeight;
     const pxPerDeg = w / fov;
     // depth: 0이면 바로 앞, 1이면 저 멀리 (멀어질수록 작아지고 수평선 쪽으로 올라간다)
-    const size = BASE_SIZE * 2 ** (zoom - 1) * (1 - 0.7 * depth);
+    // 원근감: 가까울수록 확 커지고 멀어질수록 천천히 작아진다 (눈에 보이는 거리처럼)
+    // 발밑(음수 depth)은 화면 아래쪽까지 내려와 조금 더 크게 보인다
+    const size = BASE_SIZE * 2 ** (zoom - 1) * (depth >= 0 ? 1 / (1 + 2.2 * depth) : 1 - 0.5 * depth);
     const x = w / 2 + wrap(heading - pov.heading) * pxPerDeg;
     const y = h * (FOOT_AT + (HORIZON_AT - FOOT_AT) * depth);   // 화면 중간보다 조금 아래에 서 있는다
     walker.style.setProperty('--size', `${size}px`);
@@ -1035,6 +1144,10 @@ const Walk = (() => {
     greeting = false;
   }
 
+  // 걷는 속도 (프레임마다 움직이는 양): 방향을 돌 때(도), 앞뒤로 걸을 때(깊이 비율)
+  const WALK_TURN_SPEED = 0.4;
+  const WALK_DEPTH_SPEED = 0.01;
+
   // 부드럽게 걸어가기
   function loop() {
     cancelAnimationFrame(frame);
@@ -1042,11 +1155,11 @@ const Walk = (() => {
       if ($('#screen-walk').hidden || !pano || !inWalk) return;
       const diff = wrap(target - heading);
       const turning = Math.abs(diff) > 0.05;
-      if (turning) heading = wrap(heading + Math.sign(diff) * Math.min(Math.abs(diff), 0.4));
+      if (turning) heading = wrap(heading + Math.sign(diff) * Math.min(Math.abs(diff), WALK_TURN_SPEED));
       // 방향키로 멀어지거나 다가올 때 (장소 바로 가기 중에는 그쪽 애니메이션이 depth를 정한다)
       const dd = walkingAway ? 0 : targetDepth - depth;
       const stepping = Math.abs(dd) > 0.002;
-      if (stepping) depth += Math.sign(dd) * Math.min(Math.abs(dd), 0.01);
+      if (stepping) depth += Math.sign(dd) * Math.min(Math.abs(dd), WALK_DEPTH_SPEED);
       if (!turning && !stepping) setMascot(mascot, { look: '' });
       // 우왕이가 화면 끝으로 가면 화면이 따라 돈다
       if (Date.now() < followUntil) {
@@ -1246,7 +1359,8 @@ const Walk = (() => {
     lastMove = Date.now();
     // 사용자가 보고 있는 쪽 근처로 걸어간다
     const center = pano.getPov().heading;
-    target = wrap(center + (Math.random() * 60 - 30));
+    target = wrap(center + (Math.random() * 120 - 60));   // 예전 ±30도에서 넓혔다
+    targetDepth = MIN_DEPTH + Math.random() * (MAX_DEPTH - MIN_DEPTH);   // 가까이도, 멀리도 걸어간다
     setMascot(mascot, { look: wrap(target - heading) < 0 ? 'left' : 'right' });
   }
 
