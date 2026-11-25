@@ -113,7 +113,7 @@ const WALK_MUSIC_DEFAULT = 'campus';
 
 // 장소마다 상징 아이콘 ("어디로 갈까요?" 버튼에 나와요). 여기 없는 장소는 📍로 나와요.
 const WALK_ICONS = {
-  '솔못': '🪷',
+  '솔못': '🏞️',
   '사회과학대학': '⚖️',
   '경영대': '💼',
   '씨비앤유스타': '⭐',
@@ -208,18 +208,4 @@ const WALK_TALKS = {
   ],
 };
 
-const WALK_FRIENDS = {
-  '정문': { art: 'jwawang', name: '좌왕이', hello: '형! 왔어? 오늘은 어디 갈 거야?', reply: '좌왕아! 같이 캠퍼스 한 바퀴 돌자 🐾', offset: 26 },
-  // 스테디는 중앙도서관에 살아요.
-  '개신문화관&중앙도서관': { art: 'steady', name: '스테디', hello: '쉿… 나 공부 중이야. 그래도 반가워! 📚', reply: '스테디! 공부 열심히 해, 응원할게!', offset: -26 },
-  '대운동장': { art: 'tana', name: '타나', hello: '어흥! …아, 우왕이구나. 같이 뛸래?', reply: '좋아 타나! 달리기 시합이다 🏃', offset: 28 },
-  '자연과학대학': { art: 'neuru', name: '느루', hello: '오늘 햇빛 진짜 좋다~ 우왕아 안녕! 🍃', reply: '느루야 안녕! 나뭇잎 떨어진다 하하', offset: -24 },
-  '행복담길': { art: 'eunsong', name: '은송이', hello: '우왕아, 오늘도 좋은 하루 보내 🌼', reply: '은송아! 여기 꽃향기 너무 좋아 💗', offset: 24 },
-  // 같은 친구가 여러 장소에 살 수 있어요. 한 번 만나면 모든 장소에서 다시 만나지 않아요 (이름으로 센다).
-  '사회과학대학': { art: 'neuru', name: '느루', hello: '오늘 햇빛 진짜 좋다~ 우왕아 안녕! 🍃', reply: '느루야 안녕! 나뭇잎 떨어진다 하하', offset: -24 },
-  '경영대': { art: 'steady', name: '스테디', hello: '쉿… 나 공부 중이야. 그래도 반가워! 📚', reply: '스테디! 공부 열심히 해, 응원할게!', offset: -26 },
-  '공대': { art: 'tana', name: '타나', hello: '어흥! …아, 우왕이구나. 같이 뛸래?', reply: '좋아 타나! 달리기 시합이다 🏃', offset: 28 },
-  '학군단': { art: 'tana', name: '타나', hello: '어흥! …아, 우왕이구나. 같이 뛸래?', reply: '좋아 타나! 달리기 시합이다 🏃', offset: 28 },
-  '충북대학교 동물병원': { art: 'jwawang', name: '좌왕이', hello: '형! 왔어? 오늘은 어디 갈 거야?', reply: '좌왕아! 같이 캠퍼스 한 바퀴 돌자 🐾', offset: 26 },
-  '사범대 가는길': { art: 'eunsong', name: '은송이', hello: '우왕아, 오늘도 좋은 하루 보내 🌼', reply: '은송아! 여기 꽃향기 너무 좋아 💗', offset: 24 },
-};
+const WALK_FRIENDS = {};
